@@ -4,3 +4,4 @@ flask_cors==5.0.0
 python_socketio==5.11.4
 numpy==1.26.4
 linuxpy==0.16.0
+supervision==0.23.0

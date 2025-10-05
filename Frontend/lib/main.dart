@@ -8,7 +8,7 @@ Future<void> main() async {
   detectionEventStream.listen((data) {
     print('DART: $data');
   });
-  await connectToSocketServer();
+  connectToSocketServer();
   runApp(MyApp(
     detectionEventStream: detectionEventStream,
   ));

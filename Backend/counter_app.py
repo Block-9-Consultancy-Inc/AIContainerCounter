@@ -8,6 +8,7 @@ import cv2
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
+from time import sleep
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
@@ -30,37 +31,41 @@ if MODEL_PATH == None:
     MODEL_PATH = "general-model-1-9.pt"
 
 def detection_process():
-    model = YOLO(MODEL_PATH)
+    while True:
+        sio.emit('test', 'initial test')
+        print('emitted initial test')
+        sleep(5)
+    # model = YOLO(MODEL_PATH)
 
-    # Define region points
-    region_points = [(int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH), (int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH)]
+    # # Define region points
+    # region_points = [(int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH), (int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH)]
 
-    # Init Object Counter
-    counter = solutions.ObjectCounter(
-        reg_pts=region_points,
-        names=model.names,
-        draw_tracks=True,
-        line_thickness=2,
-    )
+    # # Init Object Counter
+    # counter = solutions.ObjectCounter(
+    #     reg_pts=region_points,
+    #     names=model.names,
+    #     draw_tracks=True,
+    #     line_thickness=2,
+    # )
 
-    with Device.from_id(0) as cam:
-        cam.set_format(BufferType.VIDEO_CAPTURE, HEIGHT, WIDTH, "MJPG")
-        for frame in cam:
-            decoded_frame = cv2.imdecode(frame.array, cv2.IMREAD_UNCHANGED)
-            tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
+    # with Device.from_id(0) as cam:
+    #     cam.set_format(BufferType.VIDEO_CAPTURE, HEIGHT, WIDTH, "MJPG")
+    #     for frame in cam:
+    #         decoded_frame = cv2.imdecode(frame.array, cv2.IMREAD_UNCHANGED)
+    #         tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
 
-            decoded_frame = counter.start_counting(decoded_frame, tracks)
+    #         decoded_frame = counter.start_counting(decoded_frame, tracks)
 
-            metadata = {}
-            _, buffer = cv2.imencode('.jpg', decoded_frame)
-            metadata['encoded_frame'] = base64.b64encode(buffer).decode('utf-8')
-            metadata['total_in'] = counter.in_counts
-            metadata['total_out'] = counter.out_counts
-            metadata['class_wise_counts'] = counter.class_wise_count
+    #         metadata = {}
+    #         _, buffer = cv2.imencode('.jpg', decoded_frame)
+    #         metadata['encoded_frame'] = base64.b64encode(buffer).decode('utf-8')
+    #         metadata['total_in'] = counter.in_counts
+    #         metadata['total_out'] = counter.out_counts
+    #         metadata['class_wise_counts'] = counter.class_wise_count
 
 
-            sio.emit('detection_event', metadata, namespace='/')
-            sio.emit('test', 'test test test')
+    #         sio.emit('detection_event', metadata, namespace='/')
+    #         sio.emit('test', 'test test test')
 
 @sio.on('connect')
 def test_connect(sid, msg):
@@ -82,5 +87,4 @@ if __name__ == '__main__':
         detection_thread = Thread(target=detection_process)
         detection_thread.daemon = True  # Daemonize thread
         detection_thread.start()
-        sio.emit('test', 'initial test')
     app.run(threaded=True)

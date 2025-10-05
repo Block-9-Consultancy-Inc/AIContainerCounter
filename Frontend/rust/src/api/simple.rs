@@ -1,22 +1,11 @@
-use std::{thread, time};
-
 use crate::frb_generated::StreamSink;
-use futures_util::FutureExt;
 use lazy_static::lazy_static;
 use log::warn;
 use parking_lot::RwLock;
-use rust_socketio::{
-    asynchronous::{Client, ClientBuilder},
-    Payload,
-};
-use serde_json::json;
+use rust_socketio::{client::Client, ClientBuilder, Payload};
 
 lazy_static! {
     static ref DETECTION_EVENT_STREAM_SINK: RwLock<Option<StreamSink<String>>> = RwLock::new(None);
-}
-
-lazy_static! {
-    static ref SOCKET: RwLock<Option<Client>> = RwLock::new(None);
 }
 
 pub fn set_detection_event_stream_sink(stream_sink: StreamSink<String>) {
@@ -35,10 +24,32 @@ pub fn set_detection_event_stream_sink(stream_sink: StreamSink<String>) {
     }
 }
 
-#[tokio::main]
-pub async fn connect_to_socket_server() {
-    let callback = |payload: Payload, socket: Client| {
-        async move {
+#[flutter_rust_bridge::frb(opaque)]
+pub struct Socket {
+    inner: Option<Client>,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn new_socket() -> Socket { Socket { inner: None } }
+
+impl Socket {
+    pub fn emit_event(&mut self, event: String, data: String) -> bool {
+        if self.inner.is_none() {
+            eprintln!("socket has not been initialized yet!");
+            return false;
+        }
+
+        let res = self.inner.as_ref().unwrap().emit(event, data);
+        return res.is_ok();
+    }
+
+    pub fn connect_to_socket_server(&mut self, server_address: String) -> bool {
+        if self.inner.is_some() {
+            println!("socket already initialized, cancelling");
+            return true;
+        }
+
+        let callback = |payload: Payload, _| {
             match payload {
                 Payload::Text(values) => {
                     println!("Received: {:#?}", values);
@@ -61,51 +72,27 @@ pub async fn connect_to_socket_server() {
                     }
                 }
             }
-            socket
-                .emit("test", json!({"got ack": true}))
-                .await
-                .expect("Server unreachable");
-        }
-        .boxed()
-    };
+        };
 
-    let mut guard = SOCKET.write();
-    let overriding = guard.is_some();
-
-    *guard = Some(
-        ClientBuilder::new("http://localhost:5000/")
+        let client = ClientBuilder::new(&server_address)
             .transport_type(rust_socketio::TransportType::Websocket)
             .on("test", callback)
             .on("detection_event", callback)
             .on("connect", |msg, _| {
-                async move { println!("Connected: {:#?}", msg) }.boxed()
+                println!("Connected: {:#?}", msg)
             })
             .on("error", |err, _| {
-                async move { eprintln!("Error: {:#?}", err) }.boxed()
+                eprintln!("Error: {:#?}", err)
             })
-            .connect()
-            .await
-            .expect("Connection failed"),
-    );
+            .connect();
 
-    drop(guard);
-
-    if overriding {
-        warn!(
-            "SOCKET created but already exists, thus overriding. \
-            (This may or may not be a problem. It will happen normally if hot-reload Flutter app.)"
-        );
-    }
-
-    println!("connected (manual)");
-
-
-    loop {
-        if let Some(socket) = &*SOCKET.read() {
-            let _ = socket.emit("test", "test rust").await;
+            
+        if client.is_ok() {
+            self.inner = Some(client.unwrap());
+            return true;
         }
-        println!("emitted test (manual in loop)");
-        thread::sleep(time::Duration::from_secs(5));
+
+        return false;
     }
 }
 

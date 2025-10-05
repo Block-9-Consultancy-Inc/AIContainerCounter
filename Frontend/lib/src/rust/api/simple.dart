@@ -12,8 +12,14 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Stream<String> setDetectionEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetDetectionEventStreamSink();
 
-Future<void> connectToSocketServer() =>
-    RustLib.instance.api.crateApiSimpleConnectToSocketServer();
+Socket newSocket() => RustLib.instance.api.crateApiSimpleNewSocket();
 
 String greet({required String name}) =>
     RustLib.instance.api.crateApiSimpleGreet(name: name);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Socket>>
+abstract class Socket implements RustOpaqueInterface {
+  Future<bool> connectToSocketServer({required String serverAddress});
+
+  Future<bool> emitEvent({required String event, required String data});
+}

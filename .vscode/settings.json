@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "ai_container_counter/rust/Cargo.toml"
+    ]
+}

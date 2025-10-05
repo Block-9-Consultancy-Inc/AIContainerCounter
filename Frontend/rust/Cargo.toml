@@ -1,0 +1,18 @@
+[package]
+name = "rust_lib_ai_container_counter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+anyhow = "1.0.89"
+flutter_rust_bridge = "=2.4.0"
+futures-util = "0.3.30"
+lazy_static = "1.5.0"
+log = "0.4.22"
+parking_lot = "0.12.3"
+rust_socketio = { version = "0.6.0", features = ["tokio", "async"] }
+serde_json = "1.0.128"
+tokio = { version = "1.40.0", features = ["full"] }

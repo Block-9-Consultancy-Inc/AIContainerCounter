@@ -1,0 +1,6 @@
+ultralytics==8.2.98
+flask==3.0.3
+flask_cors==5.0.0
+python_socketio==5.11.4
+numpy==1.26.4
+linuxpy==0.16.0

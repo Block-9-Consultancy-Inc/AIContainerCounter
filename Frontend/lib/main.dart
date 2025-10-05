@@ -8,7 +8,6 @@ Future<void> main() async {
   detectionEventStream.listen((data) {
     print('DART: $data');
   });
-  connectToSocketServer();
   runApp(MyApp(
     detectionEventStream: detectionEventStream,
   ));
@@ -27,6 +26,49 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late Stream<String> detectionEventStream;
+  late Socket socket;
+
+  @override
+  void initState() {
+    super.initState();
+    socket = newSocket();
+
+    socket
+        .connectToSocketServer(serverAddress: 'http://localhost:5000')
+        .then((didConnect) async {
+      if (didConnect) {
+        print('DART: socket has connected to server successfully');
+      } else {
+        print(
+            'DART: socket unable to connect to server trying again every 2 seconds');
+        bool connected = false;
+        while (!connected) {
+          await Future.delayed(const Duration(seconds: 2));
+          connected = await socket.connectToSocketServer(
+              serverAddress: 'http://localhost:5000');
+          if (connected) {
+            print('DART: socket has connected to server successfully');
+          } else {
+            print(
+                'DART: socket unable to connect to server trying again every 2 seconds');
+          }
+        }
+      }
+
+      int i = 1;
+      while (true) {
+        await socket.emitEvent(event: 'test', data: 'test sent from dart! $i');
+        i++;
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    socket.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

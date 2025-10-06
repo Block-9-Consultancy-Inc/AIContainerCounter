@@ -3,12 +3,34 @@ use lazy_static::lazy_static;
 use log::warn;
 use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Payload};
+use base64::{engine::general_purpose::STANDARD, Engine};
 
 lazy_static! {
-    static ref DETECTION_EVENT_STREAM_SINK: RwLock<Option<StreamSink<String>>> = RwLock::new(None);
+    static ref EVENT_STREAM_SINK: RwLock<Option<StreamSink<String>>> = RwLock::new(None);
 }
 
-pub fn set_detection_event_stream_sink(stream_sink: StreamSink<String>) {
+lazy_static! {
+    static ref DETECTION_EVENT_STREAM_SINK: RwLock<Option<StreamSink<Vec<u8>>>> = RwLock::new(None);
+}
+
+
+pub fn set_event_stream_sink(stream_sink: StreamSink<String>) {
+    let mut guard = EVENT_STREAM_SINK.write();
+    let overriding = guard.is_some();
+
+    *guard = Some(stream_sink);
+
+    drop(guard);
+
+    if overriding {
+        warn!(
+            "SendToDartLogger::set_stream_sink but already exist a sink, thus overriding. \
+            (This may or may not be a problem. It will happen normally if hot-reload Flutter app.)"
+        );
+    }
+}
+
+pub fn set_detection_event_stream_sink(stream_sink: StreamSink<Vec<u8>>) {
     let mut guard = DETECTION_EVENT_STREAM_SINK.write();
     let overriding = guard.is_some();
 
@@ -52,14 +74,16 @@ impl Socket {
         let callback = |payload: Payload, _| {
             match payload {
                 Payload::Text(values) => {
-                    println!("Received: {:#?}", values);
+                    println!("Received values: {:#?}", values);
+                    let encoded_frame_base64 = values[0].as_object().unwrap().get("encoded_frame").unwrap().as_str().unwrap();
+                    let frame = STANDARD.decode(encoded_frame_base64).unwrap();
                     if let Some(sink) = &*DETECTION_EVENT_STREAM_SINK.read() {
-                        let _ = sink.add(format!("Received: {:#?}", values));
+                        let _ = sink.add(frame);
                     }
                 }
                 Payload::Binary(bin_data) => {
                     println!("Received bytes: {:#?}", bin_data);
-                    if let Some(sink) = &*DETECTION_EVENT_STREAM_SINK.read() {
+                    if let Some(sink) = &*EVENT_STREAM_SINK.read() {
                         let _ = sink.add(format!("Received bytes: {:#?}", bin_data));
                     }
                 }
@@ -67,7 +91,7 @@ impl Socket {
                 #[allow(deprecated)]
                 Payload::String(str) => {
                     println!("Received: {}", str);
-                    if let Some(sink) = &*DETECTION_EVENT_STREAM_SINK.read() {
+                    if let Some(sink) = &*EVENT_STREAM_SINK.read() {
                         let _ = sink.add(format!("Received: {}", str));
                     }
                 }

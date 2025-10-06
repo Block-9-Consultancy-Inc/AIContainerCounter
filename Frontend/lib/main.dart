@@ -1,22 +1,28 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
 
 Future<void> main() async {
   await RustLib.init();
-  final Stream<String> detectionEventStream = setDetectionEventStreamSink();
-  detectionEventStream.listen((data) {
+  final Stream<String> eventStream = setEventStreamSink();
+  final Stream<Uint8List> detectionEventStream = setDetectionEventStreamSink();
+  eventStream.listen((data) {
     print('DART: $data');
   });
   runApp(MyApp(
+    eventStream: eventStream,
     detectionEventStream: detectionEventStream,
   ));
 }
 
 class MyApp extends StatefulWidget {
-  final Stream<String> detectionEventStream;
+  final Stream<String> eventStream;
+  final Stream<Uint8List> detectionEventStream;
   const MyApp({
     super.key,
+    required this.eventStream,
     required this.detectionEventStream,
   });
 
@@ -25,7 +31,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late Stream<String> detectionEventStream;
   late Socket socket;
 
   @override
@@ -74,10 +79,14 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('flutter_rust_bridge quickstart')),
+        appBar: AppBar(title: const Text('AI Container Counting Machine')),
         body: Center(
-          child: Text(
-              'Action: Call Rust `greet("Tom")`\nResult: `${greet(name: "Tom")}`'),
+          child: StreamBuilder(
+            stream: widget.detectionEventStream,
+            builder: (context, snapshot) => snapshot.hasData
+                ? Image.memory(snapshot.data!, gaplessPlayback: true)
+                : const SizedBox.shrink(),
+          ),
         ),
       ),
     );

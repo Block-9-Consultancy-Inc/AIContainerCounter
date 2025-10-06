@@ -1161,6 +1161,7 @@ name = "rust_lib_ai_container_counter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "flutter_rust_bridge",
  "futures-util",
  "lazy_static",

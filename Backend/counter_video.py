@@ -7,8 +7,8 @@ import supervision as sv
 import torch
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
-HEIGHT = 1920
-WIDTH = 1080
+HEIGHT = 1080
+WIDTH = 1920
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
@@ -25,7 +25,7 @@ def main():
     model = YOLO(MODEL_PATH)
 
     # Define region points
-    region_points = [(int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH), (int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH)]
+    region_points = [(int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT), (int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT)]
 
     # Init Object Counter
     counter = solutions.ObjectCounter(

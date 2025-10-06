@@ -7,8 +7,8 @@ import torch
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
 
-HEIGHT = 1280
-WIDTH = 720
+HEIGHT = 1080
+WIDTH = 1920
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
@@ -20,7 +20,7 @@ def main():
     model = YOLO(MODEL_PATH)
 
     # Define region points
-    region_points = [(int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH), (int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH)]
+    region_points = [(int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT), (int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT)]
 
     # Init Object Counter
     counter = solutions.ObjectCounter(
@@ -31,13 +31,15 @@ def main():
     )
 
     with Device.from_id(0) as cam:
-        cam.set_format(BufferType.VIDEO_CAPTURE, HEIGHT, WIDTH, "MJPG")
+        cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
+        cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
         for frame in cam:
             decoded_frame = cv2.imdecode(frame.array, cv2.IMREAD_UNCHANGED)
             tracks = model.track(decoded_frame, persist=True, agnostic_nms=True)
 
             decoded_frame = counter.start_counting(decoded_frame, tracks)
             
+            cv2.imshow('test', decoded_frame)
             if (cv2.waitKey(30) == 27):
                 print('manually broke out of capture loop')
                 break

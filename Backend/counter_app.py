@@ -21,8 +21,8 @@ CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
 
-HEIGHT = 1280
-WIDTH = 720
+HEIGHT = 1080
+WIDTH = 1920
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
@@ -34,7 +34,7 @@ def detection_process():
     model = YOLO(MODEL_PATH)
 
     # Define region points
-    region_points = [(int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(HEIGHT / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH), (int(HEIGHT / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), WIDTH)]
+    region_points = [(int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT), (int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT)]
 
     # Init Object Counter
     counter = solutions.ObjectCounter(
@@ -45,9 +45,12 @@ def detection_process():
     )
 
     with Device.from_id(0) as cam:
-        cam.set_format(BufferType.VIDEO_CAPTURE, HEIGHT, WIDTH, "MJPG")
+        cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
+        cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
+        print(cam.get_format(BufferType.VIDEO_CAPTURE))
         for frame in cam:
             decoded_frame = cv2.imdecode(frame.array, cv2.IMREAD_UNCHANGED)
+            print(decoded_frame.shape)
             tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
 
             decoded_frame = counter.start_counting(decoded_frame, tracks)
@@ -60,7 +63,7 @@ def detection_process():
             metadata['class_wise_counts'] = counter.class_wise_count
 
             sio.emit('detection_event', metadata, namespace='/')
-            # sleep(3)
+        #     # sleep(3)
 
 @sio.on('connect')
 def test_connect(sid, msg):

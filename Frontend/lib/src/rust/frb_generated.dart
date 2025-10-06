@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.4.0';
 
   @override
-  int get rustContentHash => -11550568;
+  int get rustContentHash => -1596760779;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -91,7 +91,9 @@ abstract class RustLibApi extends BaseApi {
 
   Socket crateApiSimpleNewSocket();
 
-  Stream<String> crateApiSimpleSetDetectionEventStreamSink();
+  Stream<Uint8List> crateApiSimpleSetDetectionEventStreamSink();
+
+  Stream<String> crateApiSimpleSetEventStreamSink();
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Socket;
 
@@ -235,12 +237,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Stream<String> crateApiSimpleSetDetectionEventStreamSink() {
-    final streamSink = RustStreamSink<String>();
+  Stream<Uint8List> crateApiSimpleSetDetectionEventStreamSink() {
+    final streamSink = RustStreamSink<Uint8List>();
     unawaited(handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_StreamSink_String_Sse(streamSink, serializer);
+        sse_encode_StreamSink_list_prim_u_8_strict_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 6, port: port_);
       },
@@ -258,6 +260,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSimpleSetDetectionEventStreamSinkConstMeta =>
       const TaskConstMeta(
         debugName: "set_detection_event_stream_sink",
+        argNames: ["streamSink"],
+      );
+
+  @override
+  Stream<String> crateApiSimpleSetEventStreamSink() {
+    final streamSink = RustStreamSink<String>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_StreamSink_String_Sse(streamSink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 7, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSimpleSetEventStreamSinkConstMeta,
+      argValues: [streamSink],
+      apiImpl: this,
+    )));
+    return streamSink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSimpleSetEventStreamSinkConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_event_stream_sink",
         argNames: ["streamSink"],
       );
 
@@ -301,6 +330,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<Uint8List> dco_decode_StreamSink_list_prim_u_8_strict_Sse(
+      dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
@@ -377,6 +413,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<String> sse_decode_StreamSink_String_Sse(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<Uint8List> sse_decode_StreamSink_list_prim_u_8_strict_Sse(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
@@ -467,6 +510,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         self.setupAndSerialize(
             codec: SseCodec(
           decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        )),
+        serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_list_prim_u_8_strict_Sse(
+      RustStreamSink<Uint8List> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+        self.setupAndSerialize(
+            codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
           decodeErrorData: sse_decode_AnyhowException,
         )),
         serializer);

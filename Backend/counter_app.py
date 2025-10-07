@@ -21,8 +21,8 @@ CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
 
-HEIGHT = 1080
-WIDTH = 1920
+HEIGHT = 480
+WIDTH = 640
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 

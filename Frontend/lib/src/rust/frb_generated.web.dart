@@ -45,7 +45,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
 
   @protected
-  RustStreamSink<Uint8List> dco_decode_StreamSink_list_prim_u_8_strict_Sse(
+  RustStreamSink<FramePayload> dco_decode_StreamSink_frame_payload_Sse(
       dynamic raw);
 
   @protected
@@ -53,6 +53,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  FramePayload dco_decode_frame_payload(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -89,7 +95,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
-  RustStreamSink<Uint8List> sse_decode_StreamSink_list_prim_u_8_strict_Sse(
+  RustStreamSink<FramePayload> sse_decode_StreamSink_frame_payload_Sse(
       SseDeserializer deserializer);
 
   @protected
@@ -97,6 +103,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  FramePayload sse_decode_frame_payload(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -137,14 +149,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       RustStreamSink<String> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_StreamSink_list_prim_u_8_strict_Sse(
-      RustStreamSink<Uint8List> self, SseSerializer serializer);
+  void sse_encode_StreamSink_frame_payload_Sse(
+      RustStreamSink<FramePayload> self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frame_payload(FramePayload self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(

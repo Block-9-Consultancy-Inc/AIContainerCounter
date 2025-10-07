@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
@@ -7,7 +6,8 @@ import 'package:ai_container_counter/src/rust/frb_generated.dart';
 Future<void> main() async {
   await RustLib.init();
   final Stream<String> eventStream = setEventStreamSink();
-  final Stream<Uint8List> detectionEventStream = setDetectionEventStreamSink();
+  final Stream<FramePayload> detectionEventStream =
+      setDetectionEventStreamSink();
   eventStream.listen((data) {
     print('DART: $data');
   });
@@ -19,7 +19,7 @@ Future<void> main() async {
 
 class MyApp extends StatefulWidget {
   final Stream<String> eventStream;
-  final Stream<Uint8List> detectionEventStream;
+  final Stream<FramePayload> detectionEventStream;
   const MyApp({
     super.key,
     required this.eventStream,
@@ -84,7 +84,45 @@ class _MyAppState extends State<MyApp> {
           child: StreamBuilder(
             stream: widget.detectionEventStream,
             builder: (context, snapshot) => snapshot.hasData
-                ? Image.memory(snapshot.data!, gaplessPlayback: true)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 8,
+                            child: AutoSizeText(
+                              'Total In: ${snapshot.data!.totalIn}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 40,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const Spacer(),
+                          Expanded(
+                            flex: 8,
+                            child: AutoSizeText(
+                              'Total Out: ${snapshot.data!.totalOut}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 40,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      Image.memory(
+                        snapshot.data!.frame,
+                        gaplessPlayback: true,
+                        height: 480,
+                        width: 640,
+                      ),
+                    ],
+                  )
                 : const SizedBox.shrink(),
           ),
         ),

@@ -38,6 +38,7 @@ dependencies:
   rust_lib_ai_container_counter:
     path: rust_builder
   flutter_rust_bridge: 2.4.0
+  auto_size_text: ^3.0.0
 
 dev_dependencies:
   flutter_test:

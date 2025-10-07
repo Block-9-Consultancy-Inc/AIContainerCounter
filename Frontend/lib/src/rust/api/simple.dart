@@ -12,7 +12,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Stream<String> setEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetEventStreamSink();
 
-Stream<Uint8List> setDetectionEventStreamSink() =>
+Stream<FramePayload> setDetectionEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetDetectionEventStreamSink();
 
 Socket newSocket() => RustLib.instance.api.crateApiSimpleNewSocket();
@@ -25,4 +25,28 @@ abstract class Socket implements RustOpaqueInterface {
   Future<bool> connectToSocketServer({required String serverAddress});
 
   Future<bool> emitEvent({required String event, required String data});
+}
+
+class FramePayload {
+  final Uint8List frame;
+  final PlatformInt64 totalIn;
+  final PlatformInt64 totalOut;
+
+  const FramePayload({
+    required this.frame,
+    required this.totalIn,
+    required this.totalOut,
+  });
+
+  @override
+  int get hashCode => frame.hashCode ^ totalIn.hashCode ^ totalOut.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FramePayload &&
+          runtimeType == other.runtimeType &&
+          frame == other.frame &&
+          totalIn == other.totalIn &&
+          totalOut == other.totalOut;
 }

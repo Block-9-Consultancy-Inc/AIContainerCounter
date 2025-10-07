@@ -5,12 +5,25 @@ use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Payload};
 use base64::{engine::general_purpose::STANDARD, Engine};
 
+
+
+#[flutter_rust_bridge::frb(opaque)]
+pub struct Socket {
+    inner: Option<Client>,
+}
+
+pub struct FramePayload {
+    pub frame: Vec<u8>,
+    pub total_in: i64,
+    pub total_out: i64
+}
+
 lazy_static! {
     static ref EVENT_STREAM_SINK: RwLock<Option<StreamSink<String>>> = RwLock::new(None);
 }
 
 lazy_static! {
-    static ref DETECTION_EVENT_STREAM_SINK: RwLock<Option<StreamSink<Vec<u8>>>> = RwLock::new(None);
+    static ref DETECTION_EVENT_STREAM_SINK: RwLock<Option<StreamSink<FramePayload>>> = RwLock::new(None);
 }
 
 
@@ -30,7 +43,7 @@ pub fn set_event_stream_sink(stream_sink: StreamSink<String>) {
     }
 }
 
-pub fn set_detection_event_stream_sink(stream_sink: StreamSink<Vec<u8>>) {
+pub fn set_detection_event_stream_sink(stream_sink: StreamSink<FramePayload>) {
     let mut guard = DETECTION_EVENT_STREAM_SINK.write();
     let overriding = guard.is_some();
 
@@ -46,10 +59,7 @@ pub fn set_detection_event_stream_sink(stream_sink: StreamSink<Vec<u8>>) {
     }
 }
 
-#[flutter_rust_bridge::frb(opaque)]
-pub struct Socket {
-    inner: Option<Client>,
-}
+
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn new_socket() -> Socket { Socket { inner: None } }
@@ -75,10 +85,16 @@ impl Socket {
             match payload {
                 Payload::Text(values) => {
                     println!("Received values: {:#?}", values);
-                    let encoded_frame_base64 = values[0].as_object().unwrap().get("encoded_frame").unwrap().as_str().unwrap();
+                    let object = values[0].as_object().unwrap();
+                    let encoded_frame_base64 = object.get("encoded_frame").unwrap().as_str().unwrap();
                     let frame = STANDARD.decode(encoded_frame_base64).unwrap();
+                    let frame_payload = FramePayload { 
+                        frame,
+                        total_in: object.get("total_in").unwrap().as_i64().unwrap(),
+                        total_out: object.get("total_out").unwrap().as_i64().unwrap()
+                    };
                     if let Some(sink) = &*DETECTION_EVENT_STREAM_SINK.read() {
-                        let _ = sink.add(frame);
+                        let _ = sink.add(frame_payload);
                     }
                 }
                 Payload::Binary(bin_data) => {

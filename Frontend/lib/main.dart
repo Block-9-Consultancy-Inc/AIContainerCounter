@@ -100,6 +100,10 @@ class _MyAppState extends State<MyApp> {
                               textAlign: TextAlign.center,
                             ),
                           ),
+                          ...snapshot.data!.classWiseCount.map((e) => Expanded(
+                                child: Text(
+                                    '${e.class_} ${e.inCount} ${e.outCount}'),
+                              )),
                           const Spacer(),
                           Expanded(
                             flex: 8,

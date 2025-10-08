@@ -27,19 +27,49 @@ abstract class Socket implements RustOpaqueInterface {
   Future<bool> emitEvent({required String event, required String data});
 }
 
+class ClassWiseCount {
+  final String class_;
+  final PlatformInt64 inCount;
+  final PlatformInt64 outCount;
+
+  const ClassWiseCount({
+    required this.class_,
+    required this.inCount,
+    required this.outCount,
+  });
+
+  @override
+  int get hashCode => class_.hashCode ^ inCount.hashCode ^ outCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClassWiseCount &&
+          runtimeType == other.runtimeType &&
+          class_ == other.class_ &&
+          inCount == other.inCount &&
+          outCount == other.outCount;
+}
+
 class FramePayload {
   final Uint8List frame;
+  final List<ClassWiseCount> classWiseCount;
   final PlatformInt64 totalIn;
   final PlatformInt64 totalOut;
 
   const FramePayload({
     required this.frame,
+    required this.classWiseCount,
     required this.totalIn,
     required this.totalOut,
   });
 
   @override
-  int get hashCode => frame.hashCode ^ totalIn.hashCode ^ totalOut.hashCode;
+  int get hashCode =>
+      frame.hashCode ^
+      classWiseCount.hashCode ^
+      totalIn.hashCode ^
+      totalOut.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -47,6 +77,7 @@ class FramePayload {
       other is FramePayload &&
           runtimeType == other.runtimeType &&
           frame == other.frame &&
+          classWiseCount == other.classWiseCount &&
           totalIn == other.totalIn &&
           totalOut == other.totalOut;
 }

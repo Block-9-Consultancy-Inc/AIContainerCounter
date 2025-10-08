@@ -55,10 +55,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  ClassWiseCount dco_decode_class_wise_count(dynamic raw);
+
+  @protected
   FramePayload dco_decode_frame_payload(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<ClassWiseCount> dco_decode_list_class_wise_count(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -105,10 +111,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  ClassWiseCount sse_decode_class_wise_count(SseDeserializer deserializer);
+
+  @protected
   FramePayload sse_decode_frame_payload(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<ClassWiseCount> sse_decode_list_class_wise_count(
+      SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -159,10 +172,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_class_wise_count(
+      ClassWiseCount self, SseSerializer serializer);
+
+  @protected
   void sse_encode_frame_payload(FramePayload self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_class_wise_count(
+      List<ClassWiseCount> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(

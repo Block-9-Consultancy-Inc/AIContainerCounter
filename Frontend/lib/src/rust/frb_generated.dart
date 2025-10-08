@@ -354,15 +354,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FramePayload dco_decode_frame_payload(dynamic raw) {
+  ClassWiseCount dco_decode_class_wise_count(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 3)
       throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ClassWiseCount(
+      class_: dco_decode_String(arr[0]),
+      inCount: dco_decode_i_64(arr[1]),
+      outCount: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  FramePayload dco_decode_frame_payload(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return FramePayload(
       frame: dco_decode_list_prim_u_8_strict(arr[0]),
-      totalIn: dco_decode_i_64(arr[1]),
-      totalOut: dco_decode_i_64(arr[2]),
+      classWiseCount: dco_decode_list_class_wise_count(arr[1]),
+      totalIn: dco_decode_i_64(arr[2]),
+      totalOut: dco_decode_i_64(arr[3]),
     );
   }
 
@@ -370,6 +384,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 dco_decode_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<ClassWiseCount> dco_decode_list_class_wise_count(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_class_wise_count).toList();
   }
 
   @protected
@@ -458,19 +478,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ClassWiseCount sse_decode_class_wise_count(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_class_ = sse_decode_String(deserializer);
+    var var_inCount = sse_decode_i_64(deserializer);
+    var var_outCount = sse_decode_i_64(deserializer);
+    return ClassWiseCount(
+        class_: var_class_, inCount: var_inCount, outCount: var_outCount);
+  }
+
+  @protected
   FramePayload sse_decode_frame_payload(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_frame = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_classWiseCount = sse_decode_list_class_wise_count(deserializer);
     var var_totalIn = sse_decode_i_64(deserializer);
     var var_totalOut = sse_decode_i_64(deserializer);
     return FramePayload(
-        frame: var_frame, totalIn: var_totalIn, totalOut: var_totalOut);
+        frame: var_frame,
+        classWiseCount: var_classWiseCount,
+        totalIn: var_totalIn,
+        totalOut: var_totalOut);
   }
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<ClassWiseCount> sse_decode_list_class_wise_count(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ClassWiseCount>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_class_wise_count(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -576,9 +623,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_class_wise_count(
+      ClassWiseCount self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.class_, serializer);
+    sse_encode_i_64(self.inCount, serializer);
+    sse_encode_i_64(self.outCount, serializer);
+  }
+
+  @protected
   void sse_encode_frame_payload(FramePayload self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(self.frame, serializer);
+    sse_encode_list_class_wise_count(self.classWiseCount, serializer);
     sse_encode_i_64(self.totalIn, serializer);
     sse_encode_i_64(self.totalOut, serializer);
   }
@@ -587,6 +644,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_class_wise_count(
+      List<ClassWiseCount> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_class_wise_count(item, serializer);
+    }
   }
 
   @protected

@@ -8,7 +8,7 @@ from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
-from time import sleep
+from time import sleep, perf_counter_ns
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
@@ -49,6 +49,7 @@ def detection_process():
         cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
         cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
         print(cam.get_format(BufferType.VIDEO_CAPTURE))
+        time_counter = perf_counter_ns()
         for frame in cam:
             decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
             print(decoded_frame.shape)
@@ -63,7 +64,11 @@ def detection_process():
                 'total_out': counter.out_counts,
                 'class_wise_count': counter.class_wise_count
             }, namespace='/')
+            current_time = perf_counter_ns()
+            frame_time = (current_time - time_counter) / 1_000_000
+            print(f'frame took {frame_time} ms')
             # sleep(3)
+            time_counter = perf_counter_ns()
 
 @sio.on('connect')
 def test_connect(sid, msg):

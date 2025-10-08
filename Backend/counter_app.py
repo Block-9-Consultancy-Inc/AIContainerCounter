@@ -4,7 +4,7 @@ import socketio
 import base64
 from threading import Thread
 from ultralytics import YOLO, solutions
-import cv2
+from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
@@ -12,6 +12,7 @@ from time import sleep
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
+jpeg = TurboJPEG()
 sio = socketio.Server(async_mode='threading')
 app = Flask(__name__, 
             static_url_path='', 
@@ -21,8 +22,8 @@ CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
 
-HEIGHT = 480
-WIDTH = 640
+HEIGHT = 1080
+WIDTH = 1920
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
@@ -49,19 +50,19 @@ def detection_process():
         cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
         print(cam.get_format(BufferType.VIDEO_CAPTURE))
         for frame in cam:
-            decoded_frame = cv2.imdecode(frame.array, cv2.IMREAD_UNCHANGED)
+            decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
             print(decoded_frame.shape)
             tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
 
             decoded_frame = counter.start_counting(decoded_frame, tracks)
 
-            metadata = {}
-            _, buffer = cv2.imencode('.jpg', decoded_frame)
-            metadata['encoded_frame'] = base64.b64encode(buffer).decode('utf-8')
-            metadata['total_in'] = counter.in_counts
-            metadata['total_out'] = counter.out_counts
-            metadata['class_wise_count'] = counter.class_wise_count
-            sio.emit('detection_event', metadata, namespace='/')
+            buffer = jpeg.encode(decoded_frame, quality=85)
+            sio.emit('detection_event', {
+                'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
+                'total_in': counter.in_counts,
+                'total_out': counter.out_counts,
+                'class_wise_count': counter.class_wise_count
+            }, namespace='/')
             # sleep(3)
 
 @sio.on('connect')

@@ -14,8 +14,15 @@ pub struct Socket {
 
 pub struct FramePayload {
     pub frame: Vec<u8>,
+    pub class_wise_count: Vec<ClassWiseCount>,
     pub total_in: i64,
     pub total_out: i64
+}
+
+pub struct ClassWiseCount {
+    pub class: String,
+    pub in_count: i64,
+    pub out_count: i64
 }
 
 lazy_static! {
@@ -90,6 +97,15 @@ impl Socket {
                     let frame = STANDARD.decode(encoded_frame_base64).unwrap();
                     let frame_payload = FramePayload { 
                         frame,
+                        class_wise_count: object.get("class_wise_count").unwrap().as_object().unwrap().iter().map(|v| {
+                            let class = v.0.to_string();
+                            let object = v.1.as_object().unwrap();
+                            ClassWiseCount { 
+                                class,
+                                in_count: object.get("IN").unwrap().as_i64().unwrap(),
+                                out_count: object.get("OUT").unwrap().as_i64().unwrap()
+                            }
+                        }).collect(),
                         total_in: object.get("total_in").unwrap().as_i64().unwrap(),
                         total_out: object.get("total_out").unwrap().as_i64().unwrap()
                     };

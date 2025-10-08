@@ -60,10 +60,9 @@ def detection_process():
             metadata['encoded_frame'] = base64.b64encode(buffer).decode('utf-8')
             metadata['total_in'] = counter.in_counts
             metadata['total_out'] = counter.out_counts
-            metadata['class_wise_counts'] = counter.class_wise_count
-
+            metadata['class_wise_count'] = counter.class_wise_count
             sio.emit('detection_event', metadata, namespace='/')
-        #     # sleep(3)
+            # sleep(3)
 
 @sio.on('connect')
 def test_connect(sid, msg):

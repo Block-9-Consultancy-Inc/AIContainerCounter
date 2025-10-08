@@ -392,14 +392,31 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::simple::ClassWiseCount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_class_ = <String>::sse_decode(deserializer);
+        let mut var_inCount = <i64>::sse_decode(deserializer);
+        let mut var_outCount = <i64>::sse_decode(deserializer);
+        return crate::api::simple::ClassWiseCount {
+            class: var_class_,
+            in_count: var_inCount,
+            out_count: var_outCount,
+        };
+    }
+}
+
 impl SseDecode for crate::api::simple::FramePayload {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_frame = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_classWiseCount =
+            <Vec<crate::api::simple::ClassWiseCount>>::sse_decode(deserializer);
         let mut var_totalIn = <i64>::sse_decode(deserializer);
         let mut var_totalOut = <i64>::sse_decode(deserializer);
         return crate::api::simple::FramePayload {
             frame: var_frame,
+            class_wise_count: var_classWiseCount,
             total_in: var_totalIn,
             total_out: var_totalOut,
         };
@@ -410,6 +427,20 @@ impl SseDecode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for Vec<crate::api::simple::ClassWiseCount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::simple::ClassWiseCount>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
     }
 }
 
@@ -513,10 +544,33 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Socket>> for Socket {
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::simple::ClassWiseCount {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.class.into_into_dart().into_dart(),
+            self.in_count.into_into_dart().into_dart(),
+            self.out_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::simple::ClassWiseCount
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::simple::ClassWiseCount>
+    for crate::api::simple::ClassWiseCount
+{
+    fn into_into_dart(self) -> crate::api::simple::ClassWiseCount {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::simple::FramePayload {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.frame.into_into_dart().into_dart(),
+            self.class_wise_count.into_into_dart().into_dart(),
             self.total_in.into_into_dart().into_dart(),
             self.total_out.into_into_dart().into_dart(),
         ]
@@ -588,10 +642,20 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::simple::ClassWiseCount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.class, serializer);
+        <i64>::sse_encode(self.in_count, serializer);
+        <i64>::sse_encode(self.out_count, serializer);
+    }
+}
+
 impl SseEncode for crate::api::simple::FramePayload {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<u8>>::sse_encode(self.frame, serializer);
+        <Vec<crate::api::simple::ClassWiseCount>>::sse_encode(self.class_wise_count, serializer);
         <i64>::sse_encode(self.total_in, serializer);
         <i64>::sse_encode(self.total_out, serializer);
     }
@@ -601,6 +665,16 @@ impl SseEncode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for Vec<crate::api::simple::ClassWiseCount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::simple::ClassWiseCount>::sse_encode(item, serializer);
+        }
     }
 }
 

@@ -35,6 +35,7 @@ class _MyAppState extends State<MyApp> {
   late Socket socket;
 
   int? _textureId;
+  bool playingVideo = true;
 
   @override
   void initState() {
@@ -157,6 +158,17 @@ class _MyAppState extends State<MyApp> {
               ],
             ),
           ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            setShowingVideo(showingVideo: !playingVideo);
+            setState(() {
+              playingVideo = !playingVideo;
+            });
+          },
+          child: !playingVideo
+              ? const Icon(Icons.play_arrow)
+              : const Icon(Icons.stop),
         ),
       ),
     );

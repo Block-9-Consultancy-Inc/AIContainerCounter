@@ -2,6 +2,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
+import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
 
 Future<void> main() async {
   await RustLib.init();
@@ -33,46 +34,65 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late Socket socket;
 
+  int? _textureId;
+
   @override
   void initState() {
     super.initState();
-    socket = newSocket();
 
-    socket
-        .connectToSocketServer(serverAddress: 'http://localhost:5000')
-        .then((didConnect) async {
-      if (didConnect) {
-        print('DART: socket has connected to server successfully');
-      } else {
-        print(
-            'DART: socket unable to connect to server trying again every 2 seconds');
-        bool connected = false;
-        while (!connected) {
-          await Future.delayed(const Duration(seconds: 2));
-          connected = await socket.connectToSocketServer(
-              serverAddress: 'http://localhost:5000');
-          if (connected) {
-            print('DART: socket has connected to server successfully');
-          } else {
-            print(
-                'DART: socket unable to connect to server trying again every 2 seconds');
-          }
-        }
-      }
-
-      int i = 1;
-      while (true) {
-        await socket.emitEvent(event: 'test', data: 'test sent from dart! $i');
-        i++;
-        await Future.delayed(const Duration(seconds: 2));
-      }
-    });
+    _initializeTextureAndSocket();
   }
 
   @override
   void dispose() {
     socket.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeTextureAndSocket() async {
+    if (_textureId != null) return;
+    var textureRenderer = TextureRgbaRenderer();
+
+    // Initialize main texture
+    const int textureKeyMain = 0;
+    await textureRenderer.closeTexture(textureKeyMain);
+
+    _textureId = await textureRenderer.createTexture(textureKeyMain);
+    setState(() {});
+    final texturePointer = await textureRenderer.getTexturePtr(textureKeyMain);
+
+    initializeFlutterTexture(texturePtr: BigInt.from(texturePointer));
+
+    socket = newSocket();
+
+    bool didConnect = await socket.connectToSocketServer(
+        serverAddress: 'http://localhost:5000');
+
+    if (didConnect) {
+      print('DART: socket has connected to server successfully');
+    } else {
+      print(
+          'DART: socket unable to connect to server trying again every 2 seconds');
+      bool connected = false;
+      while (!connected) {
+        await Future.delayed(const Duration(seconds: 2));
+        connected = await socket.connectToSocketServer(
+            serverAddress: 'http://localhost:5000');
+        if (connected) {
+          print('DART: socket has connected to server successfully');
+        } else {
+          print(
+              'DART: socket unable to connect to server trying again every 2 seconds');
+        }
+      }
+    }
+
+    int i = 1;
+    while (true) {
+      await socket.emitEvent(event: 'test', data: 'test sent from dart! $i');
+      i++;
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 
   @override
@@ -119,12 +139,18 @@ class _MyAppState extends State<MyApp> {
                         ],
                       ),
                       const SizedBox(height: 30),
-                      Image.memory(
-                        snapshot.data!.frame,
-                        gaplessPlayback: true,
-                        height: 480,
-                        width: 640,
-                      ),
+                      if (_textureId != null)
+                        SizedBox(
+                          width: 640,
+                          height: 480,
+                          child: Texture(
+                              textureId: _textureId!,
+                              filterQuality: FilterQuality.medium),
+                        )
+                      else
+                        const Center(
+                          child: Text('Texture id is null'),
+                        )
                     ],
                   )
                 : const SizedBox.shrink(),

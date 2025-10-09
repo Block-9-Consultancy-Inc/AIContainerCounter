@@ -101,59 +101,61 @@ class _MyAppState extends State<MyApp> {
       home: Scaffold(
         appBar: AppBar(title: const Text('AI Container Counting Machine')),
         body: Center(
-          child: StreamBuilder(
-            stream: widget.detectionEventStream,
-            builder: (context, snapshot) => snapshot.hasData
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 8,
-                            child: AutoSizeText(
-                              'Total In: ${snapshot.data!.totalIn}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 40,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                StreamBuilder(
+                    stream: widget.detectionEventStream,
+                    builder: (context, snapshot) => snapshot.hasData
+                        ? Row(
+                            children: [
+                              Expanded(
+                                flex: 8,
+                                child: AutoSizeText(
+                                  'Total In: ${snapshot.data!.totalIn}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 40,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          ...snapshot.data!.classWiseCount.map((e) => Expanded(
-                                child: Text(
-                                    '${e.class_} ${e.inCount} ${e.outCount}'),
-                              )),
-                          const Spacer(),
-                          Expanded(
-                            flex: 8,
-                            child: AutoSizeText(
-                              'Total Out: ${snapshot.data!.totalOut}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 40,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                              ...snapshot.data!.classWiseCount
+                                  .map((e) => Expanded(
+                                        child: Text(
+                                            '${e.class_} ${e.inCount} ${e.outCount}'),
+                                      )),
+                              const Spacer(),
+                              Expanded(
+                                flex: 8,
+                                child: AutoSizeText(
+                                  'Total Out: ${snapshot.data!.totalOut}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 40,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            ],
                           )
-                        ],
-                      ),
-                      const SizedBox(height: 30),
-                      if (_textureId != null)
-                        SizedBox(
-                          width: 640,
-                          height: 480,
-                          child: Texture(
-                              textureId: _textureId!,
-                              filterQuality: FilterQuality.medium),
-                        )
-                      else
-                        const Center(
-                          child: Text('Texture id is null'),
-                        )
-                    ],
+                        : const SizedBox.shrink()),
+                const SizedBox(height: 30),
+                if (_textureId != null)
+                  SizedBox(
+                    width: 970,
+                    height: 540,
+                    child: Texture(
+                        textureId: _textureId!,
+                        filterQuality: FilterQuality.medium),
                   )
-                : const SizedBox.shrink(),
+                else
+                  const Center(
+                    child: Text('Texture id is null'),
+                  )
+              ],
+            ),
           ),
         ),
       ),

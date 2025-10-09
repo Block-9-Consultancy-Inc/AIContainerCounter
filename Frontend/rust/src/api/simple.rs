@@ -10,7 +10,7 @@ use std::time::Instant;
 
 #[flutter_rust_bridge::frb(opaque)]
 pub struct Socket {
-    inner: Option<Client>,
+    inner: Option<Client>
 }
 
 pub struct FramePayload {
@@ -27,6 +27,10 @@ pub struct ClassWiseCount {
 
 lazy_static! {
     static ref CURRENT_FLUTTER_TEXTURE: RwLock<Option<FlutterTexture>> = RwLock::new(None);
+}
+
+lazy_static! {
+    static ref SHOWING_VIDEO: RwLock<bool> = RwLock::new(true);
 }
 
 lazy_static! {
@@ -70,6 +74,14 @@ pub fn set_detection_event_stream_sink(stream_sink: StreamSink<FramePayload>) {
     }
 }
 
+pub fn set_showing_video(showing_video: bool) {
+    let mut guard = SHOWING_VIDEO.write();
+
+    *guard = showing_video;
+
+    drop(guard);
+}
+
 pub fn initialize_flutter_texture(texture_ptr: usize) {
     let mut guard = CURRENT_FLUTTER_TEXTURE.write();
     let overriding = guard.is_some();
@@ -108,7 +120,7 @@ impl Socket {
             println!("socket already initialized, cancelling");
             return true;
         }
-
+        
         let callback = move |payload: Payload, _| {
             match payload {
                 Payload::Text(values) => {
@@ -134,21 +146,23 @@ impl Socket {
                     }
                     let object_decode_time = now.elapsed();
                     println!("took {:#?} ms", object_decode_time.as_millis());
-                    now = Instant::now();
-                    let encoded_frame_base64 = object.get("encoded_frame").unwrap().as_str().unwrap();
-                    println!("starting base64decode");
-                    let frame = STANDARD.decode(encoded_frame_base64).unwrap();
-                    let base64_decode_time = now.elapsed();
-                    println!("took {:#?} ms", base64_decode_time.as_millis());
-                    now = Instant::now();
-                    println!("decoding jpeg to rgba");
-                    let raw_frame = decode_jpeg_to_rgba(frame.as_slice());
-                    let jpeg_to_rgba_decode_time = now.elapsed();
-                    println!("took {:#?} ms", jpeg_to_rgba_decode_time.as_millis());
-                    if let Some(renderer) = &*CURRENT_FLUTTER_TEXTURE.read() {
-                        renderer.on_rgba(&raw_frame);
+                    let showing_video = *SHOWING_VIDEO.read();
+                    if showing_video {
+                        now = Instant::now();
+                        let encoded_frame_base64 = object.get("encoded_frame").unwrap().as_str().unwrap();
+                        println!("starting base64decode");
+                        let frame = STANDARD.decode(encoded_frame_base64).unwrap();
+                        let base64_decode_time = now.elapsed();
+                        println!("took {:#?} ms", base64_decode_time.as_millis());
+                        now = Instant::now();
+                        println!("decoding jpeg to rgba");
+                        let raw_frame = decode_jpeg_to_rgba(frame.as_slice());
+                        let jpeg_to_rgba_decode_time = now.elapsed();
+                        println!("took {:#?} ms", jpeg_to_rgba_decode_time.as_millis());
+                        if let Some(renderer) = &*CURRENT_FLUTTER_TEXTURE.read() {
+                            renderer.on_rgba(&raw_frame);
+                        }
                     }
-                    
                 }
                 Payload::Binary(bin_data) => {
                     println!("Received bytes: {:#?}", bin_data);

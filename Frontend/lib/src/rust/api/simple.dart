@@ -6,14 +6,18 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are not used by any `pub` functions: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `deref`, `deref`, `deref`, `initialize`, `initialize`, `initialize`
+// These types are ignored because they are not used by any `pub` functions: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`, `SHOWING_VIDEO`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `deref`, `deref`, `deref`, `deref`, `initialize`, `initialize`, `initialize`, `initialize`
 
 Stream<String> setEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetEventStreamSink();
 
 Stream<FramePayload> setDetectionEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetDetectionEventStreamSink();
+
+Future<void> setShowingVideo({required bool showingVideo}) =>
+    RustLib.instance.api
+        .crateApiSimpleSetShowingVideo(showingVideo: showingVideo);
 
 Future<void> initializeFlutterTexture({required BigInt texturePtr}) =>
     RustLib.instance.api

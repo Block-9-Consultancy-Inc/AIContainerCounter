@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.4.0';
 
   @override
-  int get rustContentHash => -1596760779;
+  int get rustContentHash => 33176448;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -88,6 +88,9 @@ abstract class RustLibApi extends BaseApi {
   String crateApiSimpleGreet({required String name});
 
   Future<void> crateApiSimpleInitApp();
+
+  Future<void> crateApiSimpleInitializeFlutterTexture(
+      {required BigInt texturePtr});
 
   Socket crateApiSimpleNewSocket();
 
@@ -214,11 +217,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSimpleInitializeFlutterTexture(
+      {required BigInt texturePtr}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_usize(texturePtr, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 5, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSimpleInitializeFlutterTextureConstMeta,
+      argValues: [texturePtr],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSimpleInitializeFlutterTextureConstMeta =>
+      const TaskConstMeta(
+        debugName: "initialize_flutter_texture",
+        argNames: ["texturePtr"],
+      );
+
+  @override
   Socket crateApiSimpleNewSocket() {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -244,7 +273,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_frame_payload_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 6, port: port_);
+            funcId: 7, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -271,7 +300,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_String_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 7, port: port_);
+            funcId: 8, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -370,13 +399,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FramePayload dco_decode_frame_payload(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return FramePayload(
-      frame: dco_decode_list_prim_u_8_strict(arr[0]),
-      classWiseCount: dco_decode_list_class_wise_count(arr[1]),
-      totalIn: dco_decode_i_64(arr[2]),
-      totalOut: dco_decode_i_64(arr[3]),
+      classWiseCount: dco_decode_list_class_wise_count(arr[0]),
+      totalIn: dco_decode_i_64(arr[1]),
+      totalOut: dco_decode_i_64(arr[2]),
     );
   }
 
@@ -490,12 +518,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   FramePayload sse_decode_frame_payload(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_frame = sse_decode_list_prim_u_8_strict(deserializer);
     var var_classWiseCount = sse_decode_list_class_wise_count(deserializer);
     var var_totalIn = sse_decode_i_64(deserializer);
     var var_totalOut = sse_decode_i_64(deserializer);
     return FramePayload(
-        frame: var_frame,
         classWiseCount: var_classWiseCount,
         totalIn: var_totalIn,
         totalOut: var_totalOut);
@@ -634,7 +660,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_frame_payload(FramePayload self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_list_prim_u_8_strict(self.frame, serializer);
     sse_encode_list_class_wise_count(self.classWiseCount, serializer);
     sse_encode_i_64(self.totalIn, serializer);
     sse_encode_i_64(self.totalOut, serializer);

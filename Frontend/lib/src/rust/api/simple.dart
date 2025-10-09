@@ -6,14 +6,18 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are not used by any `pub` functions: `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `deref`, `deref`, `initialize`, `initialize`
+// These types are ignored because they are not used by any `pub` functions: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `deref`, `deref`, `deref`, `initialize`, `initialize`, `initialize`
 
 Stream<String> setEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetEventStreamSink();
 
 Stream<FramePayload> setDetectionEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetDetectionEventStreamSink();
+
+Future<void> initializeFlutterTexture({required BigInt texturePtr}) =>
+    RustLib.instance.api
+        .crateApiSimpleInitializeFlutterTexture(texturePtr: texturePtr);
 
 Socket newSocket() => RustLib.instance.api.crateApiSimpleNewSocket();
 
@@ -52,13 +56,11 @@ class ClassWiseCount {
 }
 
 class FramePayload {
-  final Uint8List frame;
   final List<ClassWiseCount> classWiseCount;
   final PlatformInt64 totalIn;
   final PlatformInt64 totalOut;
 
   const FramePayload({
-    required this.frame,
     required this.classWiseCount,
     required this.totalIn,
     required this.totalOut,
@@ -66,17 +68,13 @@ class FramePayload {
 
   @override
   int get hashCode =>
-      frame.hashCode ^
-      classWiseCount.hashCode ^
-      totalIn.hashCode ^
-      totalOut.hashCode;
+      classWiseCount.hashCode ^ totalIn.hashCode ^ totalOut.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FramePayload &&
           runtimeType == other.runtimeType &&
-          frame == other.frame &&
           classWiseCount == other.classWiseCount &&
           totalIn == other.totalIn &&
           totalOut == other.totalOut;

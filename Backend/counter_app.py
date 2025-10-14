@@ -9,6 +9,7 @@ from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
 from time import sleep, perf_counter_ns
+import supervision as sv
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
@@ -29,7 +30,12 @@ COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
 MODEL_PATH = environ.get('MODEL_PATH')
 if MODEL_PATH == None:
-    MODEL_PATH = "general-model-1-9.pt"
+    MODEL_PATH = "counting-machine-3-categories.pt"
+
+DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
+SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
+if SOURCE_VIDEO == None:
+    SOURCE_VIDEO = "test-video.mp4"
 
 def detection_process():
     model = YOLO(MODEL_PATH)
@@ -45,30 +51,54 @@ def detection_process():
         line_thickness=2,
     )
 
-    with Device.from_id(0) as cam:
-        cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
-        cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
-        print(cam.get_format(BufferType.VIDEO_CAPTURE))
-        time_counter = perf_counter_ns()
-        for frame in cam:
-            decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
-            print(decoded_frame.shape)
-            tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
-
-            decoded_frame = counter.start_counting(decoded_frame, tracks)
-
-            buffer = jpeg.encode(decoded_frame, quality=85)
-            sio.emit('detection_event', {
-                'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
-                'total_in': counter.in_counts,
-                'total_out': counter.out_counts,
-                'class_wise_count': counter.class_wise_count
-            }, namespace='/')
-            current_time = perf_counter_ns()
-            frame_time = (current_time - time_counter) / 1_000_000
-            print(f'frame took {frame_time} ms')
-            # sleep(3)
+    if DEBUG_VIDEO:
+        generator = sv.get_video_frames_generator(SOURCE_VIDEO)
+        while True:
             time_counter = perf_counter_ns()
+            for frame in generator:
+                decoded_frame = frame
+                print(decoded_frame.shape)
+                tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
+
+                decoded_frame = counter.start_counting(decoded_frame, tracks)
+
+                buffer = jpeg.encode(decoded_frame, quality=85)
+                sio.emit('detection_event', {
+                    'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
+                    'total_in': counter.in_counts,
+                    'total_out': counter.out_counts,
+                    'class_wise_count': counter.class_wise_count
+                }, namespace='/')
+                current_time = perf_counter_ns()
+                frame_time = (current_time - time_counter) / 1_000_000
+                print(f'frame took {frame_time} ms')
+                # sleep(3)
+                time_counter = perf_counter_ns()
+    else:
+        with Device.from_id(0) as cam:
+            cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
+            cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
+            print(cam.get_format(BufferType.VIDEO_CAPTURE))
+            time_counter = perf_counter_ns()
+            for frame in cam:
+                decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
+                print(decoded_frame.shape)
+                tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
+
+                decoded_frame = counter.start_counting(decoded_frame, tracks)
+
+                buffer = jpeg.encode(decoded_frame, quality=85)
+                sio.emit('detection_event', {
+                    'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
+                    'total_in': counter.in_counts,
+                    'total_out': counter.out_counts,
+                    'class_wise_count': counter.class_wise_count
+                }, namespace='/')
+                current_time = perf_counter_ns()
+                frame_time = (current_time - time_counter) / 1_000_000
+                print(f'frame took {frame_time} ms')
+                # sleep(3)
+                time_counter = perf_counter_ns()
 
 @sio.on('connect')
 def test_connect(sid, msg):

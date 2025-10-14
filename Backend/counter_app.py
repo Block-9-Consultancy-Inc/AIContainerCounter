@@ -52,8 +52,8 @@ def detection_process():
     )
 
     if DEBUG_VIDEO:
-        generator = sv.get_video_frames_generator(SOURCE_VIDEO)
         while True:
+            generator = sv.get_video_frames_generator(SOURCE_VIDEO)
             time_counter = perf_counter_ns()
             for frame in generator:
                 decoded_frame = frame

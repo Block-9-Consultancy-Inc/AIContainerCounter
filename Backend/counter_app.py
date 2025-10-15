@@ -9,7 +9,8 @@ from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
 from time import sleep, perf_counter_ns
-import supervision as sv
+from decord import VideoReader
+from decord import cpu
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
@@ -39,6 +40,14 @@ if SOURCE_VIDEO == None:
 
 reset_counter = False
 
+
+def extract_frames(video_path):
+    # load the VideoReader
+    vr = VideoReader(video_path, ctx=cpu(0))  # can set to cpu or gpu .. ctx=gpu(0)
+                     
+    for index in range(0, len(vr)):  # lets loop through the frames until the end
+        yield vr[index].asnumpy()
+
 def detection_process():
     model = YOLO(MODEL_PATH)
 
@@ -56,7 +65,7 @@ def detection_process():
     global reset_counter
     if DEBUG_VIDEO:
         while True:
-            generator = sv.get_video_frames_generator(SOURCE_VIDEO)
+            generator = extract_frames(SOURCE_VIDEO)
             time_counter = perf_counter_ns()
             for frame in generator:
                 decoded_frame = frame

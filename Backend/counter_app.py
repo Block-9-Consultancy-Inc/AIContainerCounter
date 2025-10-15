@@ -23,8 +23,8 @@ CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
 
-HEIGHT = 1080
-WIDTH = 1920
+HEIGHT = 1440
+WIDTH = 2560
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
@@ -35,7 +35,9 @@ if MODEL_PATH == None:
 DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
 SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
 if SOURCE_VIDEO == None:
-    SOURCE_VIDEO = "test-video.mp4"
+    SOURCE_VIDEO = "test-video (4).mp4"
+
+reset_counter = False
 
 def detection_process():
     model = YOLO(MODEL_PATH)
@@ -51,6 +53,7 @@ def detection_process():
         line_thickness=2,
     )
 
+    global reset_counter
     if DEBUG_VIDEO:
         while True:
             generator = sv.get_video_frames_generator(SOURCE_VIDEO)
@@ -71,7 +74,15 @@ def detection_process():
                 }, namespace='/')
                 current_time = perf_counter_ns()
                 frame_time = (current_time - time_counter) / 1_000_000
-                print(f'frame took {frame_time} ms')
+                if reset_counter:
+                    counter = solutions.ObjectCounter(
+                        reg_pts=region_points,
+                        names=model.names,
+                        draw_tracks=True,
+                        line_thickness=2,
+                    )
+                    reset_counter = False
+                print(f'frame took {frame_time:0.2f} ms')
                 # sleep(3)
                 time_counter = perf_counter_ns()
     else:
@@ -96,7 +107,15 @@ def detection_process():
                 }, namespace='/')
                 current_time = perf_counter_ns()
                 frame_time = (current_time - time_counter) / 1_000_000
-                print(f'frame took {frame_time} ms')
+                if reset_counter:
+                    counter = solutions.ObjectCounter(
+                        reg_pts=region_points,
+                        names=model.names,
+                        draw_tracks=True,
+                        line_thickness=2,
+                    )
+                    reset_counter = False
+                print(f'frame took {frame_time:0.2f} ms')
                 # sleep(3)
                 time_counter = perf_counter_ns()
 
@@ -111,6 +130,12 @@ def test_disconnect(sid):
 @sio.on('test')
 def test(sid, msg):
     print(f'Test {msg}')
+
+@sio.on('reset-count')
+def test(sid, msg):
+    print(f'reset count {msg}')
+    global reset_counter
+    reset_counter = True
 
 if __name__ == '__main__':
     with app.app_context():

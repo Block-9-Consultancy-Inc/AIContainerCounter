@@ -87,26 +87,27 @@ class _MyAppState extends State<MyApp> {
         }
       }
     }
-
-    int i = 1;
-    while (true) {
-      await socket.emitEvent(event: 'test', data: 'test sent from dart! $i');
-      i++;
-      await Future.delayed(const Duration(seconds: 2));
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primaryColor: Colors.teal,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.dark,
+        ).copyWith(secondary: Colors.tealAccent),
+      ),
       home: Scaffold(
         appBar: AppBar(title: const Text('AI Container Counting Machine')),
         body: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                StreamBuilder(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: StreamBuilder(
                     stream: widget.detectionEventStream,
                     builder: (context, snapshot) => snapshot.hasData
                         ? Row(
@@ -142,21 +143,34 @@ class _MyAppState extends State<MyApp> {
                             ],
                           )
                         : const SizedBox.shrink()),
-                const SizedBox(height: 30),
-                if (_textureId != null)
-                  SizedBox(
-                    width: 970,
-                    height: 540,
+              ),
+              const Spacer(),
+              if (_textureId != null)
+                Expanded(
+                  flex: 10,
+                  child: AspectRatio(
+                    aspectRatio: 1920 / 1080,
                     child: Texture(
                         textureId: _textureId!,
                         filterQuality: FilterQuality.medium),
-                  )
-                else
-                  const Center(
-                    child: Text('Texture id is null'),
-                  )
-              ],
-            ),
+                  ),
+                )
+              else
+                const Expanded(
+                  child: Text('Texture id is null'),
+                ),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    socket.emitEvent(
+                      event: 'reset-count',
+                      data: 'reset-count',
+                    );
+                  },
+                  child: const Text('Submit Count'),
+                ),
+              ),
+            ],
           ),
         ),
         floatingActionButton: FloatingActionButton(

@@ -101,38 +101,34 @@ class _MyAppState extends State<MyApp> {
         ).copyWith(secondary: Colors.tealAccent),
       ),
       home: Scaffold(
-        appBar: AppBar(title: const Text('AI Container Counting Machine')),
         body: Center(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const Spacer(),
               Expanded(
+                flex: 3,
                 child: StreamBuilder(
                     stream: widget.detectionEventStream,
                     builder: (context, snapshot) => snapshot.hasData
-                        ? Row(
+                        ? Column(
                             children: [
-                              Expanded(
+                              const Expanded(
                                 flex: 8,
                                 child: AutoSizeText(
-                                  'Total In: ${snapshot.data!.totalIn}',
-                                  style: const TextStyle(
+                                  'Count',
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w500,
-                                    fontSize: 40,
+                                    fontSize: 37,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
-                              ...snapshot.data!.classWiseCount
-                                  .map((e) => Expanded(
-                                        child: Text(
-                                            '${e.class_} ${e.inCount} ${e.outCount}'),
-                                      )),
                               const Spacer(),
                               Expanded(
                                 flex: 8,
                                 child: AutoSizeText(
-                                  'Total Out: ${snapshot.data!.totalOut}',
+                                  '${snapshot.data!.totalOut}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 40,
@@ -147,7 +143,7 @@ class _MyAppState extends State<MyApp> {
               const Spacer(),
               if (_textureId != null)
                 Expanded(
-                  flex: 10,
+                  flex: 15,
                   child: AspectRatio(
                     aspectRatio: 1920 / 1080,
                     child: Texture(
@@ -159,6 +155,7 @@ class _MyAppState extends State<MyApp> {
                 const Expanded(
                   child: Text('Texture id is null'),
                 ),
+              const Spacer(),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
@@ -170,6 +167,7 @@ class _MyAppState extends State<MyApp> {
                   child: const Text('Submit Count'),
                 ),
               ),
+              const Spacer(),
             ],
           ),
         ),

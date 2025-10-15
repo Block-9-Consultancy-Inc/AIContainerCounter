@@ -31,12 +31,12 @@ COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
 MODEL_PATH = environ.get('MODEL_PATH')
 if MODEL_PATH == None:
-    MODEL_PATH = "counting-machine-3-categories.pt"
+    MODEL_PATH = "counting-machine-1-category.pt"
 
 DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
 SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
 if SOURCE_VIDEO == None:
-    SOURCE_VIDEO = "test-video (4).mp4"
+    SOURCE_VIDEO = "test-video (2).mp4"
 
 reset_counter = False
 
@@ -70,7 +70,7 @@ def detection_process():
             for frame in generator:
                 decoded_frame = frame
                 print(decoded_frame.shape)
-                tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
+                tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True, imgsz=1440)
 
                 decoded_frame = counter.start_counting(decoded_frame, tracks)
 

@@ -9,8 +9,7 @@ from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
 from time import sleep, perf_counter_ns
-from decord import VideoReader
-from decord import cpu
+import supervision as sv
 
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
@@ -31,29 +30,25 @@ COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
 MODEL_PATH = environ.get('MODEL_PATH')
 if MODEL_PATH == None:
-    MODEL_PATH = "counting-machine-1-category.pt"
+    MODEL_PATH = "counting-machine-1-category-yolo11.pt"
 
 DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
 SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
 if SOURCE_VIDEO == None:
-    SOURCE_VIDEO = "test-video (2).mp4"
+    SOURCE_VIDEO = "test-video (4).mp4"
 
 reset_counter = False
 
 
 def extract_frames(video_path):
     # load the VideoReader
-    vr = VideoReader(video_path, ctx=cpu(0))  # can set to cpu or gpu .. ctx=gpu(0)
-                     
-    for index in range(0, len(vr)):  # lets loop through the frames until the end
-        yield vr[index].asnumpy()
+    return sv.get_video_frames_generator(video_path)
 
 def detection_process():
     model = YOLO(MODEL_PATH)
 
     # Define region points
     region_points = [(int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT), (int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT)]
-
     # Init Object Counter
     counter = solutions.ObjectCounter(
         reg_pts=region_points,

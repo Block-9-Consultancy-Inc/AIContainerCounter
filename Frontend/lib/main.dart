@@ -143,7 +143,7 @@ class _MyAppState extends State<MyApp> {
               const Spacer(),
               if (_textureId != null)
                 Expanded(
-                  flex: 15,
+                  flex: 20,
                   child: AspectRatio(
                     aspectRatio: 1920 / 1080,
                     child: Texture(

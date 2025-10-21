@@ -23,14 +23,14 @@ CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
 
-HEIGHT = 1440
-WIDTH = 2560
+HEIGHT = 1080
+WIDTH = 1920
 
 COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
 MODEL_PATH = environ.get('MODEL_PATH')
 if MODEL_PATH == None:
-    MODEL_PATH = "counting-machine-1-category-yolo11.pt"
+    MODEL_PATH = "counting-machine-3-categories-yolo11.pt"
 
 DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
 SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
@@ -91,37 +91,41 @@ def detection_process():
                 time_counter = perf_counter_ns()
     else:
         with Device.from_id(0) as cam:
-            cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
             cam.set_fps(BufferType.VIDEO_CAPTURE, 60)
+            cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
             print(cam.get_format(BufferType.VIDEO_CAPTURE))
             time_counter = perf_counter_ns()
+            print(cam.get_fps(BufferType.VIDEO_CAPTURE))
             for frame in cam:
-                decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
-                print(decoded_frame.shape)
-                tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
+                try:
+                    decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
+                    print(decoded_frame.shape)
+                    tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True)
 
-                decoded_frame = counter.start_counting(decoded_frame, tracks)
+                    decoded_frame = counter.start_counting(decoded_frame, tracks)
 
-                buffer = jpeg.encode(decoded_frame, quality=85)
-                sio.emit('detection_event', {
-                    'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
-                    'total_in': counter.in_counts,
-                    'total_out': counter.out_counts,
-                    'class_wise_count': counter.class_wise_count
-                }, namespace='/')
-                current_time = perf_counter_ns()
-                frame_time = (current_time - time_counter) / 1_000_000
-                if reset_counter:
-                    counter = solutions.ObjectCounter(
-                        reg_pts=region_points,
-                        names=model.names,
-                        draw_tracks=True,
-                        line_thickness=2,
-                    )
-                    reset_counter = False
-                print(f'frame took {frame_time:0.2f} ms')
-                # sleep(3)
-                time_counter = perf_counter_ns()
+                    buffer = jpeg.encode(decoded_frame, quality=85)
+                    sio.emit('detection_event', {
+                        'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
+                        'total_in': counter.in_counts,
+                        'total_out': counter.out_counts,
+                        'class_wise_count': counter.class_wise_count
+                    }, namespace='/')
+                    current_time = perf_counter_ns()
+                    frame_time = (current_time - time_counter) / 1_000_000
+                    if reset_counter:
+                        counter = solutions.ObjectCounter(
+                            reg_pts=region_points,
+                            names=model.names,
+                            draw_tracks=True,
+                            line_thickness=2,
+                        )
+                        reset_counter = False
+                    print(f'frame took {frame_time:0.2f} ms')
+                    # sleep(3)
+                    time_counter = perf_counter_ns()
+                except Exception as e:
+                    print(f'got error {e}')
 
 @sio.on('connect')
 def test_connect(sid, msg):

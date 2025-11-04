@@ -97,53 +97,44 @@ class _MyAppState extends State<MyApp> {
         primaryColor: Colors.teal,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.teal,
-          brightness: Brightness.dark,
+          brightness: Brightness.light,
         ).copyWith(secondary: Colors.tealAccent),
       ),
       home: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          title: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Image.asset(
+              'lib/res/recyclorobo-logo.png',
+              height: 85,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.white,
         body: Center(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
               Expanded(
-                flex: 3,
+                flex: 4,
                 child: StreamBuilder(
-                    stream: widget.detectionEventStream,
-                    builder: (context, snapshot) => snapshot.hasData
-                        ? Column(
-                            children: [
-                              const Expanded(
-                                flex: 8,
-                                child: AutoSizeText(
-                                  'Count',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 37,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const Spacer(),
-                              Expanded(
-                                flex: 8,
-                                child: AutoSizeText(
-                                  '${snapshot.data!.totalOut}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 40,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            ],
-                          )
-                        : const SizedBox.shrink()),
+                  stream: widget.detectionEventStream,
+                  builder: (context, snapshot) => AutoSizeText(
+                    'Count: ${snapshot.hasData ? snapshot.data!.totalOut : 0}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 40,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
               const Spacer(),
               if (_textureId != null)
                 Expanded(
-                  flex: 20,
+                  flex: 30,
                   child: AspectRatio(
                     aspectRatio: 1920 / 1080,
                     child: Texture(
@@ -157,6 +148,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               const Spacer(),
               Expanded(
+                flex: 2,
                 child: ElevatedButton(
                   onPressed: () {
                     socket.emitEvent(

@@ -1,0 +1,37 @@
+datasource db {
+  provider = "postgres"
+  url      = env("DB_URL")
+}
+
+generator client {
+    provider             = "prisma-client-py"
+    recursive_type_depth = 5
+}
+
+model Batch {
+    id                      Int             @id @default(autoincrement())
+    description             String?
+    added                   DateTime        @default(now())
+    edited                  DateTime        @updatedAt
+    multiContainerImages    MultiContainerImage[]
+}
+
+model MultiContainerImage {
+    fileName            String              @id
+    height              Int
+    width               Int
+    batch               Batch      @relation(fields: [batchId], references: [id])
+    batchId             Int
+    bboxAnnotations     BBoxAnnotation[]
+}
+
+model BBoxAnnotation {
+    id                          String                  @id @default(uuid()) @db.Uuid
+    multiContainerImage         MultiContainerImage     @relation(fields: [multiContainerImageFile], references: [fileName])
+    multiContainerImageFile     String       
+    containerClassId            String                  @db.Uuid
+    centerX                     Int
+    centerY                     Int
+    width                       Int
+    height                      Int   
+}

@@ -30,7 +30,7 @@ COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
 
 MODEL_PATH = environ.get('MODEL_PATH')
 if MODEL_PATH == None:
-    MODEL_PATH = "counting-machine-3-categories-yolo11.pt"
+    MODEL_PATH = "counting-machine-1-category-yolo11.pt"
 
 DEBUG_VIDEO = environ.get('DEBUG_VIDEO') == 'true'
 SOURCE_VIDEO = environ.get('SOURCE_VIDEO')

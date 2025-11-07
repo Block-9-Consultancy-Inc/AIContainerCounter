@@ -65,7 +65,7 @@ frame_encode_quality_from_env = environ.get('FRAME_ENCODE_QUALITY')
 if frame_encode_quality_from_env == None or not frame_encode_quality_from_env.isdigit():
     FRAME_ENCODE_QUALITY = 85
 else:
-    FRAME_ENCODE_QUALITY = max(int(model_imgsiz_from_env), 100)
+    FRAME_ENCODE_QUALITY = max(min(int(frame_encode_quality_from_env), 100), 0)
 
 RENDER_DEBUG_COUNT = environ.get('RENDER_DEBUG_COUNT') == 'true'
 

@@ -74,8 +74,32 @@ SOURCE_VIDEO = environ.get('SOURCE_VIDEO')
 if SOURCE_VIDEO == None:
     SOURCE_VIDEO = "test-video (4).mp4"
 
+COLLECT_DEBUG_PERFORMANCE_METRICS = environ.get('COLLECT_DEBUG_PERFORMANCE_METRICS') == 'true'
+
 reset_counter = False
 
+frame_time_data = []
+
+def print_frame_time_data():
+    num_of_frames = len(frame_time_data)
+    avg_frame_time = sum(list(map(lambda e: e.get('frame_time'), frame_time_data))) / num_of_frames
+    avg_total_frame_time = sum(list(map(lambda e: e.get('total_frame_time'), frame_time_data))) / num_of_frames
+    avg_fps = 1000 / avg_total_frame_time
+    avg_waiting_for_frame_time = sum(list(map(lambda e: e.get('waiting_for_frame_time'), frame_time_data))) / num_of_frames
+    avg_total_inferencing_and_tracking_time = sum(list(map(lambda e: e.get('total_inferencing_and_tracking_time'), frame_time_data))) / num_of_frames
+    avg_count_time = sum(list(map(lambda e: e.get('count_time'), frame_time_data))) / num_of_frames
+    avg_frame_decode_time = sum(list(map(lambda e: e.get('frame_decode_time'), frame_time_data))) / num_of_frames
+    avg_jpeg_encode_time = sum(list(map(lambda e: e.get('jpeg_encode_time'), frame_time_data))) / num_of_frames
+    avg_base64_encode_time = sum(list(map(lambda e: e.get('base64_encode_time'), frame_time_data))) / num_of_frames
+    avg_socket_emit_time = sum(list(map(lambda e: e.get('socket_emit_time'), frame_time_data))) / num_of_frames
+
+    print(f'''avg fps: {avg_fps:0.2f}, avg_frame_time: {avg_frame_time:0.2f} ms, avg_total_frame_time: {avg_total_frame_time:0.2f}
+avg_waiting_for_frame_time: {avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_and_tracking_time: {avg_total_inferencing_and_tracking_time:0.2f} ms
+avg_count_time: {avg_count_time:0.2f} ms, avg_frame_decode_time: {avg_frame_decode_time:0.2f} ms
+avg_jpeg_encode_time: {avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {avg_base64_encode_time:0.2f} ms, avg_socket_emit_time: {avg_socket_emit_time:0.2f} ms
+''')
+
+    
 
 def extract_frames(video_path):
     # load the VideoReader
@@ -116,7 +140,7 @@ def detection_process():
                     'class_wise_count': counter.class_wise_count
                 }, namespace='/')
                 current_time = perf_counter_ns()
-                frame_time = (current_time - time_counter) / 1_000_000
+                current_frame_time = (current_time - time_counter) / 1_000_000
                 if reset_counter:
                     counter = solutions.ObjectCounter(
                         reg_pts=region_points,
@@ -127,7 +151,7 @@ def detection_process():
                         view_out_counts=RENDER_DEBUG_COUNT
                     )
                     reset_counter = False
-                print(f'frame took {frame_time:0.2f} ms')
+                print(f'frame took {current_frame_time:0.2f} ms')
                 # sleep(3)
                 time_counter = perf_counter_ns()
     else:
@@ -135,25 +159,45 @@ def detection_process():
             cam.set_fps(BufferType.VIDEO_CAPTURE, CAMERA_FPS)
             cam.set_format(BufferType.VIDEO_CAPTURE, WIDTH, HEIGHT, "MJPG")
             print(cam.get_format(BufferType.VIDEO_CAPTURE))
-            time_counter = perf_counter_ns()
+            end_of_prev_frame = perf_counter_ns()
             print(cam.get_fps(BufferType.VIDEO_CAPTURE))
             for frame in cam:
+                start_of_current_frame = perf_counter_ns()
+                waiting_for_frame_time = start_of_current_frame - end_of_prev_frame
                 try:
                     decoded_frame = jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
+                    after_jpeg_decode = perf_counter_ns()
+                    frame_decode_time = after_jpeg_decode - start_of_current_frame
                     print(decoded_frame.shape)
                     tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True, imgsz=MODEL_IMGSZ)
+                    after_inference = perf_counter_ns()
+                    total_inferencing_and_tracking_time = after_inference - after_jpeg_decode
 
                     decoded_frame = counter.start_counting(decoded_frame, tracks)
+                    after_count = perf_counter_ns()
+                    count_time = after_count - after_inference
 
                     buffer = jpeg.encode(decoded_frame, quality=FRAME_ENCODE_QUALITY)
+                    after_jpeg_encode = perf_counter_ns()
+
+                    jpeg_encode_time = after_jpeg_encode - after_count
+
+                    encoded_frame = base64.b64encode(buffer).decode('utf-8')
+                    after_base64_encode = perf_counter_ns()
+                    base64_encode_time = after_base64_encode - after_jpeg_encode
+
                     sio.emit('detection_event', {
-                        'encoded_frame': base64.b64encode(buffer).decode('utf-8'),
+                        'encoded_frame': encoded_frame,
                         'total_in': counter.in_counts,
                         'total_out': counter.out_counts,
                         'class_wise_count': counter.class_wise_count
                     }, namespace='/')
-                    current_time = perf_counter_ns()
-                    frame_time = (current_time - time_counter) / 1_000_000
+
+                    after_socketio_emit = perf_counter_ns()
+                    socket_emit_time = after_socketio_emit - after_base64_encode
+                    
+                    current_frame_time = after_socketio_emit - start_of_current_frame
+                    total_frame_time = after_socketio_emit - end_of_prev_frame
                     if reset_counter:
                         counter = solutions.ObjectCounter(
                             reg_pts=region_points,
@@ -164,9 +208,23 @@ def detection_process():
                             view_out_counts=RENDER_DEBUG_COUNT
                         )
                         reset_counter = False
-                    print(f'frame took {frame_time:0.2f} ms')
+                    print(f'frame took {(total_frame_time / 1_000_000):0.2f} ms')
+                    if COLLECT_DEBUG_PERFORMANCE_METRICS:
+                        frame_time_data.append({
+                            'frame_time': current_frame_time / 1_000_000,
+                            'total_frame_time': total_frame_time / 1_000_000,
+                            'waiting_for_frame_time': waiting_for_frame_time / 1_000_000,
+                            'frame_decode_time': frame_decode_time / 1_000_000,
+                            'total_inferencing_and_tracking_time': total_inferencing_and_tracking_time / 1_000_000,
+                            'count_time': count_time / 1_000_000,
+                            'jpeg_encode_time': jpeg_encode_time / 1_000_000,
+                            'base64_encode_time': base64_encode_time / 1_000_000,
+                            'socket_emit_time': socket_emit_time / 1_000_000
+                        })
+                        print_frame_time_data()
                     # sleep(3)
-                    time_counter = perf_counter_ns()
+                    end_of_prev_frame = perf_counter_ns()
+
                 except Exception as e:
                     print(f'got error {e}')
 

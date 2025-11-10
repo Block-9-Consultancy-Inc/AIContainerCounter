@@ -41,6 +41,7 @@ dependencies:
   auto_size_text: ^3.0.0
   texture_rgba_renderer:
     git: https://github.com/h3x4d3c1m4l/flutter_texture_rgba_renderer
+  window_manager: ^0.4.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,7 @@ dev_dependencies:
 flutter:
   assets:
     - lib/res/recyclorobo-logo.png
+    - lib/res/recyclorobo-logo-dark.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

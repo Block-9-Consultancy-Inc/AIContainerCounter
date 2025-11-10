@@ -138,6 +138,10 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> setVideo(bool on) async {
+    await socket.emitEvent(event: 'set-video', data: on.toString());
+  }
+
   Future<void> _submitBatch() async {
     setState(() {
       previousBatches.add((
@@ -202,7 +206,8 @@ class _MyAppState extends State<MyApp> {
             Builder(builder: (context) {
               return IconButton(
                 onPressed: () async {
-                  setShowingVideo(showingVideo: true);
+                  await setVideo(true);
+                  // ignore: use_build_context_synchronously
                   await Navigator.of(context).push(MaterialPageRoute(
                       builder: (builderContext) => Scaffold(
                             appBar: AppBar(
@@ -224,7 +229,7 @@ class _MyAppState extends State<MyApp> {
                               ),
                             ),
                           )));
-                  setShowingVideo(showingVideo: false);
+                  await setVideo(false);
                 },
                 iconSize: 80,
                 color: Theme.of(context).colorScheme.primary,

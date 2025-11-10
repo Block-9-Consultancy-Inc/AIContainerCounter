@@ -211,12 +211,23 @@ class _MyAppState extends State<MyApp> {
                   await Navigator.of(context).push(MaterialPageRoute(
                       builder: (builderContext) => Scaffold(
                             appBar: AppBar(
-                              backgroundColor: Colors.black.withOpacity(0.1),
-                              actions: [
-                                ElevatedButton(
-                                    onPressed: _submitBatch,
-                                    child: const Text('Submit Batch'))
-                              ],
+                              automaticallyImplyLeading: false,
+                              backgroundColor: Colors.black.withOpacity(0.0),
+                              title: Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () =>
+                                        Navigator.of(builderContext).pop(),
+                                    icon: const Icon(Icons.close),
+                                    color:
+                                        const Color.fromRGBO(56, 182, 255, 1),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  ElevatedButton(
+                                      onPressed: _submitBatch,
+                                      child: const Text('Submit Batch')),
+                                ],
+                              ),
                             ),
                             extendBodyBehindAppBar: true,
                             body: Center(

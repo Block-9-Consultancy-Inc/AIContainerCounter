@@ -30,10 +30,6 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref SHOWING_VIDEO: RwLock<bool> = RwLock::new(true);
-}
-
-lazy_static! {
     static ref EVENT_STREAM_SINK: RwLock<Option<StreamSink<String>>> = RwLock::new(None);
 }
 
@@ -72,14 +68,6 @@ pub fn set_detection_event_stream_sink(stream_sink: StreamSink<FramePayload>) {
             (This may or may not be a problem. It will happen normally if hot-reload Flutter app.)"
         );
     }
-}
-
-pub fn set_showing_video(showing_video: bool) {
-    let mut guard = SHOWING_VIDEO.write();
-
-    *guard = showing_video;
-
-    drop(guard);
 }
 
 pub fn initialize_flutter_texture(texture_ptr: usize) {
@@ -146,10 +134,10 @@ impl Socket {
                     }
                     let object_decode_time = now.elapsed();
                     println!("took {:#?} ms", object_decode_time.as_millis());
-                    let showing_video = *SHOWING_VIDEO.read();
-                    if showing_video {
+                    let encoded_frame = object.get("encoded_frame");
+                    if encoded_frame.is_some() {
                         now = Instant::now();
-                        let encoded_frame_base64 = object.get("encoded_frame").unwrap().as_str().unwrap();
+                        let encoded_frame_base64 = encoded_frame.unwrap().as_str().unwrap();
                         println!("starting base64decode");
                         let frame = STANDARD.decode(encoded_frame_base64).unwrap();
                         let base64_decode_time = now.elapsed();

@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.4.0';
 
   @override
-  int get rustContentHash => 2049663166;
+  int get rustContentHash => 33176448;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -97,8 +97,6 @@ abstract class RustLibApi extends BaseApi {
   Stream<FramePayload> crateApiSimpleSetDetectionEventStreamSink();
 
   Stream<String> crateApiSimpleSetEventStreamSink();
-
-  Future<void> crateApiSimpleSetShowingVideo({required bool showingVideo});
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Socket;
 
@@ -319,31 +317,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "set_event_stream_sink",
         argNames: ["streamSink"],
-      );
-
-  @override
-  Future<void> crateApiSimpleSetShowingVideo({required bool showingVideo}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_bool(showingVideo, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 9, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateApiSimpleSetShowingVideoConstMeta,
-      argValues: [showingVideo],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateApiSimpleSetShowingVideoConstMeta =>
-      const TaskConstMeta(
-        debugName: "set_showing_video",
-        argNames: ["showingVideo"],
       );
 
   RustArcIncrementStrongCountFnType

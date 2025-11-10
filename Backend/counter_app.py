@@ -80,6 +80,8 @@ reset_counter = False
 
 frame_time_data = []
 
+showing_video = False
+
 def print_frame_time_data():
     num_of_frames = len(frame_time_data)
     avg_frame_time = sum(list(map(lambda e: e.get('frame_time'), frame_time_data))) / num_of_frames
@@ -89,14 +91,26 @@ def print_frame_time_data():
     avg_total_inferencing_and_tracking_time = sum(list(map(lambda e: e.get('total_inferencing_and_tracking_time'), frame_time_data))) / num_of_frames
     avg_count_time = sum(list(map(lambda e: e.get('count_time'), frame_time_data))) / num_of_frames
     avg_frame_decode_time = sum(list(map(lambda e: e.get('frame_decode_time'), frame_time_data))) / num_of_frames
-    avg_jpeg_encode_time = sum(list(map(lambda e: e.get('jpeg_encode_time'), frame_time_data))) / num_of_frames
-    avg_base64_encode_time = sum(list(map(lambda e: e.get('base64_encode_time'), frame_time_data))) / num_of_frames
+
+    num_of_frames_with_jpeg_encode = len(list(filter(lambda e: e.get('jpeg_encode_time') is not None, frame_time_data)))
+    if num_of_frames_with_jpeg_encode > 0:
+        avg_jpeg_encode_time = sum(list(map(lambda e: e.get('jpeg_encode_time'), filter(lambda e: e.get('jpeg_encode_time') is not None, frame_time_data)))) / num_of_frames_with_jpeg_encode
+    else:
+        avg_jpeg_encode_time = 0
+
+    num_of_frames_with_base64_encode = len(list(filter(lambda e: e.get('base64_encode_time') is not None, frame_time_data)))
+    if num_of_frames_with_base64_encode > 0:
+        avg_base64_encode_time = sum(list(map(lambda e: e.get('base64_encode_time'), filter(lambda e: e.get('base64_encode_time') is not None, frame_time_data)))) / num_of_frames_with_base64_encode
+    else:
+        avg_base64_encode_time = 0
+    
     avg_socket_emit_time = sum(list(map(lambda e: e.get('socket_emit_time'), frame_time_data))) / num_of_frames
 
-    print(f'''avg fps: {avg_fps:0.2f}, avg_frame_time: {avg_frame_time:0.2f} ms, avg_total_frame_time: {avg_total_frame_time:0.2f}
+    print(f'''avg fps: {avg_fps:0.2f}, avg_frame_time: {avg_frame_time:0.2f} ms, avg_total_frame_time: {avg_total_frame_time:0.2f} ms
 avg_waiting_for_frame_time: {avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_and_tracking_time: {avg_total_inferencing_and_tracking_time:0.2f} ms
 avg_count_time: {avg_count_time:0.2f} ms, avg_frame_decode_time: {avg_frame_decode_time:0.2f} ms
 avg_jpeg_encode_time: {avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {avg_base64_encode_time:0.2f} ms, avg_socket_emit_time: {avg_socket_emit_time:0.2f} ms
+showing_video: {showing_video}
 ''')
 
     
@@ -121,6 +135,7 @@ def detection_process():
     )
 
     global reset_counter
+    global showing_video
     if DEBUG_VIDEO:
         while True:
             generator = extract_frames(SOURCE_VIDEO)
@@ -177,24 +192,27 @@ def detection_process():
                     after_count = perf_counter_ns()
                     count_time = after_count - after_inference
 
-                    buffer = jpeg.encode(decoded_frame, quality=FRAME_ENCODE_QUALITY)
-                    after_jpeg_encode = perf_counter_ns()
-
-                    jpeg_encode_time = after_jpeg_encode - after_count
-
-                    encoded_frame = base64.b64encode(buffer).decode('utf-8')
-                    after_base64_encode = perf_counter_ns()
-                    base64_encode_time = after_base64_encode - after_jpeg_encode
-
-                    sio.emit('detection_event', {
-                        'encoded_frame': encoded_frame,
+                    payload = {
                         'total_in': counter.in_counts,
                         'total_out': counter.out_counts,
                         'class_wise_count': counter.class_wise_count
-                    }, namespace='/')
+                    }
+
+                    if showing_video:
+                        buffer = jpeg.encode(decoded_frame, quality=FRAME_ENCODE_QUALITY)
+                        after_jpeg_encode = perf_counter_ns()
+
+                        jpeg_encode_time = after_jpeg_encode - after_count
+
+                        encoded_frame = base64.b64encode(buffer).decode('utf-8')
+                        after_base64_encode = perf_counter_ns()
+                        base64_encode_time = after_base64_encode - after_jpeg_encode
+                        payload['encoded_frame'] = encoded_frame
+
+                    sio.emit('detection_event', payload, namespace='/')
 
                     after_socketio_emit = perf_counter_ns()
-                    socket_emit_time = after_socketio_emit - after_base64_encode
+                    socket_emit_time = after_socketio_emit - (after_base64_encode if showing_video else after_count)
                     
                     current_frame_time = after_socketio_emit - start_of_current_frame
                     total_frame_time = after_socketio_emit - end_of_prev_frame
@@ -210,17 +228,19 @@ def detection_process():
                         reset_counter = False
                     print(f'frame took {(total_frame_time / 1_000_000):0.2f} ms')
                     if COLLECT_DEBUG_PERFORMANCE_METRICS:
-                        frame_time_data.append({
+                        current_frame_time_data = {
                             'frame_time': current_frame_time / 1_000_000,
                             'total_frame_time': total_frame_time / 1_000_000,
                             'waiting_for_frame_time': waiting_for_frame_time / 1_000_000,
                             'frame_decode_time': frame_decode_time / 1_000_000,
                             'total_inferencing_and_tracking_time': total_inferencing_and_tracking_time / 1_000_000,
                             'count_time': count_time / 1_000_000,
-                            'jpeg_encode_time': jpeg_encode_time / 1_000_000,
-                            'base64_encode_time': base64_encode_time / 1_000_000,
                             'socket_emit_time': socket_emit_time / 1_000_000
-                        })
+                        }
+                        if showing_video:
+                            current_frame_time_data['jpeg_encode_time'] = jpeg_encode_time / 1_000_000
+                            current_frame_time_data['base64_encode_time'] = base64_encode_time / 1_000_000
+                        frame_time_data.append(current_frame_time_data)
                         print_frame_time_data()
                     # sleep(3)
                     end_of_prev_frame = perf_counter_ns()
@@ -241,10 +261,16 @@ def test(sid, msg):
     print(f'Test {msg}')
 
 @sio.on('reset-count')
-def test(sid, msg):
+def reset_counter(sid, msg):
     print(f'reset count {msg}')
     global reset_counter
     reset_counter = True
+
+@sio.on('set-video')
+def set_video(sid, msg):
+    print(f'set video {msg}')
+    global showing_video
+    showing_video = bool(msg)
 
 if __name__ == '__main__':
     with app.app_context():

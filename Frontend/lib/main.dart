@@ -1,17 +1,65 @@
+import 'dart:async';
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
+import 'package:window_manager/window_manager.dart';
+
+extension DateTimeExtension on DateTime {
+  String timeAgo({bool numericDates = true}) {
+    final date2 = DateTime.now();
+    final difference = date2.difference(this);
+
+    if ((difference.inDays / 7).floor() >= 1) {
+      return (numericDates) ? '1 week ago' : 'Last week';
+    } else if (difference.inDays >= 2) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inDays >= 1) {
+      return (numericDates) ? '1 day ago' : 'Yesterday';
+    } else if (difference.inHours >= 2) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inHours >= 1) {
+      return (numericDates) ? '1 hour ago' : 'An hour ago';
+    } else if (difference.inMinutes >= 2) {
+      return '${difference.inMinutes} minutes ago';
+    } else if (difference.inMinutes >= 1) {
+      return (numericDates) ? '1 minute ago' : 'A minute ago';
+    } else if (difference.inSeconds >= 3) {
+      return '${difference.inSeconds} seconds ago';
+    } else {
+      return 'Just now';
+    }
+  }
+}
+
+class LastEventCachedStream<T> {
+  final Stream<T> _stream;
+  T? lastEvent;
+
+  Stream<T> get stream => _stream;
+
+  LastEventCachedStream(Stream<T> stream)
+      : _stream = stream.asBroadcastStream() {
+    _stream.forEach((event) {
+      lastEvent = event;
+    });
+  }
+}
 
 Future<void> main() async {
   await RustLib.init();
-  final Stream<String> eventStream = setEventStreamSink();
-  final Stream<FramePayload> detectionEventStream =
-      setDetectionEventStreamSink();
-  eventStream.listen((data) {
+  final eventStream = LastEventCachedStream(setEventStreamSink());
+  final detectionEventStream =
+      LastEventCachedStream(setDetectionEventStreamSink());
+  eventStream.stream.listen((data) {
     print('DART: $data');
   });
+  WidgetsFlutterBinding.ensureInitialized();
+  WindowManager.instance.ensureInitialized();
+  WindowManager.instance.setTitleBarStyle(TitleBarStyle.hidden);
+  WindowManager.instance.maximize();
   runApp(MyApp(
     eventStream: eventStream,
     detectionEventStream: detectionEventStream,
@@ -19,8 +67,8 @@ Future<void> main() async {
 }
 
 class MyApp extends StatefulWidget {
-  final Stream<String> eventStream;
-  final Stream<FramePayload> detectionEventStream;
+  final LastEventCachedStream<String> eventStream;
+  final LastEventCachedStream<FramePayload> detectionEventStream;
   const MyApp({
     super.key,
     required this.eventStream,
@@ -32,10 +80,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.light;
   late Socket socket;
+  final previousBatches = <({int count, DateTime time})>[];
 
   int? _textureId;
-  bool playingVideo = true;
 
   @override
   void initState() {
@@ -89,91 +138,241 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _submitBatch() async {
+    setState(() {
+      previousBatches.add((
+        count: widget.detectionEventStream.lastEvent?.totalOut ?? 0,
+        time: DateTime.now()
+      ));
+    });
+    socket.emitEvent(
+      event: 'reset-count',
+      data: 'reset-count',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      themeMode: _themeMode,
       theme: ThemeData(
-        primaryColor: Colors.teal,
+        primaryColor: const Color.fromRGBO(56, 182, 255, 1),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
+          seedColor: const Color.fromRGBO(56, 182, 255, 1),
           brightness: Brightness.light,
-        ).copyWith(secondary: Colors.tealAccent),
+        ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
+      ),
+      darkTheme: ThemeData(
+        primaryColor: const Color.fromRGBO(56, 182, 255, 1),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromRGBO(56, 182, 255, 1),
+          brightness: Brightness.dark,
+        ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
       ),
       home: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          toolbarHeight: 120,
           title: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Image.asset(
-              'lib/res/recyclorobo-logo.png',
-              height: 85,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 1.0),
+            child: _themeMode == ThemeMode.light
+                ? Image.asset(
+                    'lib/res/recyclorobo-logo.png',
+                    height: 55,
+                  )
+                : Image.asset(
+                    'lib/res/recyclorobo-logo-dark.png',
+                    height: 55,
+                  ),
           ),
+          actions: [
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _themeMode = _themeMode == ThemeMode.light
+                      ? ThemeMode.dark
+                      : ThemeMode.light;
+                });
+              },
+              iconSize: 80,
+              icon: _themeMode == ThemeMode.light
+                  ? const Icon(Icons.dark_mode)
+                  : const Icon(Icons.light_mode),
+            ),
+            Builder(builder: (context) {
+              return IconButton(
+                onPressed: () async {
+                  setShowingVideo(showingVideo: true);
+                  await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (builderContext) => Scaffold(
+                            appBar: AppBar(
+                              backgroundColor: Colors.black.withOpacity(0.1),
+                              actions: [
+                                ElevatedButton(
+                                    onPressed: _submitBatch,
+                                    child: const Text('Submit Batch'))
+                              ],
+                            ),
+                            extendBodyBehindAppBar: true,
+                            body: Center(
+                              child: AspectRatio(
+                                aspectRatio: 1920 / 1080,
+                                child: Texture(
+                                  textureId: _textureId!,
+                                  filterQuality: FilterQuality.medium,
+                                ),
+                              ),
+                            ),
+                          )));
+                  setShowingVideo(showingVideo: false);
+                },
+                iconSize: 80,
+                color: Theme.of(context).colorScheme.primary,
+                icon: const Icon(Icons.videocam),
+              );
+            }),
+          ],
         ),
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        body: Builder(builder: (context) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Spacer(),
-              Expanded(
-                flex: 4,
-                child: StreamBuilder(
-                  stream: widget.detectionEventStream,
-                  builder: (context, snapshot) => AutoSizeText(
-                    'Count: ${snapshot.hasData ? snapshot.data!.totalOut : 0}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 40,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              if (_textureId != null)
-                Expanded(
-                  flex: 30,
-                  child: AspectRatio(
-                    aspectRatio: 1920 / 1080,
-                    child: Texture(
-                        textureId: _textureId!,
-                        filterQuality: FilterQuality.medium),
-                  ),
-                )
-              else
-                const Expanded(
-                  child: Text('Texture id is null'),
-                ),
-              const Spacer(),
               Expanded(
                 flex: 2,
-                child: ElevatedButton(
-                  onPressed: () {
-                    socket.emitEvent(
-                      event: 'reset-count',
-                      data: 'reset-count',
-                    );
-                  },
-                  child: const Text('Submit Count'),
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: 40,
+                    right: 40,
+                    bottom: 40,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 70),
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                                minimumSize:
+                                    const WidgetStatePropertyAll(Size.infinite),
+                                shape: WidgetStatePropertyAll(
+                                    RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)))),
+                            onPressed: _submitBatch,
+                            child: const AutoSizeText(
+                              'Submit Batch',
+                              maxLines: 2,
+                              style: TextStyle(fontSize: 80),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Total Daily Count',
+                        style: TextStyle(
+                          fontSize: 40,
+                          height: 0.75,
+                          color: Theme.of(context).colorScheme.inversePrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      AutoSizeText(
+                        '${previousBatches.fold(0, (value, element) => value + element.count)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 100,
+                          height: 0.75,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 50),
+                      Text(
+                        'Current Count',
+                        style: TextStyle(
+                          fontSize: 120,
+                          height: 0.75,
+                          color: Theme.of(context).colorScheme.inversePrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      StreamBuilder(
+                        stream: widget.detectionEventStream.stream,
+                        builder: (context, snapshot) => AutoSizeText(
+                          '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 320,
+                            height: 0.75,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const Spacer(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: 40,
+                    right: 40,
+                  ),
+                  child: previousBatches.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No previous batches today',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 50,
+                              color:
+                                  Theme.of(context).colorScheme.inversePrimary,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: previousBatches.length,
+                          itemBuilder: (context, index) {
+                            final actualIndex =
+                                previousBatches.length - 1 - index;
+                            return ListTile(
+                              onTap: () {},
+                              title: Text(
+                                'Batch ${actualIndex + 1}: ${previousBatches[actualIndex].count}',
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.7),
+                                  fontSize: 40,
+                                ),
+                              ),
+                              subtitle: Text(
+                                previousBatches[actualIndex].time.timeAgo(),
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .inversePrimary,
+                                ),
+                              ),
+                            );
+                          }),
+                ),
+              ),
             ],
-          ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            setShowingVideo(showingVideo: !playingVideo);
-            setState(() {
-              playingVideo = !playingVideo;
-            });
-          },
-          child: !playingVideo
-              ? const Icon(Icons.play_arrow)
-              : const Icon(Icons.stop),
-        ),
+          );
+        }),
       ),
     );
   }

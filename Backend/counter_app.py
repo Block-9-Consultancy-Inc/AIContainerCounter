@@ -8,12 +8,14 @@ from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
-from time import sleep, perf_counter_ns
-import supervision as sv
+from time import perf_counter_ns
 from dotenv import load_dotenv
+import sys
 
 class CounterApp:
     def __init__(self,
+            load_params_from_dotenv = True,
+            dotenv_path = './.env',
             height = 1080,
             width = 1920,
             camera_id = 0,
@@ -27,18 +29,23 @@ class CounterApp:
             turbo_jpeg_library_path: str = None
         ) -> None:
 
-        self.height = height
-        self.width = width
-        self.camera_id = camera_id
-        self.camera_fps = camera_fps
-        self.counting_region_width_percentage = counting_region_width_percentage
-        self.model_path = model_path
-        self.model_imgsz = model_imgsz
-        self.frame_encode_quality = frame_encode_quality
-        self.render_debug_count = render_debug_count
-        self.print_debug_performance_metrics = print_debug_performance_metrics
+        if not load_params_from_dotenv:
+            self.height = height
+            self.width = width
+            self.camera_id = camera_id
+            self.camera_fps = camera_fps
+            self.counting_region_width_percentage = counting_region_width_percentage
+            self.model_path = model_path
+            self.model_imgsz = model_imgsz
+            self.frame_encode_quality = frame_encode_quality
+            self.render_debug_count = render_debug_count
+            self.print_debug_performance_metrics = print_debug_performance_metrics
+            self.turbo_jpeg_library_path = turbo_jpeg_library_path
+        else:
+            self.__load_params_from_dotenv(dotenv_path)
+            
 
-        self.jpeg = TurboJPEG(turbo_jpeg_library_path)
+        self.jpeg = TurboJPEG(self.turbo_jpeg_library_path)
         sio = socketio.Server(async_mode='threading')
         self.sio = sio
         self.app = Flask(__name__, 
@@ -91,6 +98,58 @@ class CounterApp:
             print(f'set video {msg}')
             self.showing_video = bool(msg)
 
+    def __load_params_from_dotenv(self, dotenv_path = './.env'):
+        load_dotenv(dotenv_path)
+        height_from_env = environ.get('HEIGHT')
+        if height_from_env == None or not height_from_env.isdigit():
+            self.height = 1080
+        else:
+            self.height = int(height_from_env)
+
+        width_from_env = environ.get('WIDTH')
+        if width_from_env == None or not width_from_env.isdigit():
+            self.width = 1920
+        else:
+            self.width = int(width_from_env)
+
+        camera_id_from_env = environ.get('CAMERA_ID')
+        if camera_id_from_env == None or not camera_id_from_env.isdigit():
+            self.camera_id = 0
+        else:
+            self.camera_id = int(camera_id_from_env)
+
+        camera_fps_from_env = environ.get('CAMERA_FPS')
+        if camera_fps_from_env == None or not camera_fps_from_env.isdigit():
+            self.camera_fps = 60
+        else:
+            self.camera_fps = int(camera_fps_from_env)
+
+        region_width_from_env = environ.get('COUNTING_REGION_WIDTH_PERCENTAGE')
+        if region_width_from_env == None or not region_width_from_env.replace('.','',1).isdigit():
+            self.counting_region_width_percentage = 0.4
+        else:
+            self.counting_region_width_percentage = float(region_width_from_env)
+
+        self.model_path = environ.get('MODEL_PATH')
+
+        model_imgsiz_from_env = environ.get('MODEL_IMGSZ')
+        if model_imgsiz_from_env == None or not model_imgsiz_from_env.isdigit():
+            self.model_imgsz = 1440
+        else:
+            self.model_imgsz = int(model_imgsiz_from_env)
+
+        frame_encode_quality_from_env = environ.get('FRAME_ENCODE_QUALITY')
+        if frame_encode_quality_from_env == None or not frame_encode_quality_from_env.isdigit():
+            self.frame_encode_quality = 85
+        else:
+            self.frame_encode_quality = max(min(int(frame_encode_quality_from_env), 100), 0)
+
+        self.render_debug_count = environ.get('RENDER_DEBUG_COUNT') == 'true'
+
+        self.print_debug_performance_metrics = environ.get('PRINT_DEBUG_PERFORMANCE_METRICS') == 'true'
+
+        self.turbo_jpeg_library_path = environ.get('TURBO_JPEG_LIBRARY_PATH')
+
     def calculate_frame_time_data(
             self,
             frame_time: int,
@@ -132,6 +191,18 @@ avg_count_time: {self.avg_count_time:0.2f} ms, avg_frame_decode_time: {self.avg_
 avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms, avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms
 showing_video: {self.showing_video}
 ''')
+        self.sio.emit('frame_time', {
+            'num_of_frames': self.num_of_frames,
+            'avg_frame_time': self.avg_frame_time,
+            'avg_total_frame_time': self.avg_total_frame_time,
+            'avg_waiting_for_frame_time': self.avg_waiting_for_frame_time,
+            'avg_total_inferencing_and_tracking_time': self.avg_total_inferencing_and_tracking_time,
+            'avg_count_time': self.avg_count_time,
+            'avg_frame_decode_time': self.avg_frame_decode_time,
+            'avg_jpeg_encode_time': self.avg_jpeg_encode_time,
+            'avg_base64_encode_time': self.avg_base64_encode_time,
+            'avg_socket_emit_time': self.avg_socket_emit_time,
+        }, namespace='/')
 
     def detection_process(self):
         model = YOLO(self.model_path)
@@ -147,7 +218,6 @@ showing_video: {self.showing_video}
             view_in_counts=self.render_debug_count,
             view_out_counts=self.render_debug_count
         )
-
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)
             cam.set_format(BufferType.VIDEO_CAPTURE, self.width, self.height, "MJPG")
@@ -221,86 +291,21 @@ showing_video: {self.showing_video}
                         print_data=self.print_debug_performance_metrics
                     )
                     end_of_prev_frame = perf_counter_ns()
-
                 except Exception as e:
                     print(f'got error {e}')
+        print('detection process has stopped')
 
     def run(self):
         with self.app.app_context():
-            # Start the detection process in a separate thread
-            # Implement additional logic if needed to properly start the detection process
-            print("Detection process started.")
-            detection_thread = Thread(target=self.detection_process)
-            detection_thread.daemon = True  # Daemonize thread
-            detection_thread.start()
+            self.detection_thread = Thread(target=self.detection_process)
+            self.detection_thread.daemon = True  # Daemonize thread
+            self.detection_thread.start()
         self.app.run(threaded=True)
 
 if __name__ == '__main__':
     print('Is using CUDA: ' + str(torch.cuda.is_available()))
-
-    load_dotenv('./.env')
-
-    height_from_env = environ.get('HEIGHT')
-    if height_from_env == None or not height_from_env.isdigit():
-        height = 1080
-    else:
-        height = int(height_from_env)
-
-    width_from_env = environ.get('WIDTH')
-    if width_from_env == None or not width_from_env.isdigit():
-        width = 1920
-    else:
-        width = int(width_from_env)
-
-    camera_id_from_env = environ.get('CAMERA_ID')
-    if camera_id_from_env == None or not camera_id_from_env.isdigit():
-        camera_id = 0
-    else:
-        camera_id = int(camera_id_from_env)
-
-    camera_fps_from_env = environ.get('CAMERA_FPS')
-    if camera_fps_from_env == None or not camera_fps_from_env.isdigit():
-        camera_fps = 60
-    else:
-        camera_fps = int(camera_fps_from_env)
-
-    region_width_from_env = environ.get('COUNTING_REGION_WIDTH_PERCENTAGE')
-    if region_width_from_env == None or not region_width_from_env.replace('.','',1).isdigit():
-        counting_region_width_percentage = 0.4
-    else:
-        counting_region_width_percentage = float(region_width_from_env)
-
-    model_path = environ.get('MODEL_PATH')
-
-    model_imgsiz_from_env = environ.get('MODEL_IMGSZ')
-    if model_imgsiz_from_env == None or not model_imgsiz_from_env.isdigit():
-        model_imgsz = 1440
-    else:
-        model_imgsz = int(model_imgsiz_from_env)
-
-    frame_encode_quality_from_env = environ.get('FRAME_ENCODE_QUALITY')
-    if frame_encode_quality_from_env == None or not frame_encode_quality_from_env.isdigit():
-        frame_encode_quality = 85
-    else:
-        frame_encode_quality = max(min(int(frame_encode_quality_from_env), 100), 0)
-
-    render_debug_count = environ.get('RENDER_DEBUG_COUNT') == 'true'
-
-    print_debug_performance_metrics = environ.get('PRINT_DEBUG_PERFORMANCE_METRICS') == 'true'
-
-    turbo_jpeg_library_path = environ.get('TURBO_JPEG_LIBRARY_PATH')
-
-    counter_app = CounterApp(
-        height=height,
-        width=width,
-        camera_id=camera_id,
-        camera_fps=camera_fps,
-        counting_region_width_percentage=counting_region_width_percentage,
-        model_path=model_path,
-        model_imgsz=model_imgsz,
-        frame_encode_quality=frame_encode_quality,
-        render_debug_count=render_debug_count,
-        print_debug_performance_metrics=print_debug_performance_metrics,
-        turbo_jpeg_library_path=turbo_jpeg_library_path
-    )
+    dotenv_path = './.env'
+    if len(sys.argv) > 1:
+        dotenv_path = sys.argv[1]
+    counter_app = CounterApp(load_params_from_dotenv=True, dotenv_path=dotenv_path)
     counter_app.run()

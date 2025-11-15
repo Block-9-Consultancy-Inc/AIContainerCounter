@@ -16,6 +16,7 @@ class CounterApp:
     def __init__(self,
             load_params_from_dotenv = True,
             dotenv_path = './.env',
+            force_transmit_video = False,
             height = 1080,
             width = 1920,
             camera_id = 0,
@@ -28,6 +29,8 @@ class CounterApp:
             print_debug_performance_metrics = True,
             turbo_jpeg_library_path: str = None
         ) -> None:
+
+        self.force_transmit_video = force_transmit_video
 
         if not load_params_from_dotenv:
             self.height = height
@@ -73,8 +76,7 @@ class CounterApp:
         self.avg_base64_encode_time = 0
         self.avg_socket_emit_time = 0
 
-        # TODO need to enable this automatically for tests
-        self.showing_video = True
+        self.showing_video = self.force_transmit_video
 
         @sio.on('connect')
         def test_connect(sid, msg):
@@ -96,7 +98,8 @@ class CounterApp:
         @sio.on('set-video')
         def set_video(sid, msg):
             print(f'set video {msg}')
-            # self.showing_video = bool(msg)
+            if not self.force_transmit_video:
+                self.showing_video = bool(msg)
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -301,5 +304,12 @@ if __name__ == '__main__':
     dotenv_path = './.env'
     if len(sys.argv) > 1:
         dotenv_path = sys.argv[1]
-    counter_app = CounterApp(load_params_from_dotenv=True, dotenv_path=dotenv_path)
+    force_transmit_video = False
+    if len(sys.argv) > 2:
+        force_transmit_video = sys.argv[2] == 'force-transmit-video'
+    counter_app = CounterApp(
+        load_params_from_dotenv=True,
+        dotenv_path=dotenv_path,
+        force_transmit_video=force_transmit_video
+    )
     counter_app.run()

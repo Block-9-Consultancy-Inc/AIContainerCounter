@@ -26,7 +26,7 @@ def get_file_duration(file: Path) -> float:
     return duration_in_seconds
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path], stderr=PIPE)
+    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stderr=PIPE)
     return process
 
 def sleep_with_progress(duration: float, description: str):

@@ -44,19 +44,20 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     expected_count = 30
     jpeg = TurboJPEG()
     client = socketio.Client()
-    frame_time_metrics = {}
-    counting_result = {}
-    frames = []
+
+    current_test_iteration_frame_time_metrics = {}
+    current_test_iteration_counting_result = {}
+    current_test_iteration_frames = []
     @client.on('detection_event')
     def on_detection_event(message):
-        counting_result['total_in'] = message.get('total_in')
-        counting_result['total_out'] = message.get('total_out')
-        counting_result['class_wise_count'] = message.get('class_wise_count')
-        frames.append(message.get('encoded_frame'))
+        current_test_iteration_counting_result['total_in'] = message.get('total_in')
+        current_test_iteration_counting_result['total_out'] = message.get('total_out')
+        current_test_iteration_counting_result['class_wise_count'] = message.get('class_wise_count')
+        current_test_iteration_frames.append(message.get('encoded_frame'))
     @client.on('frame_time')
     def on_frame_time(message):
-        nonlocal frame_time_metrics
-        frame_time_metrics = message
+        nonlocal current_test_iteration_frame_time_metrics
+        current_test_iteration_frame_time_metrics = message
 
     video_files = os.listdir(src_folder)
     video_files.sort()
@@ -96,15 +97,15 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 print('waiting for counter app process to terminate')
                 counter_app_process.wait()
 
-                print(counting_result)
-                counting_result['file'] = test_video_file_name
-                counting_result['iteration'] = test_video_iteration + 1
-                counting_result['accuracy'] = counting_result.get('total_out') / expected_count * 100
-                counting_result['frame_time_metrics'] = frame_time_metrics
-                current_env_results.append(counting_result)
-                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=1080, width=1920, fps=round(frame_time_metrics.get('avg_fps')), total_frames=len(frames))) as video_sink:
-                    with tqdm.tqdm(frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
-                        for encoded_frame in frames:
+                print(current_test_iteration_counting_result)
+                current_test_iteration_counting_result['file'] = test_video_file_name
+                current_test_iteration_counting_result['iteration'] = test_video_iteration + 1
+                current_test_iteration_counting_result['accuracy'] = current_test_iteration_counting_result.get('total_out') / expected_count * 100
+                current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
+                current_env_results.append(current_test_iteration_counting_result)
+                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=1080, width=1920, fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                    with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
+                        for encoded_frame in current_test_iteration_frames:
                             base64_decoded = base64.b64decode(encoded_frame)
                             decoded_frame = jpeg.decode(base64_decoded)
                             video_sink.write_frame(decoded_frame)
@@ -124,9 +125,9 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 with open(f'{dest_folder}/overall_results.json', 'w') as f:
                     json.dump(overall_results, f, indent=4)
 
-                frame_time_metrics = {}
-                counting_result = {}
-                frames = []
+                current_test_iteration_frame_time_metrics = {}
+                current_test_iteration_counting_result = {}
+                current_test_iteration_frames = []
 
 if __name__ == '__main__':
     src_folder = sys.argv[1]

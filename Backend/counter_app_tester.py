@@ -102,6 +102,12 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 current_test_iteration_counting_result['iteration'] = test_video_iteration + 1
                 current_test_iteration_counting_result['accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('total_out') - expected_count)) / expected_count), 0) * 100
                 current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
+
+                other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_env_results))
+                other_iteration_results.append(current_test_iteration_counting_result)
+                for iteration_result in other_iteration_results:
+                    iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('total_out') - iteration_result.get('total_out')), other_iteration_results)))
+
                 current_env_results.append(current_test_iteration_counting_result)
                 with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=1080, width=1920, fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
                     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
@@ -113,8 +119,9 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
 
                 current_env_overall_results = {
                     'env': env,
-                    'overall_accuracy': sum(list(map(lambda e: e.get('total_out'), current_env_results))) / (len(current_env_results) * expected_count) * 100,
-                    'overall_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
+                    'avg_accuracy': sum(list(map(lambda e: e.get('accuracy'), current_env_results))) / len(current_env_results),
+                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
+                    'avg_iteration_diff': sum(list(map(lambda e: e.get('iteration_diff'), current_env_results))) / len(current_env_results),
                 }
 
                 with open(f'{current_dest_folder}/results.json', 'w') as f:

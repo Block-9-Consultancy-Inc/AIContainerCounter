@@ -3,7 +3,7 @@ import sys
 from time import sleep
 from pathlib import Path
 import supervision as sv
-from subprocess import Popen, PIPE
+from subprocess import Popen, DEVNULL
 import socketio
 import base64
 import json
@@ -26,7 +26,7 @@ def get_file_duration(file: Path) -> float:
     return duration_in_seconds
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stderr=PIPE)
+    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stderr=DEVNULL, stdout=DEVNULL)
     return process
 
 def sleep_with_progress(duration: float, description: str):

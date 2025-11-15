@@ -67,8 +67,7 @@ class CounterApp:
         self.avg_total_frame_time = 0
         self.avg_fps = 0
         self.avg_waiting_for_frame_time = 0
-        self.avg_total_inferencing_and_tracking_time = 0
-        self.avg_count_time = 0
+        self.avg_total_inferencing_tracking_count_time = 0
         self.avg_frame_decode_time = 0
         self.avg_jpeg_encode_time = 0
         self.avg_base64_encode_time = 0
@@ -155,8 +154,7 @@ class CounterApp:
             frame_time: int,
             total_frame_time: int,
             waiting_for_frame_time: int,
-            total_inferencing_and_tracking_time: int,
-            count_time: int,
+            total_inferencing_tracking_count_time: int,
             frame_decode_time: int,
             socket_emit_time: int,
             jpeg_encode_time: int = None,
@@ -168,9 +166,7 @@ class CounterApp:
         self.avg_total_frame_time = ((self.avg_total_frame_time * self.num_of_frames) + total_frame_time) / (self.num_of_frames + 1)
         self.avg_fps = 1000 / self.avg_total_frame_time
         self.avg_waiting_for_frame_time = ((self.avg_waiting_for_frame_time * self.num_of_frames) + waiting_for_frame_time) / (self.num_of_frames + 1)
-        self.avg_total_inferencing_and_tracking_time = ((self.avg_total_inferencing_and_tracking_time * self.num_of_frames) + total_inferencing_and_tracking_time) / (self.num_of_frames + 1)
-        self.avg_count_time = ((self.avg_count_time * self.num_of_frames) + count_time) / (self.num_of_frames + 1)
-
+        self.avg_total_inferencing_tracking_count_time = ((self.avg_total_inferencing_tracking_count_time * self.num_of_frames) + total_inferencing_tracking_count_time) / (self.num_of_frames + 1)
         self.avg_frame_decode_time = ((self.avg_frame_decode_time * self.num_of_frames) + frame_decode_time) / (self.num_of_frames + 1)
 
         if jpeg_encode_time is not None:
@@ -186,9 +182,9 @@ class CounterApp:
 
         if print_data:
             print(f'''avg fps: {self.avg_fps:0.2f}, avg_frame_time: {self.avg_frame_time:0.2f} ms, avg_total_frame_time: {self.avg_total_frame_time:0.2f} ms
-avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_and_tracking_time: {self.avg_total_inferencing_and_tracking_time:0.2f} ms
-avg_count_time: {self.avg_count_time:0.2f} ms, avg_frame_decode_time: {self.avg_frame_decode_time:0.2f} ms
-avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms, avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms
+avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_tracking_count_time: {self.avg_total_inferencing_tracking_count_time:0.2f} ms
+avg_frame_decode_time: {self.avg_frame_decode_time:0.2f} ms, avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
+avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms
 showing_video: {self.showing_video}
 ''')
         self.sio.emit('frame_time', {
@@ -196,8 +192,7 @@ showing_video: {self.showing_video}
             'avg_frame_time': self.avg_frame_time,
             'avg_total_frame_time': self.avg_total_frame_time,
             'avg_waiting_for_frame_time': self.avg_waiting_for_frame_time,
-            'avg_total_inferencing_and_tracking_time': self.avg_total_inferencing_and_tracking_time,
-            'avg_count_time': self.avg_count_time,
+            'avg_total_inferencing_tracking_count_time': self.avg_total_inferencing_tracking_count_time,
             'avg_frame_decode_time': self.avg_frame_decode_time,
             'avg_jpeg_encode_time': self.avg_jpeg_encode_time,
             'avg_base64_encode_time': self.avg_base64_encode_time,
@@ -205,19 +200,25 @@ showing_video: {self.showing_video}
         }, namespace='/')
 
     def detection_process(self):
-        model = YOLO(self.model_path)
-
         # Define region points
-        region_points = [(int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), 0), (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), 0), (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), self.height), (int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), self.height)]
+        region_points = [
+            (int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), 0),
+            (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), 0),
+            (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), self.height),
+            (int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), self.height)
+        ]
+
         # Init Object Counter
         counter = solutions.ObjectCounter(
-            reg_pts=region_points,
-            names=model.names,
+            region=region_points,
+            model=self.model_path,
             draw_tracks=True,
             line_thickness=2,
             view_in_counts=self.render_debug_count,
-            view_out_counts=self.render_debug_count
+            view_out_counts=self.render_debug_count,
+            imgsz=self.model_imgsz
         )
+
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)
             cam.set_format(BufferType.VIDEO_CAPTURE, self.width, self.height, "MJPG")
@@ -232,25 +233,21 @@ showing_video: {self.showing_video}
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
                     print(decoded_frame.shape)
-                    tracks = model.track(decoded_frame, persist=True, show=False, agnostic_nms=True, imgsz=self.model_imgsz)
+                    decoded_frame = counter.count(decoded_frame)
                     after_inference = perf_counter_ns()
-                    total_inferencing_and_tracking_time = (after_inference - after_jpeg_decode) / 1_000_000
-
-                    decoded_frame = counter.start_counting(decoded_frame, tracks)
-                    after_count = perf_counter_ns()
-                    count_time = (after_count - after_inference) / 1_000_000
+                    total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
 
                     payload = {
-                        'total_in': counter.in_counts,
-                        'total_out': counter.out_counts,
-                        'class_wise_count': counter.class_wise_count
+                        'total_in': counter.in_count,
+                        'total_out': counter.out_count,
+                        'class_wise_count': counter.classwise_counts
                     }
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
                         after_jpeg_encode = perf_counter_ns()
 
-                        jpeg_encode_time = (after_jpeg_encode - after_count) / 1_000_000
+                        jpeg_encode_time = (after_jpeg_encode - after_inference) / 1_000_000
 
                         encoded_frame = base64.b64encode(buffer).decode('utf-8')
                         after_base64_encode = perf_counter_ns()
@@ -263,27 +260,22 @@ showing_video: {self.showing_video}
                     self.sio.emit('detection_event', payload, namespace='/')
 
                     after_socketio_emit = perf_counter_ns()
-                    socket_emit_time = (after_socketio_emit - (after_base64_encode if self.showing_video else after_count)) / 1_000_000
+                    socket_emit_time = (after_socketio_emit - (after_base64_encode if self.showing_video else after_inference)) / 1_000_000
                     
                     current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
                     total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
                     if self.reset_counter:
-                        counter = solutions.ObjectCounter(
-                            reg_pts=region_points,
-                            names=model.names,
-                            draw_tracks=True,
-                            line_thickness=2,
-                            view_in_counts=self.render_debug_count,
-                            view_out_counts=self.render_debug_count
-                        )
+                        counter.in_count = 0
+                        counter.out_count = 0
+                        counter.counted_ids = []
+                        counter.classwise_counts = {}
                         self.reset_counter = False
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(
                         current_frame_time,
                         total_frame_time,
                         waiting_for_frame_time,
-                        total_inferencing_and_tracking_time,
-                        count_time,
+                        total_inferencing_tracking_count_time,
                         frame_decode_time,
                         socket_emit_time,
                         jpeg_encode_time,

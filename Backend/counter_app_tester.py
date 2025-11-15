@@ -10,6 +10,7 @@ import json
 from turbojpeg import TurboJPEG
 import tqdm
 import os
+from dotenv import dotenv_values
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstPbutils', '1.0')
@@ -18,6 +19,7 @@ from gi.repository import Gst, GstPbutils
 Gst.init(sys.argv[0:1])
 
 ITERATIONS_PER_TEST = 3
+VIRTUAL_CAMERA='/dev/video2'
 
 def get_file_duration(file: Path) -> float:
     discoverer = GstPbutils.Discoverer()
@@ -80,6 +82,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         overall_results.append(current_env_overall_results)
         current_env_results = []
         current_env_path = f'{env_folder}/{env}'
+        current_env_values = dotenv_values(current_env_path)
         current_dest_folder = f'{dest_folder}/{env.split('.')[0]}'
         os.makedirs(current_dest_folder, exist_ok=True)
         for test_video_index, test_video_file_name in enumerate(video_files):
@@ -87,7 +90,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
             video_duration = get_file_duration(Path(file))
             for test_video_iteration in range(ITERATIONS_PER_TEST):
                 current_iteration_start = perf_counter()
-                pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert ! avenc_mjpeg ! v4l2sink device=/dev/video2""")
+                pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={current_env_values.get('WIDTH', '1080')},height={current_env_values.get('HEIGHT', '1920')} ! avenc_mjpeg ! v4l2sink device={VIRTUAL_CAMERA}""")
                 print(f'Starting test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}')
                 pipeline.set_state(Gst.State.PLAYING)
                 counter_app_process = start_detection_process(current_env_path)

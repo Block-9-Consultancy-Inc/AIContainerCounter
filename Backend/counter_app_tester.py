@@ -19,7 +19,7 @@ from gi.repository import Gst, GstPbutils
 Gst.init(sys.argv[0:1])
 
 ITERATIONS_PER_TEST = 3
-VIRTUAL_CAMERA='/dev/video2'
+VIRTUAL_CAMERA='/dev/video0'
 
 def get_file_duration(file: Path) -> float:
     discoverer = GstPbutils.Discoverer()
@@ -90,7 +90,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
             video_duration = get_file_duration(Path(file))
             for test_video_iteration in range(ITERATIONS_PER_TEST):
                 current_iteration_start = perf_counter()
-                pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={current_env_values.get('WIDTH', '1080')},height={current_env_values.get('HEIGHT', '1920')} ! avenc_mjpeg ! v4l2sink device={VIRTUAL_CAMERA}""")
+                pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert ! videoscale ! video/x-raw,width={current_env_values.get('WIDTH', '1920')},height={current_env_values.get('HEIGHT', '1080')} ! avenc_mjpeg ! v4l2sink device={VIRTUAL_CAMERA}""")
                 print(f'Starting test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}')
                 pipeline.set_state(Gst.State.PLAYING)
                 counter_app_process = start_detection_process(current_env_path)
@@ -115,7 +115,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('total_out') - iteration_result.get('total_out')), other_iteration_results)))
 
                 current_env_results.append(current_test_iteration_counting_result)
-                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=1080, width=1920, fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_values.get('HEIGHT', '1080')), width=int(current_env_values.get('WIDTH', '1920')), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
                     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
                         for encoded_frame in current_test_iteration_frames:
                             base64_decoded = base64.b64decode(encoded_frame)

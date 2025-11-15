@@ -1,6 +1,6 @@
 import gi 
 import sys
-from time import sleep
+from time import sleep, perf_counter
 from pathlib import Path
 import supervision as sv
 from subprocess import Popen, DEVNULL
@@ -41,6 +41,7 @@ def sleep_with_progress(duration: float, description: str):
 
 
 def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
+    test_starting_time = perf_counter()
     expected_count = 30
     jpeg = TurboJPEG()
     client = socketio.Client()
@@ -70,6 +71,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     overall_results = []
 
     for env_index, env in enumerate(dotenv_files):
+        current_env_start = perf_counter()
         current_env_overall_results = {
             'env': env,
             'overall_accuracy': 0,
@@ -84,6 +86,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
             file = f'{src_folder}/{test_video_file_name}'
             video_duration = get_file_duration(Path(file))
             for test_video_iteration in range(ITERATIONS_PER_TEST):
+                current_iteration_start = perf_counter()
                 pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert ! avenc_mjpeg ! v4l2sink device=/dev/video2""")
                 print(f'Starting test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}')
                 pipeline.set_state(Gst.State.PLAYING)
@@ -117,11 +120,15 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                             video_sink.write_frame(decoded_frame)
                             pbar.update()
 
+                current_iteration_end = perf_counter()
+                iteration_result['time_s'] = current_iteration_end - current_iteration_start
+
                 current_env_overall_results = {
                     'env': env,
                     'avg_accuracy': sum(list(map(lambda e: e.get('accuracy'), current_env_results))) / len(current_env_results),
                     'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
                     'avg_iteration_diff': sum(list(map(lambda e: e.get('iteration_diff'), current_env_results))) / len(current_env_results),
+                    'time_s': current_iteration_end - current_env_start
                 }
 
                 with open(f'{current_dest_folder}/results.json', 'w') as f:
@@ -130,7 +137,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 overall_results[len(overall_results) - 1] = current_env_overall_results
 
                 with open(f'{dest_folder}/overall_results.json', 'w') as f:
-                    json.dump(overall_results, f, indent=4)
+                    json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_results': overall_results }, f, indent=4)
 
                 current_test_iteration_frame_time_metrics = {}
                 current_test_iteration_counting_result = {}

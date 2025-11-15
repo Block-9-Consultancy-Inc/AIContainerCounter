@@ -3,7 +3,7 @@ import sys
 from time import sleep
 from pathlib import Path
 import supervision as sv
-from subprocess import Popen
+from subprocess import Popen, PIPE
 import socketio
 import base64
 import json
@@ -26,7 +26,7 @@ def get_file_duration(file: Path) -> float:
     return duration_in_seconds
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path])
+    process = Popen(['python', 'counter_app.py', dotenv_path], stderr=PIPE)
     return process
 
 def sleep_with_progress(duration: float, description: str):
@@ -111,6 +111,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                             video_sink.write_frame(decoded_frame)
                             pbar.update()
 
+                # TODO need to handle getting counts greater than expected in accuracy metric
                 current_env_overall_results = {
                     'env': env,
                     'overall_accuracy': sum(list(map(lambda e: e.get('total_out'), current_env_results))) / (len(current_env_results) * expected_count) * 100,

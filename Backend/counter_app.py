@@ -73,7 +73,8 @@ class CounterApp:
         self.avg_base64_encode_time = 0
         self.avg_socket_emit_time = 0
 
-        self.showing_video = False
+        # TODO need to enable this automatically for tests
+        self.showing_video = True
 
         @sio.on('connect')
         def test_connect(sid, msg):
@@ -95,7 +96,7 @@ class CounterApp:
         @sio.on('set-video')
         def set_video(sid, msg):
             print(f'set video {msg}')
-            self.showing_video = bool(msg)
+            # self.showing_video = bool(msg)
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -190,6 +191,7 @@ showing_video: {self.showing_video}
         self.sio.emit('frame_time', {
             'num_of_frames': self.num_of_frames,
             'avg_frame_time': self.avg_frame_time,
+            'avg_fps': self.avg_fps,
             'avg_total_frame_time': self.avg_total_frame_time,
             'avg_waiting_for_frame_time': self.avg_waiting_for_frame_time,
             'avg_total_inferencing_tracking_count_time': self.avg_total_inferencing_tracking_count_time,

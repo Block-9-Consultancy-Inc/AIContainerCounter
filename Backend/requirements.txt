@@ -1,9 +1,10 @@
-ultralytics==8.3.4
+ultralytics==8.3.27
 flask==3.0.3
 flask_cors==5.0.0
 python_socketio==5.11.4
 numpy==1.26.1
-linuxpy==0.16.0
-supervision==0.23.0
+linuxpy==0.20.0
+supervision==0.24.0
 pyturbojpeg==1.7.7
 python-dotenv==1.0.1
+PyGObject==3.50.0

@@ -29,7 +29,7 @@ def get_file_duration(file: Path) -> float:
     return duration_in_seconds
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'])
+    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 def sleep_with_progress(duration: float, description: str):
@@ -91,7 +91,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
             video_duration = get_file_duration(Path(file))
             for test_video_iteration in range(ITERATIONS_PER_TEST):
                 current_iteration_start = perf_counter()
-                videoscale = f"videoscale ! video/x-raw,width={current_env_values.get('WIDTH', '1280')},height={current_env_values.get('HEIGHT', '720')} !" if current_env_values.get('HEIGHT') != 1080 else ''
+                videoscale = f"videoscale ! video/x-raw,width={current_env_values.get('WIDTH', '1280')},height={current_env_values.get('HEIGHT', '720')} !" if current_env_values.get('HEIGHT') != '1080' else ''
                 pipeline = Gst.parse_launch(f"""filesrc name="file-source" location="{file}" ! decodebin ! videoconvert !{videoscale} videorate max-rate={current_env_values.get('CAMERA_FPS', '60')} ! avenc_mjpeg ! v4l2sink device={VIRTUAL_CAMERA}""")
                 print(f'Starting test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}')
                 pipeline.set_state(Gst.State.PLAYING)

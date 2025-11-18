@@ -11,6 +11,8 @@ from linuxpy.video.device import Device, BufferType
 from time import perf_counter_ns
 from dotenv import load_dotenv
 import sys
+import cv2
+import numpy as np
 
 class CounterApp:
     def __init__(self,
@@ -27,7 +29,8 @@ class CounterApp:
             frame_encode_quality = 85,
             render_debug_count = True,
             print_debug_performance_metrics = True,
-            turbo_jpeg_library_path: str = None
+            turbo_jpeg_library_path: str = None,
+            camera_calibration_params_path: str = None
         ) -> None:
 
         self.force_transmit_video = force_transmit_video
@@ -44,6 +47,7 @@ class CounterApp:
             self.render_debug_count = render_debug_count
             self.print_debug_performance_metrics = print_debug_performance_metrics
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
+            self.camera_calibration_params_path = camera_calibration_params_path
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -58,7 +62,12 @@ class CounterApp:
         CORS(self.app)
         self.app.wsgi_app = socketio.Middleware(self.sio, self.app.wsgi_app)
 
-        
+        with np.load(self.camera_calibration_params_path) as data:
+            self.camera_mtx = data.get('camera_matrix')
+            self.dist_coeffs = data.get('dist_coeffs')
+
+        self.new_camera_mtx, self.roi = cv2.getOptimalNewCameraMatrix(self.camera_mtx, self.dist_coeffs, (self.width, self.height), 0)
+        self.map1, self.map2 = cv2.initUndistortRectifyMap(self.camera_mtx, self.dist_coeffs, None, self.new_camera_mtx, (self.width, self.height), cv2.CV_16SC2)
 
         self.reset_counter = False
 
@@ -153,6 +162,8 @@ class CounterApp:
 
         self.turbo_jpeg_library_path = environ.get('TURBO_JPEG_LIBRARY_PATH')
 
+        self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
+
     def calculate_frame_time_data(
             self,
             frame_time: int,
@@ -235,6 +246,7 @@ showing_video: {self.showing_video}
                 waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
                 try:
                     decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
+                    decoded_frame = cv2.remap(decoded_frame, self.map1, self.map2, cv2.INTER_NEAREST)
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
                     print(decoded_frame.shape)

@@ -29,13 +29,13 @@ def get_file_duration(file: Path) -> float:
     
     return duration_in_seconds
 
-def start_video_start_to_v4l2sink(test_video_file_path: str):
-    process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA])
+def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str):
+    process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'])
+    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 def sleep_with_progress(duration: float, description: str):
@@ -90,14 +90,15 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_env_results = []
         current_env_path = f'{env_folder}/{env}'
         current_env_values = dotenv_values(current_env_path)
+        current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
         current_dest_folder = f'{dest_folder}/{env.split('.')[0]}'
         os.makedirs(current_dest_folder, exist_ok=True)
         for test_video_index, test_video_file_name in enumerate(video_files):
-            file = f'{src_folder}/{test_video_file_name}'
+            file = f'{src_folder}/{test_video_file_name}/{test_video_file_name}-{current_env_width}x{current_env_height}.avi'
             video_duration = get_file_duration(Path(file))
             for test_video_iteration in range(ITERATIONS_PER_TEST):
                 current_iteration_start = perf_counter()
-                video_playback_process = start_video_start_to_v4l2sink(file)
+                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
                 Thread(target=sleep_with_progress, args=[video_duration, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}']).start()
                 counter_app_process = start_detection_process(current_env_path)
                 client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
@@ -120,7 +121,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('total_out') - iteration_result.get('total_out')), other_iteration_results)))
 
                 current_env_results.append(current_test_iteration_counting_result)
-                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_values.get('HEIGHT', '1080')), width=int(current_env_values.get('WIDTH', '1920')), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
                     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
                         for encoded_frame in current_test_iteration_frames:
                             base64_decoded = base64.b64decode(encoded_frame)

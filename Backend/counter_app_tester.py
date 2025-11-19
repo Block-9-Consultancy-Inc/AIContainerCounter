@@ -91,7 +91,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_env_path = f'{env_folder}/{env}'
         current_env_values = dotenv_values(current_env_path)
         current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
-        current_dest_folder = f'{dest_folder}/{env.split('.')[0]}'
+        current_env_name = env.split('.')[0]
+        current_dest_folder = f'{dest_folder}/{current_env_name}'
         os.makedirs(current_dest_folder, exist_ok=True)
         for test_video_index, test_video_file_name in enumerate(video_files):
             file = f'{src_folder}/{test_video_file_name}/{test_video_file_name}-{current_env_width}x{current_env_height}.avi'
@@ -121,7 +122,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('total_out') - iteration_result.get('total_out')), other_iteration_results)))
 
                 current_env_results.append(current_test_iteration_counting_result)
-                with sv.VideoSink(f'{current_dest_folder}/{test_video_file_name.split('.')[0]}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                current_test_video_file_name = test_video_file_name.split('.')[0]
+                with sv.VideoSink(f'{current_dest_folder}/{current_test_video_file_name}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
                     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
                         for encoded_frame in current_test_iteration_frames:
                             base64_decoded = base64.b64decode(encoded_frame)

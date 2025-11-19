@@ -62,12 +62,15 @@ class CounterApp:
         CORS(self.app)
         self.app.wsgi_app = socketio.Middleware(self.sio, self.app.wsgi_app)
 
-        with np.load(self.camera_calibration_params_path) as data:
-            self.camera_mtx = data.get('camera_matrix')
-            self.dist_coeffs = data.get('dist_coeffs')
+        if self.camera_calibration_params_path is not None:
+            with np.load(self.camera_calibration_params_path) as data:
+                self.camera_mtx = data.get('camera_matrix')
+                self.dist_coeffs = data.get('dist_coeffs')
 
-        self.new_camera_mtx, self.roi = cv2.getOptimalNewCameraMatrix(self.camera_mtx, self.dist_coeffs, (self.width, self.height), 0)
-        self.map1, self.map2 = cv2.initUndistortRectifyMap(self.camera_mtx, self.dist_coeffs, None, self.new_camera_mtx, (self.width, self.height), cv2.CV_16SC2)
+            self.new_camera_mtx, self.roi = cv2.getOptimalNewCameraMatrix(self.camera_mtx, self.dist_coeffs, (self.width, self.height), 0)
+            self.map1, self.map2 = cv2.initUndistortRectifyMap(self.camera_mtx, self.dist_coeffs, None, self.new_camera_mtx, (self.width, self.height), cv2.CV_16SC2)
+        else:
+            self.map1, self.map2 = None, None
 
         self.reset_counter = False
 
@@ -246,7 +249,8 @@ showing_video: {self.showing_video}
                 waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
                 try:
                     decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
-                    decoded_frame = cv2.remap(decoded_frame, self.map1, self.map2, cv2.INTER_NEAREST)
+                    if self.map1 is not None and self.map2 is not None:
+                        decoded_frame = cv2.remap(decoded_frame, self.map1, self.map2, cv2.INTER_NEAREST)
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
                     print(decoded_frame.shape)

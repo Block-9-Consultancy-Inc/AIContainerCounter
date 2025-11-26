@@ -296,18 +296,25 @@ class _MyAppState extends State<MyApp> {
                           color: Theme.of(context).colorScheme.inversePrimary,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      AutoSizeText(
-                        '${previousBatches.fold(0, (value, element) => value + element.count)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 100,
-                          height: 0.75,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.7),
-                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          AutoSizeText(
+                            '${previousBatches.fold(0, (value, element) => value + element.count)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 100,
+                              height: 0.75,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(width: 75),
+                          const CategoryCountDisplay(
+                              scale: 0.75, endPadding: 300),
+                        ],
                       ),
                       const SizedBox(height: 50),
                       Text(
@@ -318,21 +325,27 @@ class _MyAppState extends State<MyApp> {
                           color: Theme.of(context).colorScheme.inversePrimary,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      StreamBuilder(
-                        stream: widget.detectionEventStream.stream,
-                        builder: (context, snapshot) => AutoSizeText(
-                          '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 320,
-                            height: 0.75,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.8),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          StreamBuilder(
+                            stream: widget.detectionEventStream.stream,
+                            builder: (context, snapshot) => AutoSizeText(
+                              '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 320,
+                                height: 0.75,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.8),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 100),
+                          CategoryCountDisplay(),
+                        ],
                       ),
                     ],
                   ),
@@ -391,5 +404,111 @@ class _MyAppState extends State<MyApp> {
         }),
       ),
     );
+  }
+}
+
+class CategoryCountDisplay extends StatelessWidget {
+  final double scale;
+  final double endPadding;
+  const CategoryCountDisplay({
+    super.key,
+    this.scale = 1.0,
+    this.endPadding = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+        child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Aluminum: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Plastic: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Gable Top: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Drink Box: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Glass: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(12.5 * scale),
+                child: Text(
+                  'Pouches: 0',
+                  style: TextStyle(
+                    fontSize: 30 * scale,
+                    height: 0.75 * scale,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: endPadding)
+      ],
+    ));
   }
 }

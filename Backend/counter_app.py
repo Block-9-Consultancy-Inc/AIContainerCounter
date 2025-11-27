@@ -248,6 +248,7 @@ showing_video: {self.showing_video}
         ]
 
         # Init Object Counter
+        # TODO need to disable analytics showing if both show_in and show_out are false
         counter = solutions.ObjectCounter(
             region=region_points,
             model=self.model_path,
@@ -274,6 +275,7 @@ showing_video: {self.showing_video}
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
                     print(decoded_frame.shape)
+                    # TODO need to pass in label map here and edit ultralytics code to use it
                     decoded_frame = counter.count(decoded_frame, label_map=self.class_metadata)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000

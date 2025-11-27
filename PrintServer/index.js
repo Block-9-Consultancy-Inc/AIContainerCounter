@@ -10,9 +10,16 @@ app.use(express.json());
 const PORT = 3000;
 const REFUND_RATE = 0.10; // 10 cents per container
 
+const COLUMN_WIDTH_12_FONT = 36
+const COLUMN_WIDTH_14_FONT = 31
+
 // unixPrint.getPrinters().then((printers) => {
 //     console.log(printers);
 // });
+
+const divider = (length) => {
+    return '-'.repeat(length);
+};
 
 app.post('/print-receipt', async (req, res) => {
     try {
@@ -20,7 +27,10 @@ app.post('/print-receipt', async (req, res) => {
         const refundTotal = (totalCount * REFUND_RATE).toFixed(2);
         
         // Create a new PDF document
-        const doc = new PDFDocument();
+        const doc = new PDFDocument({
+            size: 'A6',
+            margins: { left: 17, right: 17, top: 50, bottom: 50 }
+        });
         const filePath = path.join(__dirname, 'temp-receipt.pdf');
         const writeStream = fs.createWriteStream(filePath);
         
@@ -28,33 +38,35 @@ app.post('/print-receipt', async (req, res) => {
         doc.pipe(writeStream);
         
         // Add company logo (using a placeholder rectangle for this example)
-        doc.rect(50, 50, 100, 50)
-           .stroke()
-           .fontSize(16)
-           .text('ECO RECYCLING', 65, 65);
-        
-        // Add receipt content
+        doc.image('recyclorobo-logo.png', 85, 25, { width: 130 })
         doc.moveDown()
-           .fontSize(14)
-           .text('Container Return Receipt', { underline: true })
-           .moveDown();
         
         // Add container categories
-        doc.fontSize(12);
+        doc.font('Roboto_Mono/RobotoMono-VariableFont_wght.ttf').fontSize(12);
         for (const [category, count] of Object.entries(categories)) {
-            doc.text(`${category}: ${count} containers`);
+            const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toLocaleString().length - 2
+            doc.text(`${category} ${divider(dividerWidth)} ${count}`);
         }
-        
+
+        const totalDividerWidth = COLUMN_WIDTH_14_FONT - 'Total'.length - totalCount.toLocaleString().length - 2
+        const totalRefundDividerWidth = COLUMN_WIDTH_14_FONT - 'Total Refund'.length - refundTotal.length - 3
+
+        const time = new Date()
+        const dateString = time.toLocaleDateString()
+        const timeString = time.toLocaleTimeString()
+        const dateDividerWidth = COLUMN_WIDTH_12_FONT - 'Date'.length - dateString.length - 2
+        const timeDividerWidth = COLUMN_WIDTH_12_FONT - 'Time'.length - timeString.length - 2
         doc.moveDown()
-           .text(`Total Containers: ${totalCount}`)
-           .text(`Refund Rate: $${REFUND_RATE.toFixed(2)} per container`)
-           .moveDown()
-           .fontSize(14)
-           .text(`Total Refund: $${refundTotal}`, { bold: true })
-           .moveDown(2)
-           .fontSize(10)
-           .text(`Date: ${new Date().toLocaleString()}`)
-           .text('Thank you for recycling!');
+            .fontSize(14)
+            .text(`Total ${divider(totalDividerWidth)} ${totalCount}`)
+            .moveDown()
+            .text(`Total Refund ${divider(totalRefundDividerWidth)} $${refundTotal}`, { bold: true })
+            .moveDown()
+            .fontSize(12)
+            .text(`Date ${divider(dateDividerWidth)} ${dateString}`)
+            .text(`Time ${divider(timeDividerWidth)} ${timeString}`)
+            .moveDown()
+            .text(`Thank you for recycling!`, { align: 'center' });
         
         // Finalize PDF
         doc.end();
@@ -65,8 +77,8 @@ app.post('/print-receipt', async (req, res) => {
                 // Print the PDF
                 await unixPrint.print(filePath, '80Series2');
                 
-                // Clean up temporary file
-                fs.unlinkSync(filePath);
+                // // Clean up temporary file
+                // fs.unlinkSync(filePath);
                 
                 res.json({
                     success: true,
@@ -83,6 +95,7 @@ app.post('/print-receipt', async (req, res) => {
         });
         
     } catch (error) {
+        console.log(error);
         res.status(500).json({
             success: false,
             message: 'Error generating receipt',

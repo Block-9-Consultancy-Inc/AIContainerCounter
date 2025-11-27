@@ -42,6 +42,7 @@ dependencies:
   texture_rgba_renderer:
     git: https://github.com/h3x4d3c1m4l/flutter_texture_rgba_renderer
   window_manager: ^0.4.3
+  stop_watch_timer: ^3.2.1
 
 dev_dependencies:
   flutter_test:

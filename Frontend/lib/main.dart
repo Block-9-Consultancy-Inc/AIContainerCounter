@@ -4,6 +4,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
+import 'package:stop_watch_timer/stop_watch_timer.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -90,17 +91,17 @@ class _MyAppState extends State<MyApp> {
   int runningGableTop = 0;
   int runningDrinkBox = 0;
   int runningGlass = 0;
-  int runningpouch = 0;
+  int runningPouch = 0;
 
   final timeStarted = DateTime.now();
-
+  final StopWatchTimer stopWatchTimer = StopWatchTimer();
   int? _textureId;
 
   @override
   void initState() {
     super.initState();
-
     _initializeTextureAndSocket();
+    stopWatchTimer.onStartTimer();
   }
 
   @override
@@ -207,7 +208,7 @@ class _MyAppState extends State<MyApp> {
                       orElse: () => const ClassWiseCount(
                           class_: 'glass', inCount: 0, outCount: 0))
                   .outCount);
-      runningpouch = previousBatches.fold(
+      runningPouch = previousBatches.fold(
           0,
           (value, element) =>
               value +
@@ -221,6 +222,8 @@ class _MyAppState extends State<MyApp> {
       event: 'reset-count',
       data: 'reset-count',
     );
+    stopWatchTimer.onResetTimer();
+    stopWatchTimer.onStartTimer();
   }
 
   @override
@@ -386,13 +389,39 @@ class _MyAppState extends State<MyApp> {
                             gableTop: runningGableTop,
                             drinkBox: runningDrinkBox,
                             glass: runningGlass,
-                            pouch: runningpouch,
+                            pouch: runningPouch,
                             scale: 0.75,
                             endPadding: 300,
                           ),
                         ],
                       ),
                       const SizedBox(height: 50),
+                      Text(
+                        'Current Batch Elapsed Time',
+                        style: TextStyle(
+                          fontSize: 40,
+                          height: 0.75,
+                          color: Theme.of(context).colorScheme.inversePrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      StreamBuilder(
+                          stream: stopWatchTimer.rawTime,
+                          builder: (context, snapshot) {
+                            return Text(
+                              StopWatchTimer.getDisplayTime(snapshot.data ?? 0),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 40,
+                                height: 0.75,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.7),
+                              ),
+                            );
+                          }),
+                      const SizedBox(height: 20),
                       Text(
                         'Current Count',
                         style: TextStyle(
@@ -645,7 +674,7 @@ class _MyAppState extends State<MyApp> {
                                             ),
                                             const SizedBox(height: 10),
                                             Text(
-                                              'Time Elapsed: ${batchDuration.inMinutes} m ${batchDuration.inSeconds} s',
+                                              'Time Elapsed: ${batchDuration.inMinutes} m ${batchDuration.inSeconds - batchDuration.inMinutes * 60} s',
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 height: 0.75,

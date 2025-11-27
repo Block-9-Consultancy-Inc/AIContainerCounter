@@ -92,6 +92,8 @@ class _MyAppState extends State<MyApp> {
   int runningGlass = 0;
   int runningpouch = 0;
 
+  final timeStarted = DateTime.now();
+
   int? _textureId;
 
   @override
@@ -498,7 +500,178 @@ class _MyAppState extends State<MyApp> {
                             final actualIndex =
                                 previousBatches.length - 1 - index;
                             return ListTile(
-                              onTap: () {},
+                              onTap: () {
+                                final selectedBatch =
+                                    previousBatches[actualIndex];
+                                final batchDuration = selectedBatch.time
+                                    .difference(actualIndex == 0
+                                        ? timeStarted
+                                        : previousBatches[actualIndex - 1]
+                                            .time);
+                                showDialog(
+                                  context: context,
+                                  builder: (builderContext) => AlertDialog(
+                                    title: Text(
+                                      'Batch ${actualIndex + 1}',
+                                      style: TextStyle(
+                                        fontSize: 60,
+                                        height: 0.75,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .inversePrimary,
+                                      ),
+                                    ),
+                                    content: SizedBox(
+                                      height: 250,
+                                      width: 700,
+                                      child: Padding(
+                                        padding:
+                                            const EdgeInsets.only(left: 50),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Total Count',
+                                              style: TextStyle(
+                                                fontSize: 40,
+                                                height: 0.75,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .inversePrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Row(
+                                              children: [
+                                                AutoSizeText(
+                                                  '${selectedBatch.count}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w500,
+                                                    fontSize: 100,
+                                                    height: 0.75,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary
+                                                        .withOpacity(0.7),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 75),
+                                                CategoryCountDisplay(
+                                                  aluminum: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'aluminum',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'aluminum',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  plastic: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'plastic',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'plastic',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  gableTop: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'gabletop',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'gabletop',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  drinkBox: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'drinkbox',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'drinkbox',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  glass: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'glass',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'glass',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  pouch: selectedBatch
+                                                      .classWiseCount
+                                                      .firstWhere(
+                                                          (e) =>
+                                                              e.class_ ==
+                                                              'pouch',
+                                                          orElse: () =>
+                                                              const ClassWiseCount(
+                                                                  class_:
+                                                                      'pouch',
+                                                                  inCount: 0,
+                                                                  outCount: 0))
+                                                      .outCount,
+                                                  scale: 0.75,
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              'Time Elapsed: ${batchDuration.inMinutes} m ${batchDuration.inSeconds} s',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                height: 0.75,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .inversePrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              'Time Submitted: ${selectedBatch.time.timeAgo()}',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                height: 0.75,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .inversePrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                               title: Text(
                                 'Batch ${actualIndex + 1}: ${previousBatches[actualIndex].count}',
                                 style: TextStyle(

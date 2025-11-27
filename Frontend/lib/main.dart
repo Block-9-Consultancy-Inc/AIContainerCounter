@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:ai_container_counter/src/api.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
@@ -154,74 +155,74 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _submitBatch() async {
-    setState(() {
-      previousBatches.add((
-        count: widget.detectionEventStream.lastEvent?.totalOut ?? 0,
-        time: DateTime.now(),
-        classWiseCount:
-            widget.detectionEventStream.lastEvent?.classWiseCount ?? []
-      ));
-      runningTotal =
-          previousBatches.fold(0, (value, element) => value + element.count);
-      runningAluminum = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'aluminum',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'aluminum', inCount: 0, outCount: 0))
-                  .outCount);
-      runningPlastic = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'plastic',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'plastic', inCount: 0, outCount: 0))
-                  .outCount);
-      runningGableTop = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'gabletop',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'gabletop', inCount: 0, outCount: 0))
-                  .outCount);
-      runningDrinkBox = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'drinkbox',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'drinkbox', inCount: 0, outCount: 0))
-                  .outCount);
-      runningGlass = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'glass',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'glass', inCount: 0, outCount: 0))
-                  .outCount);
-      runningPouch = previousBatches.fold(
-          0,
-          (value, element) =>
-              value +
-              element.classWiseCount
-                  .firstWhere((e) => e.class_ == 'pouch',
-                      orElse: () => const ClassWiseCount(
-                          class_: 'pouch', inCount: 0, outCount: 0))
-                  .outCount);
-    });
+    previousBatches.add((
+      count: widget.detectionEventStream.lastEvent?.totalOut ?? 0,
+      time: DateTime.now(),
+      classWiseCount:
+          widget.detectionEventStream.lastEvent?.classWiseCount ?? []
+    ));
+    runningTotal =
+        previousBatches.fold(0, (value, element) => value + element.count);
+    runningAluminum = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'aluminum',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'aluminum', inCount: 0, outCount: 0))
+                .outCount);
+    runningPlastic = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'plastic',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'plastic', inCount: 0, outCount: 0))
+                .outCount);
+    runningGableTop = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'gabletop',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'gabletop', inCount: 0, outCount: 0))
+                .outCount);
+    runningDrinkBox = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'drinkbox',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'drinkbox', inCount: 0, outCount: 0))
+                .outCount);
+    runningGlass = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'glass',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'glass', inCount: 0, outCount: 0))
+                .outCount);
+    runningPouch = previousBatches.fold(
+        0,
+        (value, element) =>
+            value +
+            element.classWiseCount
+                .firstWhere((e) => e.class_ == 'pouch',
+                    orElse: () => const ClassWiseCount(
+                        class_: 'pouch', inCount: 0, outCount: 0))
+                .outCount);
+    setState(() {});
     socket.emitEvent(
       event: 'reset-count',
       data: 'reset-count',
     );
+    printReceipt(previousBatches.last);
     stopWatchTimer.onResetTimer();
     stopWatchTimer.onStartTimer();
   }
@@ -409,7 +410,10 @@ class _MyAppState extends State<MyApp> {
                           stream: stopWatchTimer.rawTime,
                           builder: (context, snapshot) {
                             return Text(
-                              StopWatchTimer.getDisplayTime(snapshot.data ?? 0),
+                              StopWatchTimer.getDisplayTime(
+                                snapshot.data ?? 0,
+                                hours: false,
+                              ),
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 40,

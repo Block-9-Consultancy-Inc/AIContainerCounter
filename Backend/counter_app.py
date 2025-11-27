@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import sys
 import cv2
 import numpy as np
+import json
 
 class CounterApp:
     def __init__(self,
@@ -34,6 +35,9 @@ class CounterApp:
         ) -> None:
 
         self.force_transmit_video = force_transmit_video
+
+        with open('investor-demo-metadata.json') as f:
+            self.class_metadata = json.load(f)
 
         if not load_params_from_dotenv:
             self.height = height
@@ -218,6 +222,22 @@ showing_video: {self.showing_video}
             'avg_socket_emit_time': self.avg_socket_emit_time,
         }, namespace='/')
 
+    def process_classwise_counts(self, classwise_count: dict):
+        processed_classwise_counts = {
+            'aluminum': {'IN': 0, 'OUT': 0},
+            'plastic': {'IN': 0, 'OUT': 0},
+            'glass': {'IN': 0, 'OUT': 0},
+            'drinkbox': {'IN': 0, 'OUT': 0},
+            'gabletop': {'IN': 0, 'OUT': 0},
+            'pouch': {'IN': 0, 'OUT': 0}
+        }
+
+        for model_label, model_count in classwise_count.items():
+            processed_classwise_counts.get(self.class_metadata.get(model_label))['IN'] += model_count.get('IN')
+            processed_classwise_counts.get(self.class_metadata.get(model_label))['OUT'] += model_count.get('OUT')
+
+        return processed_classwise_counts
+
     def detection_process(self):
         # Define region points
         region_points = [
@@ -233,8 +253,8 @@ showing_video: {self.showing_video}
             model=self.model_path,
             draw_tracks=True,
             line_thickness=2,
-            view_in_counts=self.render_debug_count,
-            view_out_counts=self.render_debug_count,
+            show_in=self.render_debug_count,
+            show_out=self.render_debug_count,
             imgsz=self.model_imgsz
         )
 
@@ -254,14 +274,15 @@ showing_video: {self.showing_video}
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
                     print(decoded_frame.shape)
-                    decoded_frame = counter.count(decoded_frame)
+                    decoded_frame = counter.count(decoded_frame, label_map=self.class_metadata)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
-
+                    
+                    classwise_counts = self.process_classwise_counts(counter.classwise_counts)
                     payload = {
                         'total_in': counter.in_count,
                         'total_out': counter.out_count,
-                        'class_wise_count': counter.classwise_counts
+                        'class_wise_count': classwise_counts
                     }
 
                     if self.showing_video:

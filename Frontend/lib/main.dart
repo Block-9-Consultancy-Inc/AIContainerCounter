@@ -82,7 +82,15 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.light;
   late Socket socket;
-  final previousBatches = <({int count, DateTime time})>[];
+  final previousBatches =
+      <({int count, DateTime time, List<ClassWiseCount> classWiseCount})>[];
+  int runningTotal = 0;
+  int runningAluminum = 0;
+  int runningPlastic = 0;
+  int runningGableTop = 0;
+  int runningDrinkBox = 0;
+  int runningGlass = 0;
+  int runningpouch = 0;
 
   int? _textureId;
 
@@ -146,8 +154,66 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       previousBatches.add((
         count: widget.detectionEventStream.lastEvent?.totalOut ?? 0,
-        time: DateTime.now()
+        time: DateTime.now(),
+        classWiseCount:
+            widget.detectionEventStream.lastEvent?.classWiseCount ?? []
       ));
+      runningTotal =
+          previousBatches.fold(0, (value, element) => value + element.count);
+      runningAluminum = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'aluminum',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'aluminum', inCount: 0, outCount: 0))
+                  .outCount);
+      runningPlastic = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'plastic',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'plastic', inCount: 0, outCount: 0))
+                  .outCount);
+      runningGableTop = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'gabletop',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'gabletop', inCount: 0, outCount: 0))
+                  .outCount);
+      runningDrinkBox = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'drinkbox',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'drinkbox', inCount: 0, outCount: 0))
+                  .outCount);
+      runningGlass = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'glass',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'glass', inCount: 0, outCount: 0))
+                  .outCount);
+      runningpouch = previousBatches.fold(
+          0,
+          (value, element) =>
+              value +
+              element.classWiseCount
+                  .firstWhere((e) => e.class_ == 'pouch',
+                      orElse: () => const ClassWiseCount(
+                          class_: 'pouch', inCount: 0, outCount: 0))
+                  .outCount);
     });
     socket.emitEvent(
       event: 'reset-count',
@@ -300,7 +366,7 @@ class _MyAppState extends State<MyApp> {
                       Row(
                         children: [
                           AutoSizeText(
-                            '${previousBatches.fold(0, (value, element) => value + element.count)}',
+                            '$runningTotal',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 100,
@@ -312,8 +378,16 @@ class _MyAppState extends State<MyApp> {
                             ),
                           ),
                           const SizedBox(width: 75),
-                          const CategoryCountDisplay(
-                              scale: 0.75, endPadding: 300),
+                          CategoryCountDisplay(
+                            aluminum: runningAluminum,
+                            plastic: runningPlastic,
+                            gableTop: runningGableTop,
+                            drinkBox: runningDrinkBox,
+                            glass: runningGlass,
+                            pouch: runningpouch,
+                            scale: 0.75,
+                            endPadding: 300,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 50),
@@ -326,11 +400,11 @@ class _MyAppState extends State<MyApp> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          StreamBuilder(
-                            stream: widget.detectionEventStream.stream,
-                            builder: (context, snapshot) => AutoSizeText(
+                      StreamBuilder(
+                        stream: widget.detectionEventStream.stream,
+                        builder: (context, snapshot) => Row(
+                          children: [
+                            AutoSizeText(
                               '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
@@ -342,10 +416,59 @@ class _MyAppState extends State<MyApp> {
                                     .withOpacity(0.8),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 100),
-                          CategoryCountDisplay(),
-                        ],
+                            const SizedBox(width: 100),
+                            CategoryCountDisplay(
+                              aluminum: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'aluminum',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'aluminum',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                              plastic: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'plastic',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'plastic',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                              gableTop: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'gabletop',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'gabletop',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                              drinkBox: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'drinkbox',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'drinkbox',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                              glass: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'glass',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'glass',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                              pouch: snapshot.data?.classWiseCount
+                                      .firstWhere((e) => e.class_ == 'pouch',
+                                          orElse: () => const ClassWiseCount(
+                                              class_: 'pouch',
+                                              inCount: 0,
+                                              outCount: 0))
+                                      .outCount ??
+                                  0,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -410,10 +533,22 @@ class _MyAppState extends State<MyApp> {
 class CategoryCountDisplay extends StatelessWidget {
   final double scale;
   final double endPadding;
+  final int aluminum;
+  final int plastic;
+  final int gableTop;
+  final int drinkBox;
+  final int glass;
+  final int pouch;
   const CategoryCountDisplay({
     super.key,
     this.scale = 1.0,
     this.endPadding = 0,
+    this.aluminum = 0,
+    this.plastic = 0,
+    this.gableTop = 0,
+    this.drinkBox = 0,
+    this.glass = 0,
+    this.pouch = 0,
   });
 
   @override
@@ -428,7 +563,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Aluminum: 0',
+                  'Aluminum: $aluminum',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,
@@ -440,7 +575,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Plastic: 0',
+                  'Plastic: $plastic',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,
@@ -452,7 +587,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Gable Top: 0',
+                  'Gable Top: $gableTop',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,
@@ -471,7 +606,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Drink Box: 0',
+                  'Drink Box: $drinkBox',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,
@@ -483,7 +618,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Glass: 0',
+                  'Glass: $glass',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,
@@ -495,7 +630,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Pouches: 0',
+                  'Pouch: $pouch',
                   style: TextStyle(
                     fontSize: 30 * scale,
                     height: 0.75 * scale,

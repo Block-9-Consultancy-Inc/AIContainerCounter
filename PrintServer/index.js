@@ -23,12 +23,12 @@ const divider = (length) => {
 
 app.post('/print-receipt', async (req, res) => {
     try {
-        const { totalCount, categories } = req.body;
+        const { transactionNumber, totalCount, categories } = req.body;
         const refundTotal = (totalCount * REFUND_RATE).toFixed(2);
         
         // Create a new PDF document
         const doc = new PDFDocument({
-            size: 'A6',
+            size: [297.64, 460],
             margins: { left: 17, right: 17, top: 50, bottom: 20 }
         });
         const filePath = path.join(__dirname, 'temp-receipt.pdf');
@@ -41,7 +41,12 @@ app.post('/print-receipt', async (req, res) => {
         doc.image('recyclorobo-logo.png', (doc.page.width - 200) / 2, 20, { width: 200 })
         doc.moveDown()
         
+
+        const idDividerWidth = COLUMN_WIDTH_14_FONT - 'Transaction ID'.length - transactionNumber.toLocaleString().length - 2
+
         // Add container categories
+        doc.font('Roboto_Mono/static/RobotoMono-Bold.ttf').fontSize(14);
+        doc.text(`Transaction ID ${divider(idDividerWidth)} ${transactionNumber}`).moveDown();
         doc.font('Roboto_Mono/RobotoMono-VariableFont_wght.ttf').fontSize(12);
         for (const [category, count] of Object.entries(categories)) {
             const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toLocaleString().length - 2
@@ -77,7 +82,7 @@ app.post('/print-receipt', async (req, res) => {
         writeStream.on('finish', async () => {
             try {
                 // Print the PDF
-                await unixPrint.print(filePath, 'EPSON_TM-T20II');
+                // await unixPrint.print(filePath, 'EPSON_TM-T20II');
                 
                 // // Clean up temporary file
                 // fs.unlinkSync(filePath);

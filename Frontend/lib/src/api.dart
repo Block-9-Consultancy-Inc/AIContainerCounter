@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert' show json;
 
 Future<void> printReceipt(
+    int transactionNumber,
     ({
       int count,
       DateTime time,
@@ -18,6 +19,7 @@ Future<void> printReceipt(
     Uri.parse('http://localhost:3000/print-receipt'),
     headers: {'Content-Type': 'application/json'},
     body: json.encode({
+      'transactionNumber': transactionNumber,
       'totalCount': submittedBatch.count,
       'categories': categories,
     }),

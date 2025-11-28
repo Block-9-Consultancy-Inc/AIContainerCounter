@@ -29,7 +29,7 @@ app.post('/print-receipt', async (req, res) => {
         // Create a new PDF document
         const doc = new PDFDocument({
             size: 'A6',
-            margins: { left: 17, right: 17, top: 50, bottom: 50 }
+            margins: { left: 17, right: 17, top: 50, bottom: 20 }
         });
         const filePath = path.join(__dirname, 'temp-receipt.pdf');
         const writeStream = fs.createWriteStream(filePath);
@@ -38,7 +38,7 @@ app.post('/print-receipt', async (req, res) => {
         doc.pipe(writeStream);
         
         // Add company logo (using a placeholder rectangle for this example)
-        doc.image('recyclorobo-logo.png', 85, 25, { width: 130 })
+        doc.image('recyclorobo-logo.png', (doc.page.width - 200) / 2, 20, { width: 200 })
         doc.moveDown()
         
         // Add container categories
@@ -57,17 +57,19 @@ app.post('/print-receipt', async (req, res) => {
         const dateDividerWidth = COLUMN_WIDTH_12_FONT - 'Date'.length - dateString.length - 2
         const timeDividerWidth = COLUMN_WIDTH_12_FONT - 'Time'.length - timeString.length - 2
         doc.moveDown()
-            .fontSize(14)
+            .font('Roboto_Mono/static/RobotoMono-Bold.ttf').fontSize(14)
             .text(`Total ${divider(totalDividerWidth)} ${totalCount}`)
-            .moveDown()
             .text(`Total Refund ${divider(totalRefundDividerWidth)} $${refundTotal}`, { bold: true })
             .moveDown()
-            .fontSize(12)
+            .font('Roboto_Mono/RobotoMono-VariableFont_wght.ttf').fontSize(12)
             .text(`Date ${divider(dateDividerWidth)} ${dateString}`)
             .text(`Time ${divider(timeDividerWidth)} ${timeString}`)
             .moveDown()
             .text(`Thank you for recycling!`, { align: 'center' });
         
+
+        doc.moveDown().image('recyclorobo-qrcode.png', (doc.page.width - 100) / 2, doc.y, { width: 100 })
+
         // Finalize PDF
         doc.end();
         
@@ -75,7 +77,7 @@ app.post('/print-receipt', async (req, res) => {
         writeStream.on('finish', async () => {
             try {
                 // Print the PDF
-                await unixPrint.print(filePath, '80Series2');
+                await unixPrint.print(filePath, 'EPSON_TM-T20II');
                 
                 // // Clean up temporary file
                 // fs.unlinkSync(filePath);

@@ -222,7 +222,7 @@ class _MyAppState extends State<MyApp> {
       event: 'reset-count',
       data: 'reset-count',
     );
-    printReceipt(previousBatches.last);
+    printReceipt(previousBatches.length, previousBatches.last);
     stopWatchTimer.onResetTimer();
     stopWatchTimer.onStartTimer();
   }
@@ -275,50 +275,50 @@ class _MyAppState extends State<MyApp> {
                   ? const Icon(Icons.dark_mode)
                   : const Icon(Icons.light_mode),
             ),
-            Builder(builder: (context) {
-              return IconButton(
-                onPressed: () async {
-                  await setVideo(true);
-                  // ignore: use_build_context_synchronously
-                  await Navigator.of(context).push(MaterialPageRoute(
-                      builder: (builderContext) => Scaffold(
-                            appBar: AppBar(
-                              automaticallyImplyLeading: false,
-                              backgroundColor: Colors.black.withOpacity(0.0),
-                              title: Row(
-                                children: [
-                                  IconButton(
-                                    onPressed: () =>
-                                        Navigator.of(builderContext).pop(),
-                                    icon: const Icon(Icons.close),
-                                    color:
-                                        const Color.fromRGBO(56, 182, 255, 1),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  ElevatedButton(
-                                      onPressed: _submitBatch,
-                                      child: const Text('Submit Batch')),
-                                ],
-                              ),
-                            ),
-                            extendBodyBehindAppBar: true,
-                            body: Center(
-                              child: AspectRatio(
-                                aspectRatio: 1920 / 1080,
-                                child: Texture(
-                                  textureId: _textureId!,
-                                  filterQuality: FilterQuality.medium,
-                                ),
-                              ),
-                            ),
-                          )));
-                  await setVideo(false);
-                },
-                iconSize: 80,
-                color: Theme.of(context).colorScheme.primary,
-                icon: const Icon(Icons.videocam),
-              );
-            }),
+            // Builder(builder: (context) {
+            //   return IconButton(
+            //     onPressed: () async {
+            //       await setVideo(true);
+            //       // ignore: use_build_context_synchronously
+            //       await Navigator.of(context).push(MaterialPageRoute(
+            //           builder: (builderContext) => Scaffold(
+            //                 appBar: AppBar(
+            //                   automaticallyImplyLeading: false,
+            //                   backgroundColor: Colors.black.withOpacity(0.0),
+            //                   title: Row(
+            //                     children: [
+            //                       IconButton(
+            //                         onPressed: () =>
+            //                             Navigator.of(builderContext).pop(),
+            //                         icon: const Icon(Icons.close),
+            //                         color:
+            //                             const Color.fromRGBO(56, 182, 255, 1),
+            //                       ),
+            //                       const SizedBox(width: 10),
+            //                       ElevatedButton(
+            //                           onPressed: _submitBatch,
+            //                           child: const Text('Submit Batch')),
+            //                     ],
+            //                   ),
+            //                 ),
+            //                 extendBodyBehindAppBar: true,
+            //                 body: Center(
+            //                   child: AspectRatio(
+            //                     aspectRatio: 1920 / 1080,
+            //                     child: Texture(
+            //                       textureId: _textureId!,
+            //                       filterQuality: FilterQuality.medium,
+            //                     ),
+            //                   ),
+            //                 ),
+            //               )));
+            //       await setVideo(false);
+            //     },
+            //     iconSize: 80,
+            //     color: Theme.of(context).colorScheme.primary,
+            //     icon: const Icon(Icons.videocam),
+            //   );
+            // }),
           ],
         ),
         body: Builder(builder: (context) {

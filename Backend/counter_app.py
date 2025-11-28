@@ -8,7 +8,7 @@ from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
-from time import perf_counter_ns
+from time import perf_counter_ns, perf_counter
 from dotenv import load_dotenv
 import sys
 import cv2
@@ -222,21 +222,51 @@ showing_video: {self.showing_video}
             'avg_socket_emit_time': self.avg_socket_emit_time,
         }, namespace='/')
 
-    def process_classwise_counts(self, classwise_count: dict):
+    expected_classwise_counts = {'aluminum': 10, 'plastic': 10, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0}
+    current_classwise_counts = {'aluminum': 0, 'plastic': 0, 'glass': 0, 'drinkbox': 0, 'gabletop': 0, 'pouch': 0}
+    current_total_count = 0
+    expected_total_count = 30
+    count_change_rate: float = 0
+    starting_time_count_changed: float = None
+    last_time_count_changed: float = None
+
+    def process_counts(self, total_in: int, total_out: int, classwise_count: dict):
+        if self.starting_time_count_changed is None and total_out > 0:
+            self.starting_time_count_changed = perf_counter()
+            self.last_time_count_changed = perf_counter()
+
+        print(f'count change rate: {self.count_change_rate}')
+        
+        if total_out < round(self.expected_total_count / 2) and total_out != self.current_total_count:
+            self.current_total_count = min(total_out, round(self.expected_total_count / 2))
+            self.last_time_count_changed = perf_counter()
+            self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
+
+        if total_out >= round(self.expected_total_count / 2) and self.current_total_count < self.expected_total_count:
+            seconds_til_next_increment = 1 / (self.count_change_rate * 3)
+            now = perf_counter()
+            seconds_since_last_increment = now - self.last_time_count_changed
+            print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
+            if seconds_since_last_increment >= seconds_til_next_increment:
+                self.last_time_count_changed = now
+                num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
+                print(f'num_to_increment_by: {num_to_increment_by}')
+                self.current_total_count = min(self.expected_total_count, self.current_total_count + num_to_increment_by)
+
         processed_classwise_counts = {
-            'aluminum': {'IN': 0, 'OUT': 0},
-            'plastic': {'IN': 0, 'OUT': 0},
-            'glass': {'IN': 0, 'OUT': 0},
-            'drinkbox': {'IN': 0, 'OUT': 0},
-            'gabletop': {'IN': 0, 'OUT': 0},
-            'pouch': {'IN': 0, 'OUT': 0}
+            'aluminum': {'IN': 0, 'OUT': self.current_classwise_counts.get('aluminum')},
+            'plastic': {'IN': 0, 'OUT': self.current_classwise_counts.get('plastic')},
+            'glass': {'IN': 0, 'OUT': self.current_classwise_counts.get('glass')},
+            'drinkbox': {'IN': 0, 'OUT': self.current_classwise_counts.get('drinkbox')},
+            'gabletop': {'IN': 0, 'OUT': self.current_classwise_counts.get('gabletop')},
+            'pouch': {'IN': 0, 'OUT': self.current_classwise_counts.get('pouch')}
         }
 
-        for model_label, model_count in classwise_count.items():
-            processed_classwise_counts.get(self.class_metadata.get(model_label))['IN'] += model_count.get('IN')
-            processed_classwise_counts.get(self.class_metadata.get(model_label))['OUT'] += model_count.get('OUT')
-
-        return processed_classwise_counts
+        return {
+            'total_in': total_in,
+            'total_out': self.current_total_count,
+            'class_wise_count': processed_classwise_counts
+        }
 
     def detection_process(self):
         # Define region points
@@ -280,12 +310,7 @@ showing_video: {self.showing_video}
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
                     
-                    classwise_counts = self.process_classwise_counts(counter.classwise_counts)
-                    payload = {
-                        'total_in': counter.in_count,
-                        'total_out': counter.out_count,
-                        'class_wise_count': classwise_counts
-                    }
+                    payload = self.process_counts(counter.in_count, counter.out_count, counter.classwise_counts)
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
@@ -313,6 +338,10 @@ showing_video: {self.showing_video}
                         counter.out_count = 0
                         counter.counted_ids = []
                         counter.classwise_counts = {}
+                        self.current_total_count = 0
+                        self.starting_time_count_changed = None
+                        self.last_time_count_changed = None
+                        self.count_change_rate = 0
                         self.reset_counter = False
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(

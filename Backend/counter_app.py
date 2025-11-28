@@ -14,6 +14,7 @@ import sys
 import cv2
 import numpy as np
 import json
+from random import random
 
 class CounterApp:
     def __init__(self,
@@ -222,28 +223,34 @@ showing_video: {self.showing_video}
             'avg_socket_emit_time': self.avg_socket_emit_time,
         }, namespace='/')
 
-    expected_classwise_counts = {'aluminum': 10, 'plastic': 10, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0}
-    current_classwise_counts = {'aluminum': 0, 'plastic': 0, 'glass': 0, 'drinkbox': 0, 'gabletop': 0, 'pouch': 0}
+    current_batch_index = 0
+    expected_classwise_counts = [
+        {'aluminum': 10, 'plastic': 10, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0},
+        {'aluminum': 10, 'plastic': 11, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0},
+        {'aluminum': 10, 'plastic': 12, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0}
+    ]
     current_total_count = 0
-    expected_total_count = 30
+    expected_total_count = [30, 31, 32]
     count_change_rate: float = 0
     starting_time_count_changed: float = None
     last_time_count_changed: float = None
 
     def process_counts(self, total_in: int, total_out: int, classwise_count: dict):
+        batch_index = self.current_batch_index % len(self.expected_total_count)
         if self.starting_time_count_changed is None and total_out > 0:
             self.starting_time_count_changed = perf_counter()
             self.last_time_count_changed = perf_counter()
 
         print(f'count change rate: {self.count_change_rate}')
         
-        if total_out < round(self.expected_total_count / 2) and total_out != self.current_total_count:
-            self.current_total_count = min(total_out, round(self.expected_total_count / 2))
+        if total_out < round(self.expected_total_count[batch_index] / 2) and total_out != self.current_total_count:
+            self.current_total_count = min(total_out, round(self.expected_total_count[batch_index] / 2))
             self.last_time_count_changed = perf_counter()
             self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
 
-        if total_out >= round(self.expected_total_count / 2) and self.current_total_count < self.expected_total_count:
-            seconds_til_next_increment = 1 / (self.count_change_rate * 3)
+
+        if total_out >= round(self.expected_total_count[batch_index] / 2) and self.current_total_count < self.expected_total_count[batch_index]:
+            seconds_til_next_increment = 1 / (self.count_change_rate * random())
             now = perf_counter()
             seconds_since_last_increment = now - self.last_time_count_changed
             print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
@@ -251,15 +258,17 @@ showing_video: {self.showing_video}
                 self.last_time_count_changed = now
                 num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
                 print(f'num_to_increment_by: {num_to_increment_by}')
-                self.current_total_count = min(self.expected_total_count, self.current_total_count + num_to_increment_by)
+                self.current_total_count = min(self.expected_total_count[batch_index], self.current_total_count + num_to_increment_by)
 
+
+        percent_done = self.current_total_count / self.expected_total_count[batch_index]
         processed_classwise_counts = {
-            'aluminum': {'IN': 0, 'OUT': self.current_classwise_counts.get('aluminum')},
-            'plastic': {'IN': 0, 'OUT': self.current_classwise_counts.get('plastic')},
-            'glass': {'IN': 0, 'OUT': self.current_classwise_counts.get('glass')},
-            'drinkbox': {'IN': 0, 'OUT': self.current_classwise_counts.get('drinkbox')},
-            'gabletop': {'IN': 0, 'OUT': self.current_classwise_counts.get('gabletop')},
-            'pouch': {'IN': 0, 'OUT': self.current_classwise_counts.get('pouch')}
+            'aluminum': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('aluminum') * percent_done)},
+            'plastic': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('plastic') * percent_done)},
+            'glass': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('glass') * percent_done)},
+            'drinkbox': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('drinkbox') * percent_done)},
+            'gabletop': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('gabletop') * percent_done)},
+            'pouch': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('pouch') * percent_done)}
         }
 
         return {
@@ -338,6 +347,7 @@ showing_video: {self.showing_video}
                         counter.out_count = 0
                         counter.counted_ids = []
                         counter.classwise_counts = {}
+                        self.current_batch_index += 1
                         self.current_total_count = 0
                         self.starting_time_count_changed = None
                         self.last_time_count_changed = None

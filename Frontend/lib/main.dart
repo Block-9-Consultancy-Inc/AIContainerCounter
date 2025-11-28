@@ -60,8 +60,8 @@ Future<void> main() async {
   });
   WidgetsFlutterBinding.ensureInitialized();
   WindowManager.instance.ensureInitialized();
-  WindowManager.instance.setTitleBarStyle(TitleBarStyle.hidden);
-  WindowManager.instance.maximize();
+  // WindowManager.instance.setTitleBarStyle(TitleBarStyle.hidden);
+  // WindowManager.instance.maximize();
   runApp(MyApp(
     eventStream: eventStream,
     detectionEventStream: detectionEventStream,
@@ -337,170 +337,210 @@ class _MyAppState extends State<MyApp> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 70),
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                                minimumSize:
-                                    const WidgetStatePropertyAll(Size.infinite),
-                                shape: WidgetStatePropertyAll(
-                                    RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)))),
-                            onPressed: _submitBatch,
-                            child: const AutoSizeText(
-                              'Submit Batch',
-                              maxLines: 2,
-                              style: TextStyle(fontSize: 80),
-                            ),
+                        flex: 15,
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                              minimumSize:
+                                  const WidgetStatePropertyAll(Size.infinite),
+                              shape: WidgetStatePropertyAll(
+                                  RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(20)))),
+                          onPressed: _submitBatch,
+                          child: const AutoSizeText(
+                            'Submit Batch',
+                            maxLines: 2,
+                            style: TextStyle(fontSize: 45),
                           ),
                         ),
                       ),
-                      Text(
-                        'Total Daily Count',
-                        style: TextStyle(
-                          fontSize: 40,
-                          height: 0.75,
-                          color: Theme.of(context).colorScheme.inversePrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          AutoSizeText(
-                            '$runningTotal',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 100,
-                              height: 0.75,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(width: 75),
-                          CategoryCountDisplay(
-                            aluminum: runningAluminum,
-                            plastic: runningPlastic,
-                            gableTop: runningGableTop,
-                            drinkBox: runningDrinkBox,
-                            glass: runningGlass,
-                            pouch: runningPouch,
-                            scale: 0.75,
-                            endPadding: 300,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 50),
-                      Text(
-                        'Current Batch Elapsed Time',
-                        style: TextStyle(
-                          fontSize: 40,
-                          height: 0.75,
-                          color: Theme.of(context).colorScheme.inversePrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      StreamBuilder(
-                          stream: stopWatchTimer.rawTime,
-                          builder: (context, snapshot) {
-                            return Text(
-                              StopWatchTimer.getDisplayTime(
-                                snapshot.data ?? 0,
-                                hours: false,
-                              ),
+                      const Spacer(flex: 5),
+                      Expanded(
+                        flex: 20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Daily Count',
                               style: TextStyle(
-                                fontWeight: FontWeight.w500,
                                 fontSize: 40,
                                 height: 0.75,
                                 color: Theme.of(context)
                                     .colorScheme
-                                    .primary
-                                    .withOpacity(0.7),
+                                    .inversePrimary,
                               ),
-                            );
-                          }),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Current Count',
-                        style: TextStyle(
-                          fontSize: 120,
-                          height: 0.75,
-                          color: Theme.of(context).colorScheme.inversePrimary,
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                AutoSizeText(
+                                  '$runningTotal',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 100,
+                                    height: 0.75,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withOpacity(0.7),
+                                  ),
+                                ),
+                                const SizedBox(width: 75),
+                                CategoryCountDisplay(
+                                  aluminum: runningAluminum,
+                                  plastic: runningPlastic,
+                                  gableTop: runningGableTop,
+                                  drinkBox: runningDrinkBox,
+                                  glass: runningGlass,
+                                  pouch: runningPouch,
+                                  scale: 0.75,
+                                  endPadding: 300,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      StreamBuilder(
-                        stream: widget.detectionEventStream.stream,
-                        builder: (context, snapshot) => Row(
+                      Expanded(
+                        flex: 10,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            AutoSizeText(
-                              '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
+                            Text(
+                              'Current Batch Elapsed Time',
                               style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 320,
+                                fontSize: 25,
                                 height: 0.75,
                                 color: Theme.of(context)
                                     .colorScheme
-                                    .primary
-                                    .withOpacity(0.8),
+                                    .inversePrimary,
                               ),
                             ),
-                            const SizedBox(width: 100),
-                            CategoryCountDisplay(
-                              aluminum: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'aluminum',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'aluminum',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
-                              plastic: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'plastic',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'plastic',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
-                              gableTop: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'gabletop',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'gabletop',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
-                              drinkBox: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'drinkbox',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'drinkbox',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
-                              glass: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'glass',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'glass',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
-                              pouch: snapshot.data?.classWiseCount
-                                      .firstWhere((e) => e.class_ == 'pouch',
-                                          orElse: () => const ClassWiseCount(
-                                              class_: 'pouch',
-                                              inCount: 0,
-                                              outCount: 0))
-                                      .outCount ??
-                                  0,
+                            StreamBuilder(
+                                stream: stopWatchTimer.rawTime,
+                                builder: (context, snapshot) {
+                                  return Text(
+                                    StopWatchTimer.getDisplayTime(
+                                      snapshot.data ?? 0,
+                                      hours: false,
+                                    ),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 40,
+                                      height: 0.75,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withOpacity(0.7),
+                                    ),
+                                  );
+                                }),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AutoSizeText(
+                              'Current Count',
+                              style: TextStyle(
+                                fontSize: 40,
+                                height: 0.75,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inversePrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            StreamBuilder(
+                              stream: widget.detectionEventStream.stream,
+                              builder: (context, snapshot) => Row(
+                                children: [
+                                  AutoSizeText(
+                                    '${snapshot.hasData ? snapshot.data!.totalOut : 0}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 150,
+                                      height: 0.75,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withOpacity(0.8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 100),
+                                  Expanded(
+                                    child: CategoryCountDisplay(
+                                      aluminum: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'aluminum',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'aluminum',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                      plastic: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'plastic',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'plastic',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                      gableTop: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'gabletop',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'gabletop',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                      drinkBox: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'drinkbox',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'drinkbox',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                      glass: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'glass',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'glass',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                      pouch: snapshot.data?.classWiseCount
+                                              .firstWhere(
+                                                  (e) => e.class_ == 'pouch',
+                                                  orElse: () =>
+                                                      const ClassWiseCount(
+                                                          class_: 'pouch',
+                                                          inCount: 0,
+                                                          outCount: 0))
+                                              .outCount ??
+                                          0,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -593,86 +633,94 @@ class _MyAppState extends State<MyApp> {
                                                   ),
                                                 ),
                                                 const SizedBox(width: 75),
-                                                CategoryCountDisplay(
-                                                  aluminum: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'aluminum',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'aluminum',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  plastic: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'plastic',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'plastic',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  gableTop: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'gabletop',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'gabletop',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  drinkBox: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'drinkbox',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'drinkbox',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  glass: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'glass',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'glass',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  pouch: selectedBatch
-                                                      .classWiseCount
-                                                      .firstWhere(
-                                                          (e) =>
-                                                              e.class_ ==
-                                                              'pouch',
-                                                          orElse: () =>
-                                                              const ClassWiseCount(
-                                                                  class_:
-                                                                      'pouch',
-                                                                  inCount: 0,
-                                                                  outCount: 0))
-                                                      .outCount,
-                                                  scale: 0.75,
+                                                Expanded(
+                                                  child: CategoryCountDisplay(
+                                                    aluminum: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'aluminum',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'aluminum',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    plastic: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'plastic',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'plastic',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    gableTop: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'gabletop',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'gabletop',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    drinkBox: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'drinkbox',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'drinkbox',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    glass: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'glass',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'glass',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    pouch: selectedBatch
+                                                        .classWiseCount
+                                                        .firstWhere(
+                                                            (e) =>
+                                                                e.class_ ==
+                                                                'pouch',
+                                                            orElse: () =>
+                                                                const ClassWiseCount(
+                                                                    class_:
+                                                                        'pouch',
+                                                                    inCount: 0,
+                                                                    outCount:
+                                                                        0))
+                                                        .outCount,
+                                                    scale: 0.75,
+                                                  ),
                                                 ),
                                               ],
                                             ),
@@ -771,7 +819,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Aluminum: $aluminum',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),
@@ -783,7 +831,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Plastic: $plastic',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),
@@ -795,7 +843,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Gable Top: $gableTop',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),
@@ -814,7 +862,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Drink Box: $drinkBox',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),
@@ -826,7 +874,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Glass: $glass',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),
@@ -838,7 +886,7 @@ class CategoryCountDisplay extends StatelessWidget {
                 child: Text(
                   'Pouch: $pouch',
                   style: TextStyle(
-                    fontSize: 30 * scale,
+                    fontSize: 20 * scale,
                     height: 0.75 * scale,
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.8),

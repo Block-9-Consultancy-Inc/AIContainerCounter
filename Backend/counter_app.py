@@ -32,13 +32,11 @@ class CounterApp:
             render_debug_count = True,
             print_debug_performance_metrics = True,
             turbo_jpeg_library_path: str = None,
-            camera_calibration_params_path: str = None
+            camera_calibration_params_path: str = None,
+            mocked_counts_path: str = None
         ) -> None:
 
         self.force_transmit_video = force_transmit_video
-
-        with open('investor-demo-metadata.json') as f:
-            self.class_metadata = json.load(f)
 
         if not load_params_from_dotenv:
             self.height = height
@@ -53,6 +51,10 @@ class CounterApp:
             self.print_debug_performance_metrics = print_debug_performance_metrics
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
+            if mocked_counts_path is not None:
+                with open(mocked_counts_path) as f:
+                    self.mocked_counts = json.load(f)
+                self.validate_mocked_counts()
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -173,6 +175,26 @@ class CounterApp:
 
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
+        if environ.get('MOCKED_COUNTS_PATH') is not None:
+            with open(environ.get('MOCKED_COUNTS_PATH')) as f:
+                self.mocked_counts = json.load(f)
+            self.validate_mocked_counts()
+
+    def validate_mocked_counts(self):
+        invalid_batches = []
+        for index, batch in enumerate(self.mocked_counts):
+            total = batch.get('total')
+            classwise: dict[str, int] = batch.get('classwise')
+
+            classwise_total = sum(classwise.values())
+
+            if total != classwise_total:
+                invalid_batches.append({ 'index': index, 'expected_total': total, 'actual': classwise_total })
+        if len(invalid_batches) > 0:
+            print('Invalid mocked counts!')
+            print(invalid_batches)
+            sys.exit(-1)
+
     def calculate_frame_time_data(
             self,
             frame_time: int,
@@ -230,57 +252,56 @@ showing_video: {self.showing_video}
         }, namespace='/')
 
     current_batch_index = 0
-    expected_classwise_counts = [
-        {'aluminum': 10, 'plastic': 10, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0},
-        {'aluminum': 10, 'plastic': 11, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0},
-        {'aluminum': 10, 'plastic': 12, 'glass': 4, 'drinkbox': 4, 'gabletop': 2, 'pouch': 0}
-    ]
+    mocked_counts: dict = None
     current_total_count = 0
-    expected_total_count = [30, 31, 32]
     count_change_rate: float = 0
     starting_time_count_changed: float = None
     last_time_count_changed: float = None
 
     def process_counts(self, total_in: int, total_out: int, classwise_count: dict):
-        # batch_index = self.current_batch_index % len(self.expected_total_count)
-        # if self.starting_time_count_changed is None and total_out > 0:
-        #     self.starting_time_count_changed = perf_counter()
-        #     self.last_time_count_changed = perf_counter()
-
-        # print(f'count change rate: {self.count_change_rate}')
+        if self.mocked_counts is None:
+            return {
+                'total_in': total_in,
+                'total_out': total_out,
+                'class_wise_count': classwise_count
+            }
         
-        # if total_out < round(self.expected_total_count[batch_index] / 2) and total_out != self.current_total_count:
-        #     self.current_total_count = min(total_out, round(self.expected_total_count[batch_index] / 2))
-        #     self.last_time_count_changed = perf_counter()
-        #     self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
+        batch_index = self.current_batch_index % len(self.mocked_counts)
+        mocked_total_count = self.mocked_counts[batch_index].get('total')
+        mocked_total_classwise_counts = self.mocked_counts[batch_index].get('classwise')
+
+        threshold = round(mocked_total_count / 2)
+        if self.starting_time_count_changed is None and total_out > 0:
+            self.starting_time_count_changed = perf_counter()
+            self.last_time_count_changed = perf_counter()
+
+        print(f'count change rate: {self.count_change_rate}')
+        
+        if total_out < threshold and total_out != self.current_total_count:
+            self.current_total_count = min(total_out, threshold)
+            self.last_time_count_changed = perf_counter()
+            self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
 
 
-        # if total_out >= round(self.expected_total_count[batch_index] / 2) and self.current_total_count < self.expected_total_count[batch_index]:
-        #     seconds_til_next_increment = 1 / (self.count_change_rate * random())
-        #     now = perf_counter()
-        #     seconds_since_last_increment = now - self.last_time_count_changed
-        #     print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
-        #     if seconds_since_last_increment >= seconds_til_next_increment:
-        #         self.last_time_count_changed = now
-        #         num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
-        #         print(f'num_to_increment_by: {num_to_increment_by}')
-        #         self.current_total_count = min(self.expected_total_count[batch_index], self.current_total_count + num_to_increment_by)
+        if total_out >= threshold and self.current_total_count < mocked_total_count:
+            seconds_til_next_increment = 1 / (self.count_change_rate * random())
+            now = perf_counter()
+            seconds_since_last_increment = now - self.last_time_count_changed
+            print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
+            if seconds_since_last_increment >= seconds_til_next_increment:
+                self.last_time_count_changed = now
+                num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
+                print(f'num_to_increment_by: {num_to_increment_by}')
+                self.current_total_count = min(mocked_total_count, self.current_total_count + num_to_increment_by)
 
 
-        # percent_done = self.current_total_count / self.expected_total_count[batch_index]
-        # processed_classwise_counts = {
-        #     'aluminum': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('aluminum') * percent_done)},
-        #     'plastic': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('plastic') * percent_done)},
-        #     'glass': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('glass') * percent_done)},
-        #     'drinkbox': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('drinkbox') * percent_done)},
-        #     'gabletop': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('gabletop') * percent_done)},
-        #     'pouch': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('pouch') * percent_done)}
-        # }
+        percent_done = self.current_total_count / mocked_total_count
+        processed_classwise_counts = {k: { 'IN': 0, 'OUT': round(v * percent_done) } for k, v in mocked_total_classwise_counts.items()}
 
         return {
             'total_in': total_in,
-            'total_out': total_out,
-            'class_wise_count': classwise_count
+            'total_out': self.current_total_count,
+            'class_wise_count': processed_classwise_counts
         }
 
     def detection_process(self):
@@ -324,8 +345,7 @@ showing_video: {self.showing_video}
                     else:
                         undistortion_time = None
                     print(decoded_frame.shape)
-                    # TODO need to pass in label map here and edit ultralytics code to use it
-                    decoded_frame = counter.count(decoded_frame, label_map=self.class_metadata)
+                    decoded_frame = counter.count(decoded_frame)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
                     

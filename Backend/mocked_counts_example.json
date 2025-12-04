@@ -1,0 +1,5 @@
+[
+    {"total": 30, "classwise": {"aluminum": 10, "plastic": 10, "glass": 4, "drinkbox": 4, "gabletop": 2, "pouch": 0}},
+    {"total": 31, "classwise": {"aluminum": 10, "plastic": 11, "glass": 4, "drinkbox": 4, "gabletop": 2, "pouch": 0}},
+    {"total": 32, "classwise": {"aluminum": 10, "plastic": 12, "glass": 4, "drinkbox": 4, "gabletop": 2, "pouch": 0}}
+]

@@ -92,6 +92,7 @@ class CounterApp:
         self.avg_jpeg_encode_time = 0
         self.avg_base64_encode_time = 0
         self.avg_socket_emit_time = 0
+        self.avg_undistortion_time = 0
 
         self.showing_video = self.force_transmit_video
 
@@ -182,6 +183,7 @@ class CounterApp:
             socket_emit_time: int,
             jpeg_encode_time: int = None,
             base64_encode_time: int = None,
+            undistortion_time: int = None,
             print_data = False
 
     ):  
@@ -191,6 +193,9 @@ class CounterApp:
         self.avg_waiting_for_frame_time = ((self.avg_waiting_for_frame_time * self.num_of_frames) + waiting_for_frame_time) / (self.num_of_frames + 1)
         self.avg_total_inferencing_tracking_count_time = ((self.avg_total_inferencing_tracking_count_time * self.num_of_frames) + total_inferencing_tracking_count_time) / (self.num_of_frames + 1)
         self.avg_frame_decode_time = ((self.avg_frame_decode_time * self.num_of_frames) + frame_decode_time) / (self.num_of_frames + 1)
+
+        if undistortion_time is not None:
+            self.avg_undistortion_time = ((self.avg_undistortion_time * self.num_of_frames) + undistortion_time) / (self.num_of_frames + 1)
 
         if jpeg_encode_time is not None:
             self.avg_jpeg_encode_time = ((self.avg_jpeg_encode_time * self.num_of_frames_with_jpeg_encode) + jpeg_encode_time) / (self.num_of_frames_with_jpeg_encode + 1)
@@ -207,7 +212,7 @@ class CounterApp:
             print(f'''avg fps: {self.avg_fps:0.2f}, avg_frame_time: {self.avg_frame_time:0.2f} ms, avg_total_frame_time: {self.avg_total_frame_time:0.2f} ms
 avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_tracking_count_time: {self.avg_total_inferencing_tracking_count_time:0.2f} ms
 avg_frame_decode_time: {self.avg_frame_decode_time:0.2f} ms, avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
-avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms
+avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time: {self.avg_undistortion_time:0.2f} ms
 showing_video: {self.showing_video}
 ''')
         self.sio.emit('frame_time', {
@@ -221,6 +226,7 @@ showing_video: {self.showing_video}
             'avg_jpeg_encode_time': self.avg_jpeg_encode_time,
             'avg_base64_encode_time': self.avg_base64_encode_time,
             'avg_socket_emit_time': self.avg_socket_emit_time,
+            'avg_undistortion_time': self.avg_undistortion_time,
         }, namespace='/')
 
     current_batch_index = 0
@@ -236,45 +242,45 @@ showing_video: {self.showing_video}
     last_time_count_changed: float = None
 
     def process_counts(self, total_in: int, total_out: int, classwise_count: dict):
-        batch_index = self.current_batch_index % len(self.expected_total_count)
-        if self.starting_time_count_changed is None and total_out > 0:
-            self.starting_time_count_changed = perf_counter()
-            self.last_time_count_changed = perf_counter()
+        # batch_index = self.current_batch_index % len(self.expected_total_count)
+        # if self.starting_time_count_changed is None and total_out > 0:
+        #     self.starting_time_count_changed = perf_counter()
+        #     self.last_time_count_changed = perf_counter()
 
-        print(f'count change rate: {self.count_change_rate}')
+        # print(f'count change rate: {self.count_change_rate}')
         
-        if total_out < round(self.expected_total_count[batch_index] / 2) and total_out != self.current_total_count:
-            self.current_total_count = min(total_out, round(self.expected_total_count[batch_index] / 2))
-            self.last_time_count_changed = perf_counter()
-            self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
+        # if total_out < round(self.expected_total_count[batch_index] / 2) and total_out != self.current_total_count:
+        #     self.current_total_count = min(total_out, round(self.expected_total_count[batch_index] / 2))
+        #     self.last_time_count_changed = perf_counter()
+        #     self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
 
 
-        if total_out >= round(self.expected_total_count[batch_index] / 2) and self.current_total_count < self.expected_total_count[batch_index]:
-            seconds_til_next_increment = 1 / (self.count_change_rate * random())
-            now = perf_counter()
-            seconds_since_last_increment = now - self.last_time_count_changed
-            print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
-            if seconds_since_last_increment >= seconds_til_next_increment:
-                self.last_time_count_changed = now
-                num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
-                print(f'num_to_increment_by: {num_to_increment_by}')
-                self.current_total_count = min(self.expected_total_count[batch_index], self.current_total_count + num_to_increment_by)
+        # if total_out >= round(self.expected_total_count[batch_index] / 2) and self.current_total_count < self.expected_total_count[batch_index]:
+        #     seconds_til_next_increment = 1 / (self.count_change_rate * random())
+        #     now = perf_counter()
+        #     seconds_since_last_increment = now - self.last_time_count_changed
+        #     print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
+        #     if seconds_since_last_increment >= seconds_til_next_increment:
+        #         self.last_time_count_changed = now
+        #         num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
+        #         print(f'num_to_increment_by: {num_to_increment_by}')
+        #         self.current_total_count = min(self.expected_total_count[batch_index], self.current_total_count + num_to_increment_by)
 
 
-        percent_done = self.current_total_count / self.expected_total_count[batch_index]
-        processed_classwise_counts = {
-            'aluminum': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('aluminum') * percent_done)},
-            'plastic': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('plastic') * percent_done)},
-            'glass': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('glass') * percent_done)},
-            'drinkbox': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('drinkbox') * percent_done)},
-            'gabletop': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('gabletop') * percent_done)},
-            'pouch': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('pouch') * percent_done)}
-        }
+        # percent_done = self.current_total_count / self.expected_total_count[batch_index]
+        # processed_classwise_counts = {
+        #     'aluminum': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('aluminum') * percent_done)},
+        #     'plastic': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('plastic') * percent_done)},
+        #     'glass': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('glass') * percent_done)},
+        #     'drinkbox': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('drinkbox') * percent_done)},
+        #     'gabletop': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('gabletop') * percent_done)},
+        #     'pouch': {'IN': 0, 'OUT': round(self.expected_classwise_counts[batch_index].get('pouch') * percent_done)}
+        # }
 
         return {
             'total_in': total_in,
-            'total_out': self.current_total_count,
-            'class_wise_count': processed_classwise_counts
+            'total_out': total_out,
+            'class_wise_count': classwise_count
         }
 
     def detection_process(self):
@@ -309,10 +315,14 @@ showing_video: {self.showing_video}
                 waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
                 try:
                     decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
-                    if self.map1 is not None and self.map2 is not None:
-                        decoded_frame = cv2.remap(decoded_frame, self.map1, self.map2, cv2.INTER_NEAREST)
                     after_jpeg_decode = perf_counter_ns()
                     frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
+                    if self.map1 is not None and self.map2 is not None:
+                        decoded_frame = cv2.remap(decoded_frame, self.map1, None, None)
+                        after_undistortion = perf_counter_ns()
+                        undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
+                    else:
+                        undistortion_time = None
                     print(decoded_frame.shape)
                     # TODO need to pass in label map here and edit ultralytics code to use it
                     decoded_frame = counter.count(decoded_frame, label_map=self.class_metadata)
@@ -363,6 +373,7 @@ showing_video: {self.showing_video}
                         socket_emit_time,
                         jpeg_encode_time,
                         base64_encode_time,
+                        undistortion_time=undistortion_time,
                         print_data=self.print_debug_performance_metrics
                     )
                     end_of_prev_frame = perf_counter_ns()

@@ -17,6 +17,46 @@ import json
 from random import random
 from supervision import TraceAnnotator, BoundingBoxAnnotator, LabelAnnotator, Detections, ByteTrack, LineZoneAnnotator, LineZone, Point, Position
 
+class Counter:
+    def __init__(self, names):
+        self.names = names
+        self.byte_tracker = ByteTrack()
+        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        self.line_zone_annotator = LineZoneAnnotator(text_scale=1, thickness=2, text_thickness=2)
+        self.box_annotator = BoundingBoxAnnotator(thickness=2)
+        self.trace_annotator = TraceAnnotator(thickness=2)
+        self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
+
+    def trigger(self, decoded_frame: np.ndarray, detections: Detections):
+        detections = self.byte_tracker.update_with_detections(detections)
+
+        labels = [
+            f"#{tracker_id} {self.names[class_id]} {confidence:0.2f}"
+            for confidence, class_id, tracker_id
+            in zip(detections.confidence, detections.class_id, detections.tracker_id)
+        ]
+
+        annotated_frame = self.trace_annotator.annotate(
+            scene=decoded_frame,
+            detections=detections)
+        annotated_frame = self.box_annotator.annotate(
+            scene=annotated_frame,
+            detections=detections)
+        annotated_frame = self.label_annotator.annotate(
+            scene=annotated_frame,
+            detections=detections,
+            labels=labels)
+
+        self.line_zone.trigger(detections)
+
+        annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.line_zone)
+
+        return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
+    
+    def reset_counter(self):
+        self.byte_tracker = ByteTrack()
+        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+
 class CounterApp:
     def __init__(self,
             load_params_from_dotenv = True,
@@ -326,12 +366,8 @@ showing_video: {self.showing_video}
         #     imgsz=self.model_imgsz
         # )
         model = YOLO(self.model_path)
-        byte_tracker = ByteTrack()
-        line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
-        line_zone_annotator = LineZoneAnnotator(text_scale=1, thickness=2, text_thickness=2)
-        box_annotator = BoundingBoxAnnotator(thickness=2)
-        trace_annotator = TraceAnnotator(thickness=2)
-        label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
+        counter = Counter(model.names)
+
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)
             cam.set_format(BufferType.VIDEO_CAPTURE, self.width, self.height, "MJPG")
@@ -354,32 +390,11 @@ showing_video: {self.showing_video}
                     print(decoded_frame.shape)
                     results = model.predict(decoded_frame)[0]
                     detections = Detections.from_ultralytics(results)
-                    detections = byte_tracker.update_with_detections(detections)
-
-                    labels = [
-                        f"#{tracker_id} {model.names[class_id]} {confidence:0.2f}"
-                        for confidence, class_id, tracker_id
-                        in zip(detections.confidence, detections.class_id, detections.tracker_id)
-                    ]
-
-                    decoded_frame = trace_annotator.annotate(
-                        scene=decoded_frame,
-                        detections=detections)
-                    decoded_frame = box_annotator.annotate(
-                        scene=decoded_frame,
-                        detections=detections)
-                    decoded_frame = label_annotator.annotate(
-                        scene=decoded_frame,
-                        detections=detections,
-                        labels=labels)
-
-                    line_zone.trigger(detections)
-
-                    decoded_frame = line_zone_annotator.annotate(decoded_frame, line_counter=line_zone)
+                    decoded_frame, in_count, out_count = counter.trigger(decoded_frame, detections)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
                     
-                    payload = self.process_counts(line_zone.in_count, line_zone.out_count, {})
+                    payload = self.process_counts(in_count, out_count, {})
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
@@ -403,10 +418,7 @@ showing_video: {self.showing_video}
                     current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
                     total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
                     if self.reset_counter:
-                        counter.in_count = 0
-                        counter.out_count = 0
-                        counter.counted_ids = []
-                        counter.classwise_counts = {}
+                        counter.reset_counter()
                         self.current_batch_index += 1
                         self.current_total_count = 0
                         self.starting_time_count_changed = None

@@ -18,7 +18,9 @@ from random import random
 from supervision import TraceAnnotator, BoundingBoxAnnotator, LabelAnnotator, Detections, ByteTrack, LineZoneAnnotator, LineZone, Point, Position
 
 class Counter:
-    def __init__(self, names):
+    def __init__(self, names: list[str], width: int, height: int):
+        self.width = width
+        self.height = height
         self.names = names
         self.byte_tracker = ByteTrack()
         self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
@@ -366,7 +368,7 @@ showing_video: {self.showing_video}
         #     imgsz=self.model_imgsz
         # )
         model = YOLO(self.model_path)
-        counter = Counter(model.names)
+        counter = Counter(model.names, self.width, self.height)
 
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)

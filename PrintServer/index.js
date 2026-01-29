@@ -28,7 +28,7 @@ app.post('/print-receipt', async (req, res) => {
         
         // Create a new PDF document
         const doc = new PDFDocument({
-            size: [297.64, 460],
+            size: [297.64, 380],
             margins: { left: 17, right: 17, top: 50, bottom: 20 }
         });
         const filePath = path.join(__dirname, 'temp-receipt.pdf');
@@ -48,10 +48,10 @@ app.post('/print-receipt', async (req, res) => {
         doc.font('Roboto_Mono/static/RobotoMono-Bold.ttf').fontSize(14);
         doc.text(`Transaction ID ${divider(idDividerWidth)} ${transactionNumber}`).moveDown();
         doc.font('Roboto_Mono/RobotoMono-VariableFont_wght.ttf').fontSize(12);
-        for (const [category, count] of Object.entries(categories)) {
-            const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toLocaleString().length - 2
-            doc.text(`${category} ${divider(dividerWidth)} ${count}`);
-        }
+        // for (const [category, count] of Object.entries(categories)) {
+        //     const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toLocaleString().length - 2
+        //     doc.text(`${category} ${divider(dividerWidth)} ${count}`);
+        // }
 
         const totalDividerWidth = COLUMN_WIDTH_14_FONT - 'Total'.length - totalCount.toLocaleString().length - 2
         const totalRefundDividerWidth = COLUMN_WIDTH_14_FONT - 'Total Refund'.length - refundTotal.length - 3
@@ -82,10 +82,10 @@ app.post('/print-receipt', async (req, res) => {
         writeStream.on('finish', async () => {
             try {
                 // Print the PDF
-                // await unixPrint.print(filePath, 'EPSON_TM-T20II');
+                await unixPrint.print(filePath, 'EPSON_TM-T20II');
                 
-                // // Clean up temporary file
-                // fs.unlinkSync(filePath);
+                // Clean up temporary file
+                fs.unlinkSync(filePath);
                 
                 res.json({
                     success: true,

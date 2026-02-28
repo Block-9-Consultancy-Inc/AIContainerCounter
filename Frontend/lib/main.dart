@@ -55,15 +55,6 @@ Future<void> main() async {
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());
-  // eventStream.stream.listen((data) {
-  //   print('DART: $data');
-  // });
-  detectionEventStream.stream.listen((data) {
-    for (final classWiseCount in data.classWiseCount) {
-      print(
-          '${classWiseCount.class_}: in: ${classWiseCount.inCount}, out: ${classWiseCount.outCount}');
-    }
-  });
   WidgetsFlutterBinding.ensureInitialized();
   WindowManager.instance.ensureInitialized();
   WindowManager.instance.setTitleBarStyle(TitleBarStyle.hidden);
@@ -93,12 +84,13 @@ class _MyAppState extends State<MyApp> {
   final previousBatches =
       <({int count, DateTime time, List<ClassWiseCount> classWiseCount})>[];
   int runningTotal = 0;
-  int runningAluminum = 0;
-  int runningPlastic = 0;
-  int runningGableTop = 0;
-  int runningDrinkBox = 0;
-  int runningGlass = 0;
-  int runningPouch = 0;
+  final runningClassWiseCount = [
+    const ClassWiseCount(class_: 'can', inCount: 0, outCount: 0),
+    const ClassWiseCount(class_: 'plastic', inCount: 0, outCount: 0),
+    const ClassWiseCount(class_: 'drinkbox', inCount: 0, outCount: 0),
+    const ClassWiseCount(class_: 'gabletop', inCount: 0, outCount: 0),
+    const ClassWiseCount(class_: 'pouch', inCount: 0, outCount: 0),
+  ];
 
   final timeStarted = DateTime.now();
   final StopWatchTimer stopWatchTimer = StopWatchTimer();
@@ -167,53 +159,18 @@ class _MyAppState extends State<MyApp> {
       classWiseCount:
           widget.detectionEventStream.lastEvent?.classWiseCount ?? []
     ));
-    runningTotal =
-        previousBatches.fold(0, (value, element) => value + element.count);
-    runningAluminum = previousBatches.fold(
-        0,
-        (value, element) =>
-            value +
-            element.classWiseCount
-                .firstWhere((e) => e.class_ == 'can',
-                    orElse: () => const ClassWiseCount(
-                        class_: 'can', inCount: 0, outCount: 0))
-                .inCount);
-    runningPlastic = previousBatches.fold(
-        0,
-        (value, element) =>
-            value +
-            element.classWiseCount
-                .firstWhere((e) => e.class_ == 'plastic',
-                    orElse: () => const ClassWiseCount(
-                        class_: 'plastic', inCount: 0, outCount: 0))
-                .inCount);
-    runningGableTop = previousBatches.fold(
-        0,
-        (value, element) =>
-            value +
-            element.classWiseCount
-                .firstWhere((e) => e.class_ == 'gabletop',
-                    orElse: () => const ClassWiseCount(
-                        class_: 'gabletop', inCount: 0, outCount: 0))
-                .inCount);
-    runningDrinkBox = previousBatches.fold(
-        0,
-        (value, element) =>
-            value +
-            element.classWiseCount
-                .firstWhere((e) => e.class_ == 'drinkbox',
-                    orElse: () => const ClassWiseCount(
-                        class_: 'drinkbox', inCount: 0, outCount: 0))
-                .inCount);
-    runningPouch = previousBatches.fold(
-        0,
-        (value, element) =>
-            value +
-            element.classWiseCount
-                .firstWhere((e) => e.class_ == 'pouch',
-                    orElse: () => const ClassWiseCount(
-                        class_: 'pouch', inCount: 0, outCount: 0))
-                .inCount);
+    runningTotal += previousBatches.last.count;
+    for (var i = 0; i < runningClassWiseCount.length; i++) {
+      final category = runningClassWiseCount[i].class_;
+      final newClassWiseCount = previousBatches.last.classWiseCount
+          .firstWhere((classWiseCount) => classWiseCount.class_ == category);
+      runningClassWiseCount[i] = ClassWiseCount(
+        class_: category,
+        inCount: runningClassWiseCount[i].inCount + newClassWiseCount.inCount,
+        outCount:
+            runningClassWiseCount[i].outCount + newClassWiseCount.outCount,
+      );
+    }
     setState(() {});
     socket.emitEvent(
       event: 'reset-count',
@@ -388,11 +345,7 @@ class _MyAppState extends State<MyApp> {
                                 ),
                                 const SizedBox(width: 75),
                                 CategoryCountDisplay(
-                                  aluminum: runningAluminum,
-                                  plastic: runningPlastic,
-                                  gableTop: runningGableTop,
-                                  drinkBox: runningDrinkBox,
-                                  pouch: runningPouch,
+                                  classWiseCount: runningClassWiseCount,
                                   scale: 0.75,
                                   endPadding: 300,
                                 ),
@@ -474,56 +427,8 @@ class _MyAppState extends State<MyApp> {
                                   const SizedBox(width: 100),
                                   Expanded(
                                     child: CategoryCountDisplay(
-                                      aluminum: snapshot.data?.classWiseCount
-                                              .firstWhere(
-                                                  (e) => e.class_ == 'can',
-                                                  orElse: () =>
-                                                      const ClassWiseCount(
-                                                          class_: 'can',
-                                                          inCount: 0,
-                                                          outCount: 0))
-                                              .inCount ??
-                                          0,
-                                      plastic: snapshot.data?.classWiseCount
-                                              .firstWhere(
-                                                  (e) => e.class_ == 'plastic',
-                                                  orElse: () =>
-                                                      const ClassWiseCount(
-                                                          class_: 'plastic',
-                                                          inCount: 0,
-                                                          outCount: 0))
-                                              .inCount ??
-                                          0,
-                                      gableTop: snapshot.data?.classWiseCount
-                                              .firstWhere(
-                                                  (e) => e.class_ == 'gabletop',
-                                                  orElse: () =>
-                                                      const ClassWiseCount(
-                                                          class_: 'gabletop',
-                                                          inCount: 0,
-                                                          outCount: 0))
-                                              .inCount ??
-                                          0,
-                                      drinkBox: snapshot.data?.classWiseCount
-                                              .firstWhere(
-                                                  (e) => e.class_ == 'drinkbox',
-                                                  orElse: () =>
-                                                      const ClassWiseCount(
-                                                          class_: 'drinkbox',
-                                                          inCount: 0,
-                                                          outCount: 0))
-                                              .inCount ??
-                                          0,
-                                      pouch: snapshot.data?.classWiseCount
-                                              .firstWhere(
-                                                  (e) => e.class_ == 'pouch',
-                                                  orElse: () =>
-                                                      const ClassWiseCount(
-                                                          class_: 'pouch',
-                                                          inCount: 0,
-                                                          outCount: 0))
-                                              .inCount ??
-                                          0,
+                                      classWiseCount:
+                                          snapshot.data?.classWiseCount ?? [],
                                     ),
                                   ),
                                 ],
@@ -622,76 +527,9 @@ class _MyAppState extends State<MyApp> {
                                                 const SizedBox(width: 75),
                                                 Expanded(
                                                   child: CategoryCountDisplay(
-                                                    aluminum: selectedBatch
-                                                        .classWiseCount
-                                                        .firstWhere(
-                                                            (e) =>
-                                                                e.class_ ==
-                                                                'can',
-                                                            orElse: () =>
-                                                                const ClassWiseCount(
-                                                                    class_:
-                                                                        'can',
-                                                                    inCount: 0,
-                                                                    outCount:
-                                                                        0))
-                                                        .inCount,
-                                                    plastic: selectedBatch
-                                                        .classWiseCount
-                                                        .firstWhere(
-                                                            (e) =>
-                                                                e.class_ ==
-                                                                'plastic',
-                                                            orElse: () =>
-                                                                const ClassWiseCount(
-                                                                    class_:
-                                                                        'plastic',
-                                                                    inCount: 0,
-                                                                    outCount:
-                                                                        0))
-                                                        .inCount,
-                                                    gableTop: selectedBatch
-                                                        .classWiseCount
-                                                        .firstWhere(
-                                                            (e) =>
-                                                                e.class_ ==
-                                                                'gabletop',
-                                                            orElse: () =>
-                                                                const ClassWiseCount(
-                                                                    class_:
-                                                                        'gabletop',
-                                                                    inCount: 0,
-                                                                    outCount:
-                                                                        0))
-                                                        .inCount,
-                                                    drinkBox: selectedBatch
-                                                        .classWiseCount
-                                                        .firstWhere(
-                                                            (e) =>
-                                                                e.class_ ==
-                                                                'drinkbox',
-                                                            orElse: () =>
-                                                                const ClassWiseCount(
-                                                                    class_:
-                                                                        'drinkbox',
-                                                                    inCount: 0,
-                                                                    outCount:
-                                                                        0))
-                                                        .inCount,
-                                                    pouch: selectedBatch
-                                                        .classWiseCount
-                                                        .firstWhere(
-                                                            (e) =>
-                                                                e.class_ ==
-                                                                'pouch',
-                                                            orElse: () =>
-                                                                const ClassWiseCount(
-                                                                    class_:
-                                                                        'pouch',
-                                                                    inCount: 0,
-                                                                    outCount:
-                                                                        0))
-                                                        .inCount,
+                                                    classWiseCount:
+                                                        selectedBatch
+                                                            .classWiseCount,
                                                     scale: 0.75,
                                                   ),
                                                 ),
@@ -760,24 +598,41 @@ class _MyAppState extends State<MyApp> {
 class CategoryCountDisplay extends StatelessWidget {
   final double scale;
   final double endPadding;
-  final int aluminum;
-  final int plastic;
-  final int gableTop;
-  final int drinkBox;
-  final int pouch;
+  final List<ClassWiseCount> classWiseCount;
   const CategoryCountDisplay({
     super.key,
     this.scale = 1.0,
     this.endPadding = 0,
-    this.aluminum = 0,
-    this.plastic = 0,
-    this.gableTop = 0,
-    this.drinkBox = 0,
-    this.pouch = 0,
+    this.classWiseCount = const [],
   });
 
   @override
   Widget build(BuildContext context) {
+    final aluminum = classWiseCount
+        .firstWhere((e) => e.class_ == 'can',
+            orElse: () =>
+                const ClassWiseCount(class_: 'can', inCount: 0, outCount: 0))
+        .inCount;
+    final plastic = classWiseCount
+        .firstWhere((e) => e.class_ == 'plastic',
+            orElse: () => const ClassWiseCount(
+                class_: 'plastic', inCount: 0, outCount: 0))
+        .inCount;
+    final gableTop = classWiseCount
+        .firstWhere((e) => e.class_ == 'gabletop',
+            orElse: () => const ClassWiseCount(
+                class_: 'gabletop', inCount: 0, outCount: 0))
+        .inCount;
+    final drinkBox = classWiseCount
+        .firstWhere((e) => e.class_ == 'drinkbox',
+            orElse: () => const ClassWiseCount(
+                class_: 'drinkbox', inCount: 0, outCount: 0))
+        .inCount;
+    final pouch = classWiseCount
+        .firstWhere((e) => e.class_ == 'pouch',
+            orElse: () =>
+                const ClassWiseCount(class_: 'pouch', inCount: 0, outCount: 0))
+        .inCount;
     return Expanded(
         child: Row(
       children: [

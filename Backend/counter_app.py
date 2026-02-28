@@ -39,6 +39,7 @@ class Counter:
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
         self.category_classifier = CategoryClassifier('resnet_v1_18_unscaled.pth')
+        self.tracker_id_to_category = {}
         self.category_counts = {
             'can': 0,
             'plastic': 0,
@@ -50,30 +51,29 @@ class Counter:
     def trigger(self, decoded_frame: np.ndarray, detections: Detections):
         detections = self.byte_tracker.update_with_detections(detections)
 
-        labels = [
-            f"#{tracker_id} {self.names[class_id]} {confidence:0.2f}"
-            for confidence, class_id, tracker_id
-            in zip(detections.confidence, detections.class_id, detections.tracker_id)
-        ]
-
         annotated_frame = self.trace_annotator.annotate(
             scene=decoded_frame.copy(),
             detections=detections)
         annotated_frame = self.box_annotator.annotate(
             scene=annotated_frame,
             detections=detections)
-        annotated_frame = self.label_annotator.annotate(
-            scene=annotated_frame,
-            detections=detections,
-            labels=labels)
+        
 
-        before_in_count = self.line_zone.in_count
         center_crossed_in, center_crossed_out = self.line_zone.trigger(detections)
-        after_in_count = self.line_zone.in_count
         annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.line_zone)
 
         center_crossed_in_coords = np.argwhere(center_crossed_in == True)
         if center_crossed_in_coords.shape[0] == 0:
+            labels = [
+                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
+                for confidence, class_id, tracker_id
+                in zip(detections.confidence, detections.class_id, detections.tracker_id)
+            ]
+
+            annotated_frame = self.label_annotator.annotate(
+                scene=annotated_frame,
+                detections=detections,
+                labels=labels)
             return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
 
         try:
@@ -91,13 +91,30 @@ class Counter:
                     class_id=class_id,
                     tracker_id=tracker_id
                 )
-            center_crossed_in_bboxes = list(map(lambda e: decoded_frame[int(e[1]):int(e[3])][int(e[0]):int(e[2])], center_crossed_in_detections.xyxy))
+            
+            def crop_bbox_from_frame(xyxy: np.ndarray):
+                x1, y1, x2, y2 = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])
+                bbox = decoded_frame[y1:y2, x1:x2]
+                return bbox
+            center_crossed_in_bboxes = list(map(crop_bbox_from_frame, center_crossed_in_detections.xyxy))
             categories = self.category_classifier.run_inference(center_crossed_in_bboxes)
+            for index, category in enumerate(categories):
+                self.tracker_id_to_category[center_crossed_in_detections.tracker_id[index]] = category
             unique, category_counts = np.unique(categories, return_counts=True)
             category_counts = dict(zip(unique, category_counts))
             for class_index, count in category_counts.items():
                 self.category_counts[category_classes[class_index]] += int(count)
+            
+            labels = [
+                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
+                for confidence, class_id, tracker_id
+                in zip(detections.confidence, detections.class_id, detections.tracker_id)
+            ]
 
+            annotated_frame = self.label_annotator.annotate(
+                scene=annotated_frame,
+                detections=detections,
+                labels=labels)
 
             return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
         except Exception as e:

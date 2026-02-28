@@ -33,7 +33,7 @@ class Counter:
         self.height = height
         self.names = names
         self.byte_tracker = ByteTrack()
-        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height))
         self.line_zone_annotator = LineZoneAnnotator(text_scale=1, thickness=2, text_thickness=2)
         self.box_annotator = BoundingBoxAnnotator(thickness=2)
         self.trace_annotator = TraceAnnotator(thickness=2)
@@ -124,7 +124,7 @@ class Counter:
     
     def reset_counter(self):
         self.byte_tracker = ByteTrack()
-        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height))
         self.category_counts = {
             'can': 0,
             'plastic': 0,
@@ -132,6 +132,7 @@ class Counter:
             'gabletop': 0,
             'pouch': 0
         }
+        self.tracker_id_to_category = {}
 
 class CounterApp:
     def __init__(self,

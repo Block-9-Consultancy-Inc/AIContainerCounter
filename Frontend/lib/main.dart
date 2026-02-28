@@ -55,8 +55,14 @@ Future<void> main() async {
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());
-  eventStream.stream.listen((data) {
-    print('DART: $data');
+  // eventStream.stream.listen((data) {
+  //   print('DART: $data');
+  // });
+  detectionEventStream.stream.listen((data) {
+    for (final classWiseCount in data.classWiseCount) {
+      print(
+          '${classWiseCount.class_}: in: ${classWiseCount.inCount}, out: ${classWiseCount.outCount}');
+    }
   });
   WidgetsFlutterBinding.ensureInitialized();
   WindowManager.instance.ensureInitialized();
@@ -82,7 +88,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.dark;
   late Socket socket;
   final previousBatches =
       <({int count, DateTime time, List<ClassWiseCount> classWiseCount})>[];
@@ -380,17 +386,16 @@ class _MyAppState extends State<MyApp> {
                                         .withOpacity(0.7),
                                   ),
                                 ),
-                                // const SizedBox(width: 75),
-                                // CategoryCountDisplay(
-                                //   aluminum: runningAluminum,
-                                //   plastic: runningPlastic,
-                                //   gableTop: runningGableTop,
-                                //   drinkBox: runningDrinkBox,
-                                //   glass: runningGlass,
-                                //   pouch: runningPouch,
-                                //   scale: 0.75,
-                                //   endPadding: 300,
-                                // ),
+                                const SizedBox(width: 75),
+                                CategoryCountDisplay(
+                                  aluminum: runningAluminum,
+                                  plastic: runningPlastic,
+                                  gableTop: runningGableTop,
+                                  drinkBox: runningDrinkBox,
+                                  pouch: runningPouch,
+                                  scale: 0.75,
+                                  endPadding: 300,
+                                ),
                               ],
                             ),
                           ],

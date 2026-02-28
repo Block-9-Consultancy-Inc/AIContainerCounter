@@ -16,6 +16,16 @@ import numpy as np
 import json
 from random import random
 from supervision import TraceAnnotator, BoundingBoxAnnotator, LabelAnnotator, Detections, ByteTrack, LineZoneAnnotator, LineZone, Point, Position
+from utils.category_classifier import CategoryClassifier
+import traceback
+
+category_classes = [
+    'can',
+    'plastic',
+    'drinkbox',
+    'gabletop',
+    'pouch'
+]
 
 class Counter:
     def __init__(self, names: list[str], width: int, height: int):
@@ -28,6 +38,14 @@ class Counter:
         self.box_annotator = BoundingBoxAnnotator(thickness=2)
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
+        self.category_classifier = CategoryClassifier('resnet_v1_18_unscaled.pth')
+        self.category_counts = {
+            'can': 0,
+            'plastic': 0,
+            'drinkbox': 0,
+            'gabletop': 0,
+            'pouch': 0
+        }
 
     def trigger(self, decoded_frame: np.ndarray, detections: Detections):
         detections = self.byte_tracker.update_with_detections(detections)
@@ -39,7 +57,7 @@ class Counter:
         ]
 
         annotated_frame = self.trace_annotator.annotate(
-            scene=decoded_frame,
+            scene=decoded_frame.copy(),
             detections=detections)
         annotated_frame = self.box_annotator.annotate(
             scene=annotated_frame,
@@ -49,15 +67,54 @@ class Counter:
             detections=detections,
             labels=labels)
 
-        self.line_zone.trigger(detections)
-
+        before_in_count = self.line_zone.in_count
+        center_crossed_in, center_crossed_out = self.line_zone.trigger(detections)
+        after_in_count = self.line_zone.in_count
         annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.line_zone)
 
-        return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
+        center_crossed_in_coords = np.argwhere(center_crossed_in == True)
+        if center_crossed_in_coords.shape[0] == 0:
+            return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
+
+        try:
+            squeeze_axis = 0
+            if center_crossed_in_coords.shape[0] > 1:
+                squeeze_axis = 1
+
+            xyxy = detections.xyxy[center_crossed_in]
+            confidence = np.squeeze(detections.confidence[center_crossed_in_coords], axis=squeeze_axis)
+            class_id = np.squeeze(detections.class_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
+            tracker_id = np.squeeze(detections.tracker_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
+            center_crossed_in_detections = Detections(
+                    xyxy=xyxy, 
+                    confidence=confidence, 
+                    class_id=class_id,
+                    tracker_id=tracker_id
+                )
+            center_crossed_in_bboxes = list(map(lambda e: decoded_frame[int(e[1]):int(e[3])][int(e[0]):int(e[2])], center_crossed_in_detections.xyxy))
+            categories = self.category_classifier.run_inference(center_crossed_in_bboxes)
+            unique, category_counts = np.unique(categories, return_counts=True)
+            category_counts = dict(zip(unique, category_counts))
+            for class_index, count in category_counts.items():
+                self.category_counts[category_classes[class_index]] += int(count)
+
+
+            return annotated_frame, self.line_zone.in_count, self.line_zone.out_count
+        except Exception as e:
+            print(f'got error in counter trigger: {e}')
+            error_traceback = traceback.format_exc()
+            print(error_traceback)
     
     def reset_counter(self):
         self.byte_tracker = ByteTrack()
         self.line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        self.category_counts = {
+            'can': 0,
+            'plastic': 0,
+            'drinkbox': 0,
+            'gabletop': 0,
+            'pouch': 0
+        }
 
 class CounterApp:
     def __init__(self,
@@ -348,25 +405,6 @@ showing_video: {self.showing_video}
         }
 
     def detection_process(self):
-        # Define region points
-        # region_points = [
-        #     (int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), 0),
-        #     (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), 0),
-        #     (int(self.width / 2) + int(self.width * self.counting_region_width_percentage / 2), self.height),
-        #     (int(self.width / 2) - int(self.width * self.counting_region_width_percentage / 2), self.height)
-        # ]
-
-        # Init Object Counter
-        # TODO need to disable analytics showing if both show_in and show_out are false
-        # counter = solutions.ObjectCounter(
-        #     region=region_points,
-        #     model=self.model_path,
-        #     draw_tracks=True,
-        #     line_thickness=2,
-        #     show_in=self.render_debug_count,
-        #     show_out=self.render_debug_count,
-        #     imgsz=self.model_imgsz
-        # )
         model = YOLO(self.model_path)
         counter = Counter(model.names, self.width, self.height)
 
@@ -395,8 +433,8 @@ showing_video: {self.showing_video}
                     decoded_frame, in_count, out_count = counter.trigger(decoded_frame, detections)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
-                    
-                    payload = self.process_counts(in_count, out_count, {})
+                    classwise_counts = {k: { 'IN': v, 'OUT': 0 } for k, v in counter.category_counts.items()}
+                    payload = self.process_counts(in_count, out_count, classwise_counts)
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
@@ -443,6 +481,8 @@ showing_video: {self.showing_video}
                     end_of_prev_frame = perf_counter_ns()
                 except Exception as e:
                     print(f'got error {e}')
+                    error_traceback = traceback.format_exc()
+                    print(error_traceback)
         print('detection process has stopped')
 
     def run(self):

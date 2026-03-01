@@ -1,44 +1,35 @@
 import 'package:ai_container_counter/src/rust/api/simple.dart';
+import 'package:ai_container_counter/src/utils/calculation_utils.dart';
+import 'package:ai_container_counter/src/utils/class_wise_count_utils.dart';
 import 'package:flutter/material.dart';
 
-class CategoryCountDisplay extends StatelessWidget {
+class CategoryCountDisplayer extends StatelessWidget {
   final double scale;
   final double endPadding;
   final List<ClassWiseCount> classWiseCount;
-  const CategoryCountDisplay({
+  final List<ClassWiseCount>? expectedClassWiseCount;
+  const CategoryCountDisplayer({
     super.key,
     this.scale = 1.0,
     this.endPadding = 0,
     this.classWiseCount = const [],
+    this.expectedClassWiseCount,
   });
 
   @override
   Widget build(BuildContext context) {
-    final aluminum = classWiseCount
-        .firstWhere((e) => e.class_ == 'can',
-            orElse: () =>
-                const ClassWiseCount(class_: 'can', inCount: 0, outCount: 0))
-        .inCount;
-    final plastic = classWiseCount
-        .firstWhere((e) => e.class_ == 'plastic',
-            orElse: () => const ClassWiseCount(
-                class_: 'plastic', inCount: 0, outCount: 0))
-        .inCount;
-    final gableTop = classWiseCount
-        .firstWhere((e) => e.class_ == 'gabletop',
-            orElse: () => const ClassWiseCount(
-                class_: 'gabletop', inCount: 0, outCount: 0))
-        .inCount;
-    final drinkBox = classWiseCount
-        .firstWhere((e) => e.class_ == 'drinkbox',
-            orElse: () => const ClassWiseCount(
-                class_: 'drinkbox', inCount: 0, outCount: 0))
-        .inCount;
-    final pouch = classWiseCount
-        .firstWhere((e) => e.class_ == 'pouch',
-            orElse: () =>
-                const ClassWiseCount(class_: 'pouch', inCount: 0, outCount: 0))
-        .inCount;
+    final can = getCategoryCount(classWiseCount, 'can');
+    final canExpected = getCategoryCount(expectedClassWiseCount, 'can');
+    final plastic = getCategoryCount(classWiseCount, 'plastic');
+    final plasticExpected = getCategoryCount(expectedClassWiseCount, 'plastic');
+    final gableTop = getCategoryCount(classWiseCount, 'gabletop');
+    final gableTopExpected =
+        getCategoryCount(expectedClassWiseCount, 'gabletop');
+    final drinkBox = getCategoryCount(classWiseCount, 'drinkbox');
+    final drinkBoxExpected =
+        getCategoryCount(expectedClassWiseCount, 'drinkbox');
+    final pouch = getCategoryCount(classWiseCount, 'pouch');
+    final pouchExpected = getCategoryCount(expectedClassWiseCount, 'pouch');
     return Expanded(
         child: Row(
       children: [
@@ -49,7 +40,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Aluminum: $aluminum',
+                  'Can: $can${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(can, canExpected)}'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -61,7 +52,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Plastic: $plastic',
+                  'Plastic: $plastic${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(plastic, plasticExpected)}'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -73,7 +64,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Gable Top: $gableTop',
+                  'Gable Top: $gableTop${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(gableTop, gableTopExpected)}'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -92,7 +83,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Drink Box: $drinkBox',
+                  'Drink Box: $drinkBox${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(drinkBox, drinkBoxExpected)}'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -104,7 +95,7 @@ class CategoryCountDisplay extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Pouch: $pouch',
+                  'Pouch: $pouch${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(pouch, pouchExpected)}'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,

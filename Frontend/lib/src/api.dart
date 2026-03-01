@@ -8,7 +8,7 @@ import 'dart:convert' show json;
 Future<void> printReceipt(
     int transactionNumber,
     Batch submittedBatch) async {
-  final categories = submittedBatch.classWiseCount.asMap().map(
+  final categories = submittedBatch.actualCount.classWiseCount.asMap().map(
       (index, classWiseCount) =>
           MapEntry(classWiseCount.class_, classWiseCount.outCount));
 
@@ -17,7 +17,7 @@ Future<void> printReceipt(
     headers: {'Content-Type': 'application/json'},
     body: json.encode({
       'transactionNumber': transactionNumber,
-      'totalCount': submittedBatch.count,
+      'totalCount': submittedBatch.actualCount.count,
       'categories': categories,
     }),
   );

@@ -1,6 +1,7 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
-import 'package:ai_container_counter/src/widgets/category_count_display.dart';
+import 'package:ai_container_counter/src/utils/calculation_utils.dart';
+import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -53,24 +54,56 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  AutoSizeText(
-                    '${context.select<GlobalState, int>((state) => state.runningTotal)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 100,
-                      height: 0.75,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.7),
+                  Selector<GlobalState, int?>(
+                    selector: (context, state) => state.expectedCount == null
+                        ? null
+                        : state.runningExpected.count,
+                    builder: (context, runningExpectedCount, child) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AutoSizeText(
+                          context.select<GlobalState, String>(
+                              (state) => '${state.runningActual.count}'),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 100,
+                            height: 0.75,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.7),
+                          ),
+                        ),
+                        if (runningExpectedCount != null) ...[
+                          const SizedBox(height: 30),
+                          AutoSizeText(
+                            computeCountAccuracy(
+                              context.select<GlobalState, int>(
+                                  (state) => state.runningActual.count),
+                              runningExpectedCount,
+                            ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 50,
+                              height: 0.75,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(width: 75),
-                  CategoryCountDisplay(
+                  CategoryCountDisplayer(
                     classWiseCount:
                         context.select<GlobalState, List<ClassWiseCount>>(
-                      (state) => state.runningClassWiseCount,
-                    ),
+                            (state) => state.runningActual.classWiseCount),
+                    expectedClassWiseCount:
+                        context.select<GlobalState, List<ClassWiseCount>>(
+                            (state) => state.runningExpected.classWiseCount),
                     scale: 0.75,
                     endPadding: 300,
                   ),
@@ -133,22 +166,51 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                 stream: context.read<GlobalState>().detectionEventStream.stream,
                 builder: (context, snapshot) => Row(
                   children: [
-                    AutoSizeText(
-                      '${snapshot.hasData ? snapshot.data!.totalIn : 0}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 150,
-                        height: 0.75,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.8),
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AutoSizeText(
+                          '${snapshot.hasData ? snapshot.data!.totalIn : 0}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 150,
+                            height: 0.75,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.8),
+                          ),
+                        ),
+                        if (context.select<GlobalState, bool>(
+                            (state) => state.expectedCount != null)) ...[
+                          const SizedBox(height: 30),
+                          AutoSizeText(
+                            computeCountAccuracy(
+                              snapshot.hasData ? snapshot.data!.totalIn : 0,
+                              context.select<GlobalState, int>(
+                                (state) => state.expectedCount!.count,
+                              ),
+                            ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 50,
+                              height: 0.75,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(width: 100),
                     Expanded(
-                      child: CategoryCountDisplay(
+                      child: CategoryCountDisplayer(
                         classWiseCount: snapshot.data?.classWiseCount ?? [],
+                        expectedClassWiseCount:
+                            context.select<GlobalState, List<ClassWiseCount>?>(
+                                (state) => state.expectedCount?.classWiseCount),
                       ),
                     ),
                   ],

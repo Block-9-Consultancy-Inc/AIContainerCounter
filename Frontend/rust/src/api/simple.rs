@@ -113,8 +113,6 @@ impl Socket {
             match payload {
                 Payload::Text(values) => {
                     // println!("Received values: {:#?}", values);
-                    let mut now = Instant::now();
-                    println!("decoding socket object");
                     let object = values[0].as_object().unwrap();
                     let frame_payload = FramePayload { 
                         class_wise_count: object.get("class_wise_count").unwrap().as_object().unwrap().iter().map(|v| {
@@ -132,28 +130,24 @@ impl Socket {
                     if let Some(sink) = &*DETECTION_EVENT_STREAM_SINK.read() {
                         let _ = sink.add(frame_payload);
                     }
-                    let object_decode_time = now.elapsed();
-                    println!("took {:#?} ms", object_decode_time.as_millis());
                     let encoded_frame = object.get("encoded_frame");
                     if encoded_frame.is_some() {
-                        now = Instant::now();
+                        let mut now = Instant::now();
                         let encoded_frame_base64 = encoded_frame.unwrap().as_str().unwrap();
-                        println!("starting base64decode");
                         let frame = STANDARD.decode(encoded_frame_base64).unwrap();
                         let base64_decode_time = now.elapsed();
-                        println!("took {:#?} ms", base64_decode_time.as_millis());
+                        println!("base64_decode took {:#?} ms", base64_decode_time.as_millis());
                         now = Instant::now();
-                        println!("decoding jpeg to rgba");
                         let raw_frame = decode_jpeg_to_rgba(frame.as_slice());
                         let jpeg_to_rgba_decode_time = now.elapsed();
-                        println!("took {:#?} ms", jpeg_to_rgba_decode_time.as_millis());
+                        println!("jpeg_to_rgba took {:#?} ms", jpeg_to_rgba_decode_time.as_millis());
                         if let Some(renderer) = &*CURRENT_FLUTTER_TEXTURE.read() {
                             renderer.on_rgba(&raw_frame);
                         }
                     }
                 }
                 Payload::Binary(bin_data) => {
-                    println!("Received bytes: {:#?}", bin_data);
+                    // println!("Received bytes: {:#?}", bin_data);
                     if let Some(sink) = &*EVENT_STREAM_SINK.read() {
                         let _ = sink.add(format!("Received bytes: {:#?}", bin_data));
                     }
@@ -161,7 +155,7 @@ impl Socket {
                 // Use Payload::Text instead
                 #[allow(deprecated)]
                 Payload::String(str) => {
-                    println!("Received: {}", str);
+                    // println!("Received: {}", str);
                     if let Some(sink) = &*EVENT_STREAM_SINK.read() {
                         let _ = sink.add(format!("Received: {}", str));
                     }

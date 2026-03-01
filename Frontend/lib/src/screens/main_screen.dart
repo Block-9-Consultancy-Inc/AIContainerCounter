@@ -1,4 +1,6 @@
+import 'package:ai_container_counter/src/models/batch.dart';
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/screens/real_time_video_stream.dart';
 import 'package:ai_container_counter/src/widgets/current_batch_view.dart';
 import 'package:ai_container_counter/src/widgets/previous_batch_list_view.dart';
@@ -6,6 +8,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:ai_container_counter/src/api.dart';
+
+String? expectedCountValidator(value) {
+  if (value?.isEmpty ?? true) {
+    return 'This field is mandatory';
+  }
+
+  final parsedValue = int.tryParse(value!);
+  if (parsedValue == null) {
+    return 'Needs to be a valid integer';
+  }
+
+  if (parsedValue < 0) {
+    return 'Needs to be a positive integer';
+  }
+
+  return null;
+}
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -30,6 +49,191 @@ class MainScreen extends StatelessWidget {
                 ),
         ),
         actions: [
+          IconButton(
+            onPressed: () async {
+              final globalState = context.read<GlobalState>();
+              Count? newExpectedCount;
+              final formKey = GlobalKey<FormState>();
+              final canController = TextEditingController(
+                  text: globalState.expectedCount?.classWiseCount
+                      .firstWhere((count) => count.class_ == 'can')
+                      .inCount
+                      .toString());
+              final plasticController = TextEditingController(
+                  text: globalState.expectedCount?.classWiseCount
+                      .firstWhere((count) => count.class_ == 'plastic')
+                      .inCount
+                      .toString());
+              final gabletopController = TextEditingController(
+                  text: globalState.expectedCount?.classWiseCount
+                      .firstWhere((count) => count.class_ == 'gabletop')
+                      .inCount
+                      .toString());
+              final drinkboxController = TextEditingController(
+                  text: globalState.expectedCount?.classWiseCount
+                      .firstWhere((count) => count.class_ == 'drinkbox')
+                      .inCount
+                      .toString());
+              final pouchController = TextEditingController(
+                  text: globalState.expectedCount?.classWiseCount
+                      .firstWhere((count) => count.class_ == 'pouch')
+                      .inCount
+                      .toString());
+
+              int getNewTotal() {
+                final can = int.tryParse(canController.text) ?? 0;
+                final plastic = int.tryParse(plasticController.text) ?? 0;
+                final gabletop = int.tryParse(gabletopController.text) ?? 0;
+                final drinkbox = int.tryParse(drinkboxController.text) ?? 0;
+                final pouch = int.tryParse(pouchController.text) ?? 0;
+
+                return can + plastic + gabletop + drinkbox + pouch;
+              }
+
+              int currentTotal = getNewTotal();
+
+              final shouldClear = await showDialog<bool>(
+                context: context,
+                builder: (builderContext) =>
+                    StatefulBuilder(builder: (context, setState) {
+                  return Form(
+                    key: formKey,
+                    child: SimpleDialog(
+                      title: const Text('Update expected count'),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 15,
+                        horizontal: 15,
+                      ),
+                      children: [
+                        ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor:
+                                const WidgetStatePropertyAll(Colors.redAccent),
+                            foregroundColor:
+                                const WidgetStatePropertyAll(Colors.white),
+                            overlayColor: WidgetStatePropertyAll(
+                                Colors.red.withOpacity(0.3)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(builderContext).pop(true);
+                          },
+                          child: const Text('Clear'),
+                        ),
+                        TextFormField(
+                          controller: canController,
+                          keyboardType: TextInputType.number,
+                          validator: expectedCountValidator,
+                          decoration: const InputDecoration(labelText: 'Can'),
+                          onChanged: (_) {
+                            setState(() {
+                              currentTotal = getNewTotal();
+                            });
+                          },
+                        ),
+                        TextFormField(
+                          controller: plasticController,
+                          keyboardType: TextInputType.number,
+                          validator: expectedCountValidator,
+                          decoration:
+                              const InputDecoration(labelText: 'Plastic'),
+                          onChanged: (_) {
+                            setState(() {
+                              currentTotal = getNewTotal();
+                            });
+                          },
+                        ),
+                        TextFormField(
+                          controller: drinkboxController,
+                          keyboardType: TextInputType.number,
+                          validator: expectedCountValidator,
+                          decoration:
+                              const InputDecoration(labelText: 'Drinkbox'),
+                          onChanged: (_) {
+                            setState(() {
+                              currentTotal = getNewTotal();
+                            });
+                          },
+                        ),
+                        TextFormField(
+                          controller: gabletopController,
+                          keyboardType: TextInputType.number,
+                          validator: expectedCountValidator,
+                          decoration:
+                              const InputDecoration(labelText: 'Gabletop'),
+                          onChanged: (_) {
+                            setState(() {
+                              currentTotal = getNewTotal();
+                            });
+                          },
+                        ),
+                        TextFormField(
+                          controller: pouchController,
+                          keyboardType: TextInputType.number,
+                          validator: expectedCountValidator,
+                          decoration: const InputDecoration(labelText: 'Pouch'),
+                          onChanged: (_) {
+                            setState(() {
+                              currentTotal = getNewTotal();
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 2),
+                        Text('Current Total: $currentTotal'),
+                        const SizedBox(height: 2),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (formKey.currentState!.validate()) {
+                              final classWiseCounts = [
+                                ClassWiseCount(
+                                  class_: 'can',
+                                  inCount: int.parse(canController.text),
+                                  outCount: 0,
+                                ),
+                                ClassWiseCount(
+                                  class_: 'plastic',
+                                  inCount: int.parse(plasticController.text),
+                                  outCount: 0,
+                                ),
+                                ClassWiseCount(
+                                  class_: 'gabletop',
+                                  inCount: int.parse(gabletopController.text),
+                                  outCount: 0,
+                                ),
+                                ClassWiseCount(
+                                  class_: 'drinkbox',
+                                  inCount: int.parse(drinkboxController.text),
+                                  outCount: 0,
+                                ),
+                                ClassWiseCount(
+                                  class_: 'pouch',
+                                  inCount: int.parse(pouchController.text),
+                                  outCount: 0,
+                                ),
+                              ];
+                              newExpectedCount = Count(
+                                count: classWiseCounts.fold(
+                                    0,
+                                    (value, element) =>
+                                        value + element.inCount),
+                                classWiseCount: classWiseCounts,
+                              );
+                              Navigator.of(builderContext).pop(false);
+                            }
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              );
+              if (shouldClear != null) {
+                globalState.expectedCount = newExpectedCount;
+              }
+            },
+            iconSize: 80,
+            icon: const Icon(Icons.bug_report),
+          ),
           IconButton(
             onPressed: () {
               final globalState = context.read<GlobalState>();

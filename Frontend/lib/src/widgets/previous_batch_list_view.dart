@@ -1,7 +1,8 @@
 import 'package:ai_container_counter/src/models/batch.dart';
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/utils/calculation_utils.dart';
 import 'package:ai_container_counter/src/utils/datetime_utils.dart';
-import 'package:ai_container_counter/src/widgets/category_count_display.dart';
+import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -47,8 +48,8 @@ class PreviousBatchListView extends StatelessWidget {
                           ),
                         ),
                         content: SizedBox(
-                          height: 250,
-                          width: 700,
+                          height: 300,
+                          width: 850,
                           child: Padding(
                             padding: const EdgeInsets.only(left: 50),
                             child: Column(
@@ -69,29 +70,57 @@ class PreviousBatchListView extends StatelessWidget {
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
-                                    AutoSizeText(
-                                      '${selectedBatch.count}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 100,
-                                        height: 0.75,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.7),
-                                      ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        AutoSizeText(
+                                          '${selectedBatch.actualCount.count}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 100,
+                                            height: 0.75,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withOpacity(0.7),
+                                          ),
+                                        ),
+                                        if (selectedBatch.expectedCount !=
+                                            null) ...[
+                                          const SizedBox(height: 30),
+                                          AutoSizeText(
+                                            computeCountAccuracy(
+                                              selectedBatch.actualCount.count,
+                                              selectedBatch
+                                                  .expectedCount!.count,
+                                            ),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 50,
+                                              height: 0.75,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withOpacity(0.8),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     const SizedBox(width: 75),
                                     Expanded(
-                                      child: CategoryCountDisplay(
-                                        classWiseCount:
-                                            selectedBatch.classWiseCount,
+                                      child: CategoryCountDisplayer(
+                                        classWiseCount: selectedBatch
+                                            .actualCount.classWiseCount,
+                                        expectedClassWiseCount: selectedBatch
+                                            .expectedCount?.classWiseCount,
                                         scale: 0.75,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 30),
                                 Text(
                                   'Time Elapsed: ${batchDuration.inMinutes} m ${batchDuration.inSeconds - batchDuration.inMinutes * 60} s',
                                   style: TextStyle(
@@ -121,7 +150,7 @@ class PreviousBatchListView extends StatelessWidget {
                     );
                   },
                   title: Text(
-                    'Batch ${actualIndex + 1}: ${previousBatches[actualIndex].count}',
+                    'Batch ${actualIndex + 1}: ${previousBatches[actualIndex].actualCount.count}',
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme

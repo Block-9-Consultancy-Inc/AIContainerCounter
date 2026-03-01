@@ -12,20 +12,21 @@ class GlobalState extends ChangeNotifier {
   Socket? socket;
   int? textureId;
 
-  int runningTotal = 0;
-  final runningClassWiseCount = [
-    const ClassWiseCount(class_: 'can', inCount: 0, outCount: 0),
-    const ClassWiseCount(class_: 'plastic', inCount: 0, outCount: 0),
-    const ClassWiseCount(class_: 'drinkbox', inCount: 0, outCount: 0),
-    const ClassWiseCount(class_: 'gabletop', inCount: 0, outCount: 0),
-    const ClassWiseCount(class_: 'pouch', inCount: 0, outCount: 0),
-  ];
+  Count runningActual = const Count();
+  Count runningExpected = const Count();
 
   final stopWatchTimer = StopWatchTimer()..onStartTimer();
 
   final timeStarted = DateTime.now();
 
   List<Batch> previousBatches = [];
+
+  Count? get expectedCount => _expectedCount;
+  Count? _expectedCount;
+  set expectedCount(Count? newExpectedCount) {
+    _expectedCount = newExpectedCount;
+    notifyListeners();
+  }
 
   ThemeMode get themeMode => _themeMode;
   ThemeMode _themeMode = ThemeMode.dark;
@@ -83,22 +84,61 @@ class GlobalState extends ChangeNotifier {
     previousBatches = [
       ...previousBatches,
       Batch(
-          count: detectionEventStream.lastEvent?.totalIn ?? 0,
-          time: DateTime.now(),
-          classWiseCount: detectionEventStream.lastEvent?.classWiseCount ?? []),
+        time: DateTime.now(),
+        actualCount: Count(
+            count: detectionEventStream.lastEvent?.totalIn ?? 0,
+            classWiseCount: detectionEventStream.lastEvent?.classWiseCount ??
+                const [
+                  ClassWiseCount(class_: 'can', inCount: 0, outCount: 0),
+                  ClassWiseCount(class_: 'plastic', inCount: 0, outCount: 0),
+                  ClassWiseCount(class_: 'drinkbox', inCount: 0, outCount: 0),
+                  ClassWiseCount(class_: 'gabletop', inCount: 0, outCount: 0),
+                  ClassWiseCount(class_: 'pouch', inCount: 0, outCount: 0),
+                ]),
+        expectedCount: expectedCount,
+      ),
     ];
-    runningTotal += previousBatches.last.count;
-    for (var i = 0; i < runningClassWiseCount.length; i++) {
-      final category = runningClassWiseCount[i].class_;
-      final newClassWiseCount = previousBatches.last.classWiseCount
-          .firstWhere((classWiseCount) => classWiseCount.class_ == category);
-      runningClassWiseCount[i] = ClassWiseCount(
-        class_: category,
-        inCount: runningClassWiseCount[i].inCount + newClassWiseCount.inCount,
-        outCount:
-            runningClassWiseCount[i].outCount + newClassWiseCount.outCount,
+
+    if (previousBatches.last.expectedCount != null) {
+      final expectedClassWiseCount =
+          List<ClassWiseCount>.from(runningExpected.classWiseCount);
+      for (var i = 0; i < expectedClassWiseCount.length; i++) {
+        final category = expectedClassWiseCount[i].class_;
+        final newClassWiseCount = previousBatches
+            .last.expectedCount!.classWiseCount
+            .firstWhere((classWiseCount) => classWiseCount.class_ == category);
+        expectedClassWiseCount[i] = ClassWiseCount(
+          class_: category,
+          inCount: runningExpected.classWiseCount[i].inCount +
+              newClassWiseCount.inCount,
+          outCount: runningExpected.classWiseCount[i].outCount +
+              newClassWiseCount.outCount,
+        );
+      }
+      runningExpected = Count(
+        count:
+            runningExpected.count + previousBatches.last.expectedCount!.count,
+        classWiseCount: expectedClassWiseCount,
       );
     }
+
+    final actualClassWiseCount =
+        List<ClassWiseCount>.from(runningActual.classWiseCount);
+    for (var i = 0; i < actualClassWiseCount.length; i++) {
+      final category = actualClassWiseCount[i].class_;
+      final newClassWiseCount = previousBatches.last.actualCount.classWiseCount
+          .firstWhere((classWiseCount) => classWiseCount.class_ == category);
+      actualClassWiseCount[i] = ClassWiseCount(
+        class_: category,
+        inCount: actualClassWiseCount[i].inCount + newClassWiseCount.inCount,
+        outCount: actualClassWiseCount[i].outCount + newClassWiseCount.outCount,
+      );
+    }
+    runningActual = Count(
+      count: runningActual.count + previousBatches.last.actualCount.count,
+      classWiseCount: actualClassWiseCount,
+    );
+
     socket?.emitEvent(
       event: 'reset-count',
       data: 'reset-count',

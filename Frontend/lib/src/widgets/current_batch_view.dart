@@ -102,8 +102,10 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                         context.select<GlobalState, List<ClassWiseCount>>(
                             (state) => state.runningActual.classWiseCount),
                     expectedClassWiseCount:
-                        context.select<GlobalState, List<ClassWiseCount>>(
-                            (state) => state.runningExpected.classWiseCount),
+                        context.select<GlobalState, List<ClassWiseCount>?>(
+                            (state) => state.expectedCount == null
+                                ? null
+                                : state.runningExpected.classWiseCount),
                     scale: 0.75,
                     endPadding: 300,
                   ),

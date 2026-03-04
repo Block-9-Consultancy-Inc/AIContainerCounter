@@ -29,6 +29,9 @@ abstract class Socket implements RustOpaqueInterface {
   Future<bool> connectToSocketServer({required String serverAddress});
 
   Future<bool> emitEvent({required String event, required String data});
+
+  Future<bool> emitNewExpectedCategoryCount(
+      {required Map<String, BigInt> data});
 }
 
 class ClassWiseCount {

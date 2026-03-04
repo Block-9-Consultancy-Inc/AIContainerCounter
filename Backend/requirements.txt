@@ -9,3 +9,4 @@ pyturbojpeg==1.7.7
 python-dotenv==1.0.1
 PyGObject==3.50.0
 websocket-client==1.8.0
+peewee==3.17.9

@@ -3,3 +3,4 @@ test_video_output
 mocked_counts.json
 processed-counting-machine-test-videos
 **/__pycache__
+**/*.db

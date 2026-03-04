@@ -4,7 +4,8 @@ use log::warn;
 use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Payload};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use std::time::Instant;
+use serde_json::json;
+use std::{collections::HashMap, time::Instant};
 
 
 
@@ -100,6 +101,20 @@ impl Socket {
         }
 
         let res = self.inner.as_ref().unwrap().emit(event, data);
+        return res.is_ok();
+    }
+
+    pub fn emit_new_expected_category_count(&mut self, data: HashMap<String, u64>) -> bool {
+        if self.inner.is_none() {
+            eprintln!("socket has not been initialized yet!");
+            return false;
+        }
+
+        let mut map_data = serde_json::Map::new();
+        for (key, value) in data.iter() {
+            map_data.insert(key.to_owned(), json!(value.to_owned()));
+        }
+        let res = self.inner.as_ref().unwrap().emit("set-expected-count", serde_json::Value::Object(map_data));
         return res.is_ok();
     }
 

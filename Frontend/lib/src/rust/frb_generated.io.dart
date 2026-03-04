@@ -35,6 +35,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           dynamic raw);
 
   @protected
+  Map<String, BigInt> dco_decode_Map_String_u_64(dynamic raw);
+
+  @protected
   Socket
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           dynamic raw);
@@ -68,6 +71,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<(String, BigInt)> dco_decode_list_record_string_u_64(dynamic raw);
+
+  @protected
+  (String, BigInt) dco_decode_record_string_u_64(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
@@ -88,6 +100,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Socket
       sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           SseDeserializer deserializer);
+
+  @protected
+  Map<String, BigInt> sse_decode_Map_String_u_64(SseDeserializer deserializer);
 
   @protected
   Socket
@@ -125,6 +140,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<(String, BigInt)> sse_decode_list_record_string_u_64(
+      SseDeserializer deserializer);
+
+  @protected
+  (String, BigInt) sse_decode_record_string_u_64(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
@@ -149,6 +174,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
       sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           Socket self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_Map_String_u_64(
+      Map<String, BigInt> self, SseSerializer serializer);
 
   @protected
   void
@@ -186,6 +215,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_record_string_u_64(
+      List<(String, BigInt)> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_record_string_u_64(
+      (String, BigInt) self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

@@ -6,6 +6,7 @@ numpy==2.4.2
 linuxpy==0.24.0
 supervision==0.27.0.post1
 pyturbojpeg==2.2.0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 PyGObject==3.56.0
 websocket-client==1.9.0
+peewee==4.0.1

@@ -217,6 +217,16 @@ class MainScreen extends StatelessWidget {
                                         value + element.inCount),
                                 classWiseCount: classWiseCounts,
                               );
+                              context
+                                  .read<GlobalState>()
+                                  .socket
+                                  ?.emitNewExpectedCategoryCount(data: {
+                                    'can': BigInt.from(int.parse(canController.text)),
+                                    'plastic': BigInt.from(int.parse(plasticController.text)),
+                                    'drinkbox': BigInt.from(int.parse(drinkboxController.text)),
+                                    'gabletop': BigInt.from(int.parse(gabletopController.text)),
+                                    'pouch': BigInt.from(int.parse(pouchController.text)),
+                                  });
                               Navigator.of(builderContext).pop(false);
                             }
                           },

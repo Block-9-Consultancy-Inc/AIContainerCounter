@@ -45,8 +45,10 @@ class CategoryClassifier:
 	def run_inference(self, images: list[np.ndarray]):
 		transformed_images = np.array(list(map(lambda e: self.transform(e), images)))
 		tensors = torch.tensor(transformed_images).to(self.device)
-		outputs = self.model(tensors)
-		_, predicted = torch.max(outputs, 1)
+		with torch.no_grad():
+			outputs = self.model(tensors)
+			_, predicted = torch.max(outputs, 1)
 		
-		return predicted.cpu().numpy()
+		predicted_array = predicted.cpu().numpy()
+		return predicted_array
 	

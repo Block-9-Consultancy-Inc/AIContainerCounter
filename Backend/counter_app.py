@@ -320,7 +320,7 @@ showing_video: {self.showing_video}
 
     def detection_process(self):
         model = YOLO(self.model_path)
-        counter = Counter(model.names, self.width, self.height)
+        counter = Counter(model.names, self.width, self.height, self.model_path, 'resnet_v1_18_unscaled.pth')
 
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)

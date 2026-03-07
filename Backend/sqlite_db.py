@@ -5,7 +5,7 @@ import uuid
 import os
 import cv2
 
-db = SqliteDatabase('state.db')
+db = SqliteDatabase('resources/state.db')
 
 class BaseModel(Model):
     class Meta:
@@ -131,3 +131,8 @@ def save_batch(counter: Counter):
         MultiContainerImage.bulk_create(batch_size=50, model_list=multi_container_images)
         BBox.bulk_create(batch_size=50, model_list=bboxes)
         SingleContainerImage.bulk_create(batch_size=50, model_list=single_container_images)
+
+
+'''
+select avg(1.0 - (abs((count * 1.0) - (expected_count* 1.0))/(expected_count * 1.0))) as overallaccuracy, avg(1.0 - (abs((can_count * 1.0) - (expected_can_count* 1.0))/(expected_can_count * 1.0))) as canaccuracy, avg(1.0 - (abs((plastic_count * 1.0) - (expected_plastic_count* 1.0))/(expected_plastic_count * 1.0))) as plasticaccuracy, avg(1.0 - (abs((drinkbox_count * 1.0) - (expected_drinkbox_count* 1.0))/(expected_drinkbox_count * 1.0))) as drinkboxaccuracy, avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count* 1.0))/(expected_gabletop_count * 1.0))) as gabletopaccuracy, avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count* 1.0))/(expected_pouch_count * 1.0))) as pouchaccuracy, count(id) as num_of_batches from Batch where (julianday(datetime('now', 'localtime')) - julianday(time_submitted)) * 24 > 10;
+'''

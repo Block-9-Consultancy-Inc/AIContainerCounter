@@ -29,16 +29,13 @@ class CounterApp:
             width = 1920,
             camera_id = 0,
             camera_fps = 60,
-            counting_region_width_percentage = 0.4,
             model_path = 'resources/counting-machine-1-category-yolo11.pt',
             category_model_path = 'resources/resnet_v1_18_unscaled.pth',
             model_imgsz = 1440,
             frame_encode_quality = 85,
-            render_debug_count = True,
             print_debug_performance_metrics = True,
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
-            mocked_counts_path: str = None,
             only_use_yolo_model: bool = False,
         ) -> None:
 
@@ -51,20 +48,14 @@ class CounterApp:
             self.width = width
             self.camera_id = camera_id
             self.camera_fps = camera_fps
-            self.counting_region_width_percentage = counting_region_width_percentage
             self.model_path = model_path
             self.category_model_path = category_model_path
             self.model_imgsz = model_imgsz
             self.frame_encode_quality = frame_encode_quality
-            self.render_debug_count = render_debug_count
             self.print_debug_performance_metrics = print_debug_performance_metrics
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
             self.only_use_yolo_model = only_use_yolo_model
-            if mocked_counts_path is not None:
-                with open(mocked_counts_path) as f:
-                    self.mocked_counts = json.load(f)
-                self.validate_mocked_counts()
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -90,8 +81,6 @@ class CounterApp:
             self.map1, self.map2 = None, None
 
         self.reset_counter = False
-        self.set_expected_count = False
-        self.new_expected_count: dict[str, int] = None
 
         self.num_of_frames = 0
         self.num_of_frames_with_jpeg_encode = 0
@@ -127,11 +116,6 @@ class CounterApp:
             print(f'reset count {msg}')
             self.reset_counter = True
 
-        @sio.on('set-expected-count')
-        def set_expected_count(sid, msg):
-            print(f'setting expected count {msg}')
-            self.new_expected_count = msg
-            self.set_expected_count = True
 
         @sio.on('set-video')
         def set_video(sid, msg):
@@ -165,12 +149,6 @@ class CounterApp:
         else:
             self.camera_fps = int(camera_fps_from_env)
 
-        region_width_from_env = environ.get('COUNTING_REGION_WIDTH_PERCENTAGE')
-        if region_width_from_env == None or not region_width_from_env.replace('.','',1).isdigit():
-            self.counting_region_width_percentage = 0.4
-        else:
-            self.counting_region_width_percentage = float(region_width_from_env)
-
         self.model_path = environ.get('MODEL_PATH')
 
         self.category_model_path = environ.get('CATEGORY_MODEL_PATH')
@@ -187,8 +165,6 @@ class CounterApp:
         else:
             self.frame_encode_quality = max(min(int(frame_encode_quality_from_env), 100), 0)
 
-        self.render_debug_count = environ.get('RENDER_DEBUG_COUNT') == 'true'
-
         self.print_debug_performance_metrics = environ.get('PRINT_DEBUG_PERFORMANCE_METRICS') == 'true'
 
         self.turbo_jpeg_library_path = environ.get('TURBO_JPEG_LIBRARY_PATH')
@@ -196,26 +172,6 @@ class CounterApp:
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
         self.only_use_yolo_model = environ.get('ONLY_USE_YOLO_MODEL') == 'true'
-
-        if environ.get('MOCKED_COUNTS_PATH') is not None:
-            with open(environ.get('MOCKED_COUNTS_PATH')) as f:
-                self.mocked_counts = json.load(f)
-            self.validate_mocked_counts()
-
-    def validate_mocked_counts(self):
-        invalid_batches = []
-        for index, batch in enumerate(self.mocked_counts):
-            total = batch.get('total')
-            classwise: dict[str, int] = batch.get('classwise')
-
-            classwise_total = sum(classwise.values())
-
-            if total != classwise_total:
-                invalid_batches.append({ 'index': index, 'expected_total': total, 'actual': classwise_total })
-        if len(invalid_batches) > 0:
-            print('Invalid mocked counts!')
-            print(invalid_batches)
-            sys.exit(-1)
 
     def calculate_frame_time_data(
             self,
@@ -280,52 +236,6 @@ showing_video: {self.showing_video}
     starting_time_count_changed: float = None
     last_time_count_changed: float = None
 
-    def process_counts(self, total_in: int, total_out: int, classwise_count: dict):
-        if self.mocked_counts is None:
-            return {
-                'total_in': total_in,
-                'total_out': total_out,
-                'class_wise_count': classwise_count
-            }
-        
-        batch_index = self.current_batch_index % len(self.mocked_counts)
-        mocked_total_count = self.mocked_counts[batch_index].get('total')
-        mocked_total_classwise_counts = self.mocked_counts[batch_index].get('classwise')
-
-        threshold = round(mocked_total_count / 2)
-        if self.starting_time_count_changed is None and total_out > 0:
-            self.starting_time_count_changed = perf_counter()
-            self.last_time_count_changed = perf_counter()
-
-        print(f'count change rate: {self.count_change_rate}')
-        
-        if total_out < threshold and total_out != self.current_total_count:
-            self.current_total_count = min(total_out, threshold)
-            self.last_time_count_changed = perf_counter()
-            self.count_change_rate = self.current_total_count / (self.last_time_count_changed - self.starting_time_count_changed)
-
-
-        if total_out >= threshold and self.current_total_count < mocked_total_count:
-            seconds_til_next_increment = 1 / (self.count_change_rate * random())
-            now = perf_counter()
-            seconds_since_last_increment = now - self.last_time_count_changed
-            print(f'seconds_til_next_increment: {seconds_til_next_increment}, seconds_since_last_increment: {seconds_since_last_increment}')
-            if seconds_since_last_increment >= seconds_til_next_increment:
-                self.last_time_count_changed = now
-                num_to_increment_by = round(seconds_since_last_increment / seconds_til_next_increment)
-                print(f'num_to_increment_by: {num_to_increment_by}')
-                self.current_total_count = min(mocked_total_count, self.current_total_count + num_to_increment_by)
-
-
-        percent_done = self.current_total_count / mocked_total_count
-        processed_classwise_counts = {k: { 'IN': 0, 'OUT': round(v * percent_done) } for k, v in mocked_total_classwise_counts.items()}
-
-        return {
-            'total_in': total_in,
-            'total_out': self.current_total_count,
-            'class_wise_count': processed_classwise_counts
-        }
-
     def detection_process(self):
         model = YOLO(self.model_path)
         counter = Counter(
@@ -362,8 +272,11 @@ showing_video: {self.showing_video}
                     decoded_frame, in_count, out_count = counter.trigger(decoded_frame, detections)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
-                    classwise_counts = {k: { 'IN': v, 'OUT': 0 } for k, v in counter.category_counts.items()}
-                    payload = self.process_counts(in_count, out_count, classwise_counts)
+                    payload = {
+                        'total_in': in_count,
+                        'total_out': out_count,
+                        'class_wise_count': {k: { 'IN': v, 'OUT': 0 } for k, v in counter.category_counts.items()}
+                    }
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
@@ -386,10 +299,6 @@ showing_video: {self.showing_video}
                     
                     current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
                     total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
-                    if self.set_expected_count:
-                        counter.set_expected_count(self.new_expected_count)
-                        self.new_expected_count = None
-                        self.set_expected_count = False
                     if self.reset_counter:
                         save_batch(counter)
                         counter.reset_counter()

@@ -47,6 +47,7 @@ class BBox(BaseModel):
     y1 = IntegerField()
     x2 = IntegerField()
     y2 = IntegerField()
+    tracker_id = IntegerField()
     image_id = ForeignKeyField(MultiContainerImage, backref='bboxes')
 
 class SingleContainerImage(BaseModel):
@@ -99,24 +100,25 @@ def save_batch(counter: Counter):
             category_model=counter.category_model
         )
         multi_container_images = list(map(lambda e: MultiContainerImage(
-            id=e[1][3],
+            id=e[1][4],
             index=e[0],
             time_collected=e[1][0],
-            height=e[1][2].shape[0],
-            width=e[1][2].shape[1],
+            height=e[1][3].shape[0],
+            width=e[1][3].shape[1],
             batch_id=counter.current_batch_uuid
         ), enumerate(counter.batch_multi_container_images)))
 
         bboxes: list[BBox] = []
-        for _, xyxys, _, image_id in counter.batch_multi_container_images:
+        for _, xyxys, tracker_ids, _, image_id in counter.batch_multi_container_images:
             current_image_bboxes = list(map(lambda e: BBox(
                 id=uuid.uuid4(),
-                x1=e[0],
-                y1=e[1],
-                x2=e[2],
-                y2=e[3],
+                x1=e[0][0],
+                y1=e[0][1],
+                x2=e[0][2],
+                y2=e[0][3],
+                tracker_id=e[1],
                 image_id=image_id
-            ), xyxys))
+            ), zip(xyxys, tracker_ids)))
             bboxes.extend(current_image_bboxes)
 
         single_container_images = list(map(lambda e: SingleContainerImage(

@@ -1,5 +1,5 @@
 from supervision import TraceAnnotator, BoundingBoxAnnotator, LabelAnnotator, Detections, ByteTrack, LineZoneAnnotator, LineZone, Point, Position
-from utils.category_classifier import CategoryClassifier
+from category_classifier import CategoryClassifier
 from datetime import datetime
 import numpy as np
 import traceback
@@ -39,7 +39,6 @@ class Counter:
             'gabletop': 0,
             'pouch': 0
         }
-        self.expected_category_counts: dict[str, int] = None
 
         self.current_batch_uuid = uuid.uuid4()
         self.time_batch_started = datetime.now()
@@ -53,7 +52,7 @@ class Counter:
         self.last_image_center_line_zone_in_count: int = 0
         self.last_image_last_line_zone_in_count: int = 0
 
-        self.batch_multi_container_images: list[tuple[datetime, np.ndarray, np.ndarray, uuid.UUID]] = []
+        self.batch_multi_container_images: list[tuple[datetime, np.ndarray, np.ndarray, np.ndarray, uuid.UUID]] = []
         self.batch_single_container_images: list[tuple[datetime, str, np.ndarray, uuid.UUID]] = []
 
     def trigger(self, decoded_frame: np.ndarray, detections: Detections):
@@ -74,7 +73,7 @@ class Counter:
 
         if self.should_capture_image():
             self.signal_image_captured()
-            self.batch_multi_container_images.append((self.last_time_image_collected, detections.xyxy, decoded_frame, uuid.uuid4()))
+            self.batch_multi_container_images.append((self.last_time_image_collected, detections.xyxy, detections.tracker_id, decoded_frame, uuid.uuid4()))
 
         annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 
@@ -212,6 +211,3 @@ class Counter:
 
         self.batch_multi_container_images = []
         self.batch_single_container_images = []
-
-    def set_expected_count(self, expected_category_counts: dict[str, int]):
-        self.expected_category_counts = expected_category_counts

@@ -37,7 +37,8 @@ class CounterApp:
             print_debug_performance_metrics = True,
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
-            mocked_counts_path: str = None
+            mocked_counts_path: str = None,
+            only_use_yolo_model: bool = False,
         ) -> None:
 
         init_db()
@@ -57,6 +58,7 @@ class CounterApp:
             self.print_debug_performance_metrics = print_debug_performance_metrics
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
+            self.only_use_yolo_model = only_use_yolo_model
             if mocked_counts_path is not None:
                 with open(mocked_counts_path) as f:
                     self.mocked_counts = json.load(f)
@@ -189,6 +191,8 @@ class CounterApp:
 
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
+        self.only_use_yolo_model = environ.get('ONLY_USE_YOLO_MODEL') == 'true'
+
         if environ.get('MOCKED_COUNTS_PATH') is not None:
             with open(environ.get('MOCKED_COUNTS_PATH')) as f:
                 self.mocked_counts = json.load(f)
@@ -320,7 +324,7 @@ showing_video: {self.showing_video}
 
     def detection_process(self):
         model = YOLO(self.model_path)
-        counter = Counter(model.names, self.width, self.height, self.model_path, 'resnet_v1_18_unscaled.pth')
+        counter = Counter(model.names, self.width, self.height, self.model_path, 'resnet_v1_18_unscaled.pth', only_use_yolo_model=self.only_use_yolo_model)
 
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)

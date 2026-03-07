@@ -14,13 +14,15 @@ category_classes = [
 ]
 
 class Counter:
-    def __init__(self, names: list[str], width: int, height: int, yolo_model: str, category_model: str):
+    def __init__(self, names: list[str], width: int, height: int, yolo_model: str, category_model: str, only_use_yolo_model = False):
+        self.only_use_yolo_model = only_use_yolo_model
         self.width = width
         self.height = height
         self.names = names
         self.yolo_model = yolo_model
         self.category_model = category_model
         self.byte_tracker = ByteTrack()
+        # self.byte_tracker = ByteTrack(minimum_consecutive_frames=5, minimum_matching_threshold=0.7)
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
         self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
         self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
@@ -75,6 +77,21 @@ class Counter:
             self.batch_multi_container_images.append((self.last_time_image_collected, detections.xyxy, decoded_frame, uuid.uuid4()))
 
         annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
+
+        if self.only_use_yolo_model:
+            self.category_counts = {category_classes[class_id]: class_count for class_id, class_count in self.center_line_zone.in_count_per_class.items()}
+
+            labels = [
+                f"#{tracker_id} {self.names[class_id]} {confidence:0.2f}"
+                for confidence, class_id, tracker_id
+                in zip(detections.confidence, detections.class_id, detections.tracker_id)
+            ]
+
+            annotated_frame = self.label_annotator.annotate(
+                scene=annotated_frame,
+                detections=detections,
+                labels=labels)
+            return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
 
         center_crossed_in_coords = np.argwhere(center_crossed_in == True)
         if center_crossed_in_coords.shape[0] == 0:

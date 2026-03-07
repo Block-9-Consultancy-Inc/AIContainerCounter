@@ -30,7 +30,8 @@ class CounterApp:
             camera_id = 0,
             camera_fps = 60,
             counting_region_width_percentage = 0.4,
-            model_path = 'counting-machine-1-category-yolo11.pt',
+            model_path = 'resources/counting-machine-1-category-yolo11.pt',
+            category_model_path = 'resources/resnet_v1_18_unscaled.pth',
             model_imgsz = 1440,
             frame_encode_quality = 85,
             render_debug_count = True,
@@ -52,6 +53,7 @@ class CounterApp:
             self.camera_fps = camera_fps
             self.counting_region_width_percentage = counting_region_width_percentage
             self.model_path = model_path
+            self.category_model_path = category_model_path
             self.model_imgsz = model_imgsz
             self.frame_encode_quality = frame_encode_quality
             self.render_debug_count = render_debug_count
@@ -170,6 +172,8 @@ class CounterApp:
             self.counting_region_width_percentage = float(region_width_from_env)
 
         self.model_path = environ.get('MODEL_PATH')
+
+        self.category_model_path = environ.get('CATEGORY_MODEL_PATH')
 
         model_imgsiz_from_env = environ.get('MODEL_IMGSZ')
         if model_imgsiz_from_env == None or not model_imgsiz_from_env.isdigit():
@@ -324,7 +328,14 @@ showing_video: {self.showing_video}
 
     def detection_process(self):
         model = YOLO(self.model_path)
-        counter = Counter(model.names, self.width, self.height, self.model_path, 'resnet_v1_18_unscaled.pth', only_use_yolo_model=self.only_use_yolo_model)
+        counter = Counter(
+            model.names,
+            self.width,
+            self.height,
+            self.model_path,
+            self.category_model_path,
+            only_use_yolo_model=self.only_use_yolo_model
+        )
 
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)

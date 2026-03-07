@@ -14,13 +14,13 @@ category_classes = [
 ]
 
 class Counter:
-    def __init__(self, names: list[str], width: int, height: int, yolo_model: str, category_model: str, only_use_yolo_model = False):
+    def __init__(self, names: list[str], width: int, height: int, yolo_model_path: str, category_model_path: str, only_use_yolo_model = False):
         self.only_use_yolo_model = only_use_yolo_model
         self.width = width
         self.height = height
         self.names = names
-        self.yolo_model = yolo_model
-        self.category_model = category_model
+        self.yolo_model = yolo_model_path.split('/')[-1]
+        self.category_model = category_model_path.split('/')[-1]
         self.byte_tracker = ByteTrack()
         # self.byte_tracker = ByteTrack(minimum_consecutive_frames=5, minimum_matching_threshold=0.7)
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
@@ -30,7 +30,7 @@ class Counter:
         self.box_annotator = BoundingBoxAnnotator(thickness=2)
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
-        self.category_classifier = CategoryClassifier('resnet_v1_18_unscaled.pth')
+        self.category_classifier = CategoryClassifier(category_model_path)
         self.tracker_id_to_category = {}
         self.category_counts = {
             'can': 0,

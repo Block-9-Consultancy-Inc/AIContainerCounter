@@ -7,3 +7,4 @@ test-predictions
 **/__pycache__
 **/*.db
 archived-test-results
+resources

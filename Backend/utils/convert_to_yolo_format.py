@@ -16,6 +16,7 @@ os.makedirs('yolo/test/labels', exist_ok=True)
 batch_info = Batch.select(Batch.id, Batch.count)
 
 for batch in batch_info:
+    print(f'working on batch {batch.id}')
     data_type_identifier = randint(0, 99)
     data_type = None
     if data_type_identifier >= 0 and data_type_identifier < 70:
@@ -25,6 +26,7 @@ for batch in batch_info:
     elif data_type_identifier >= 90 and data_type_identifier < 100:
         data_type = 'test'
     for image in batch.multiContainerImages:
+        print(f'working on image {image.id}')
         shutil.copyfile(f'images/{batch.id}/multi_container_images/{image.id}.{image.index}.jpg', f'yolo/{data_type}/images/{batch.id}_{image.id}.{image.index}.jpg')
         with open(f'yolo/{data_type}/labels/{batch.id}_{image.id}.{image.index}.txt', 'w') as f:
             for bbox in image.bboxes:

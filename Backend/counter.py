@@ -5,7 +5,7 @@ import numpy as np
 import traceback
 import uuid
 from multiprocessing import Process, Queue
-import sqlite_db
+import utils.sqlite_db as sqlite_db
 import json
 
 category_classes = [

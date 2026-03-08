@@ -3,22 +3,19 @@ from os import environ
 import socketio
 import base64
 from threading import Thread
-from ultralytics import YOLO, solutions
+from ultralytics import YOLO
 from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
 from flask_cors import CORS
 import torch
 from linuxpy.video.device import Device, BufferType
-from time import perf_counter_ns, perf_counter
+from time import perf_counter_ns
 from dotenv import load_dotenv
 import sys
 import cv2
 import numpy as np
-import json
-from random import random
 import traceback
-from sqlite_db import init_db, save_batch
 from supervision import Detections
-from counter import Counter
+import counter as ctr
 
 class CounterApp:
     def __init__(self,
@@ -38,8 +35,6 @@ class CounterApp:
             camera_calibration_params_path: str = None,
             only_use_yolo_model: bool = False,
         ) -> None:
-
-        init_db()
 
         self.force_transmit_video = force_transmit_video
 
@@ -81,6 +76,8 @@ class CounterApp:
             self.map1, self.map2 = None, None
 
         self.reset_counter = False
+        self.set_expected_count = False
+        self.new_expected_count: dict[str, int] = None
 
         self.num_of_frames = 0
         self.num_of_frames_with_jpeg_encode = 0
@@ -115,6 +112,12 @@ class CounterApp:
         def reset_counter(sid, msg):
             print(f'reset count {msg}')
             self.reset_counter = True
+
+        @sio.on('set-expected-count')
+        def set_expected_count(sid, msg):
+            print(f'setting expected count {msg}')
+            self.new_expected_count = msg
+            self.set_expected_count = True
 
 
         @sio.on('set-video')
@@ -229,16 +232,9 @@ showing_video: {self.showing_video}
             'avg_undistortion_time': self.avg_undistortion_time,
         }, namespace='/')
 
-    current_batch_index = 0
-    mocked_counts: dict = None
-    current_total_count = 0
-    count_change_rate: float = 0
-    starting_time_count_changed: float = None
-    last_time_count_changed: float = None
-
     def detection_process(self):
         model = YOLO(self.model_path)
-        counter = Counter(
+        counter = ctr.Counter(
             model.names,
             self.width,
             self.height,
@@ -299,14 +295,12 @@ showing_video: {self.showing_video}
                     
                     current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
                     total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
+                    if self.set_expected_count:
+                        counter.set_expected_count(self.new_expected_count)
+                        self.new_expected_count = None
+                        self.set_expected_count = False
                     if self.reset_counter:
-                        save_batch(counter)
                         counter.reset_counter()
-                        self.current_batch_index += 1
-                        self.current_total_count = 0
-                        self.starting_time_count_changed = None
-                        self.last_time_count_changed = None
-                        self.count_change_rate = 0
                         self.reset_counter = False
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(

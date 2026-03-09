@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import traceback
 import uuid
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, shared_memory
 import utils.sqlite_db as sqlite_db
 import json
 
@@ -15,6 +15,8 @@ category_classes = [
     'gabletop',
     'pouch'
 ]
+
+IMAGE_BUFFER_SIZE = 30
 
 def save_state_process(data_to_save_queue: Queue):
     sqlite_db.init_db()
@@ -79,6 +81,9 @@ class Counter:
 
         self.data_to_save_queue = Queue()
         self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+        self.data_to_save_shms: list[shared_memory.SharedMemory] = []
+        self.prev_data_to_save: sqlite_db.DataToSave = None
+        self.prev_data_to_save_shms: list[shared_memory.SharedMemory] = []
 
         self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue])
         self.save_state_process.start()
@@ -107,18 +112,23 @@ class Counter:
 
         if self.should_capture_image():
             self.signal_image_captured()
+            id = uuid.uuid4()
+            shm = shared_memory.SharedMemory(name=str(id), create=True, size=decoded_frame.nbytes)
+            shared_arr = np.ndarray(decoded_frame.shape, decoded_frame.dtype, shm.buf)
+            np.copyto(shared_arr, decoded_frame)
+            self.data_to_save_shms.append(shm)
             self.data_to_save.multi_container_images.append(
                 sqlite_db.MultiContainerImageToSave(
-                    self.current_batch_multi_container_image_index - 1,
-                    self.last_time_image_collected,
-                    detections,
-                    decoded_frame,
-                    uuid.uuid4(),
-                    self.current_batch_uuid,
+                    index=self.current_batch_multi_container_image_index - 1,
+                    time=self.last_time_image_collected,
+                    detections=detections,
+                    frame_shape=decoded_frame.shape,
+                    id=id,
+                    batch_id=self.current_batch_uuid,
                 )
             )
 
-        send_data_to_save = len(self.data_to_save.multi_container_images) >= 5
+        send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
 
         annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 
@@ -139,6 +149,12 @@ class Counter:
             if send_data_to_save:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
+                self.prev_data_to_save = self.data_to_save
+                for shm in self.prev_data_to_save_shms:
+                    shm.close()
+                    shm.unlink()
+                self.prev_data_to_save_shms = self.data_to_save_shms
+                self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
             
             return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
@@ -159,6 +175,12 @@ class Counter:
             if send_data_to_save:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
+                self.prev_data_to_save = self.data_to_save
+                for shm in self.prev_data_to_save_shms:
+                    shm.close()
+                    shm.unlink()
+                self.prev_data_to_save_shms = self.data_to_save_shms
+                self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
             return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
@@ -186,15 +208,25 @@ class Counter:
             center_crossed_in_bboxes = list(map(crop_bbox_from_frame, center_crossed_in_detections.xyxy))
             categories = self.category_classifier.run_inference(center_crossed_in_bboxes)
 
+            def single_container_image_save(e):
+                index, category_index = e
+                id = uuid.uuid4()
+                frame = center_crossed_in_bboxes[index]
+                shm = shared_memory.SharedMemory(name=str(id), create=True, size=frame.nbytes)
+                shared_arr = np.ndarray(frame.shape, frame.dtype, shm.buf)
+                np.copyto(shared_arr, frame)
+                self.data_to_save_shms.append(shm)
+                return sqlite_db.SingleContainerImageToSave(
+                    id=id,
+                    time=now,
+                    detected_class=category_classes[category_index],
+                    frame_shape=frame.shape,
+                    tracker_id=tracker_id[index],
+                    batch_id=self.current_batch_uuid
+                )
+
             now = datetime.now()
-            self.data_to_save.single_container_images.extend(list(map(lambda e: sqlite_db.SingleContainerImageToSave(
-                uuid.uuid4(),
-                now,
-                category_classes[e[1]],
-                center_crossed_in_bboxes[e[0]],
-                tracker_id[e[0]],
-                self.current_batch_uuid
-            ), enumerate(categories))))
+            self.data_to_save.single_container_images.extend(list(map(single_container_image_save, enumerate(categories))))
 
 
             for index, category in enumerate(categories):
@@ -215,11 +247,17 @@ class Counter:
                 detections=detections,
                 labels=labels)
             
-            send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= 50
+            send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= IMAGE_BUFFER_SIZE * 10
 
             if send_data_to_save:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
+                self.prev_data_to_save = self.data_to_save
+                for shm in self.prev_data_to_save_shms:
+                    shm.close()
+                    shm.unlink()
+                self.prev_data_to_save_shms = self.data_to_save_shms
+                self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
             return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
@@ -259,6 +297,12 @@ class Counter:
     def reset_counter(self):
         self.data_to_save.batch = counter_to_batch_to_save(self)
         self.data_to_save_queue.put(self.data_to_save)
+        self.prev_data_to_save = self.data_to_save
+        for shm in self.prev_data_to_save_shms:
+                    shm.close()
+                    shm.unlink()
+        self.prev_data_to_save_shms = self.data_to_save_shms
+        self.data_to_save_shms = []
         self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
         self.byte_tracker.reset()
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])

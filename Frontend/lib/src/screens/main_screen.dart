@@ -1,4 +1,3 @@
-import 'package:ai_container_counter/src/models/batch.dart';
 import 'package:ai_container_counter/src/models/global_state.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/screens/real_time_video_stream.dart';
@@ -55,30 +54,15 @@ class MainScreen extends StatelessWidget {
               Count? newExpectedCount;
               final formKey = GlobalKey<FormState>();
               final canController = TextEditingController(
-                  text: globalState.expectedCount?.classWiseCount
-                      .firstWhere((count) => count.class_ == 'can')
-                      .inCount
-                      .toString());
+                  text: globalState.expectedCount?.canCount.toString());
               final plasticController = TextEditingController(
-                  text: globalState.expectedCount?.classWiseCount
-                      .firstWhere((count) => count.class_ == 'plastic')
-                      .inCount
-                      .toString());
+                  text: globalState.expectedCount?.plasticCount.toString());
               final gabletopController = TextEditingController(
-                  text: globalState.expectedCount?.classWiseCount
-                      .firstWhere((count) => count.class_ == 'gabletop')
-                      .inCount
-                      .toString());
+                  text: globalState.expectedCount?.gabletopCount.toString());
               final drinkboxController = TextEditingController(
-                  text: globalState.expectedCount?.classWiseCount
-                      .firstWhere((count) => count.class_ == 'drinkbox')
-                      .inCount
-                      .toString());
+                  text: globalState.expectedCount?.drinkboxCount.toString());
               final pouchController = TextEditingController(
-                  text: globalState.expectedCount?.classWiseCount
-                      .firstWhere((count) => count.class_ == 'pouch')
-                      .inCount
-                      .toString());
+                  text: globalState.expectedCount?.pouchCount.toString());
 
               int getNewTotal() {
                 final can = int.tryParse(canController.text) ?? 0;
@@ -183,39 +167,18 @@ class MainScreen extends StatelessWidget {
                         ElevatedButton(
                           onPressed: () {
                             if (formKey.currentState!.validate()) {
-                              final classWiseCounts = [
-                                ClassWiseCount(
-                                  class_: 'can',
-                                  inCount: int.parse(canController.text),
-                                  outCount: 0,
-                                ),
-                                ClassWiseCount(
-                                  class_: 'plastic',
-                                  inCount: int.parse(plasticController.text),
-                                  outCount: 0,
-                                ),
-                                ClassWiseCount(
-                                  class_: 'gabletop',
-                                  inCount: int.parse(gabletopController.text),
-                                  outCount: 0,
-                                ),
-                                ClassWiseCount(
-                                  class_: 'drinkbox',
-                                  inCount: int.parse(drinkboxController.text),
-                                  outCount: 0,
-                                ),
-                                ClassWiseCount(
-                                  class_: 'pouch',
-                                  inCount: int.parse(pouchController.text),
-                                  outCount: 0,
-                                ),
-                              ];
                               newExpectedCount = Count(
-                                count: classWiseCounts.fold(
-                                    0,
-                                    (value, element) =>
-                                        value + element.inCount),
-                                classWiseCount: classWiseCounts,
+                                count: BigInt.from(0),
+                                canCount: BigInt.from(0),
+                                plasticCount: BigInt.from(0),
+                                drinkboxCount: BigInt.from(0),
+                                gabletopCount: BigInt.from(0),
+                                pouchCount: BigInt.from(0),
+                                expectedCanCount: BigInt.from(int.tryParse(canController.text) ?? 0),
+                                expectedPlasticCount: BigInt.from(int.tryParse(plasticController.text) ?? 0),
+                                expectedDrinkboxCount: BigInt.from(int.tryParse(drinkboxController.text) ?? 0),
+                                expectedGabletopCount: BigInt.from(int.tryParse(gabletopController.text) ?? 0),
+                                expectedPouchCount: BigInt.from(int.tryParse(pouchController.text) ?? 0),
                               );
                               context
                                   .read<GlobalState>()

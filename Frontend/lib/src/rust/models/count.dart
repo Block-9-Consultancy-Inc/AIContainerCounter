@@ -52,14 +52,17 @@ class Batch {
 class BatchGlobalState {
   final TodaySummary todaySummary;
   final List<Batch> batches;
+  final bool updateSummary;
 
   const BatchGlobalState({
     required this.todaySummary,
     required this.batches,
+    required this.updateSummary,
   });
 
   @override
-  int get hashCode => todaySummary.hashCode ^ batches.hashCode;
+  int get hashCode =>
+      todaySummary.hashCode ^ batches.hashCode ^ updateSummary.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -67,7 +70,8 @@ class BatchGlobalState {
       other is BatchGlobalState &&
           runtimeType == other.runtimeType &&
           todaySummary == other.todaySummary &&
-          batches == other.batches;
+          batches == other.batches &&
+          updateSummary == other.updateSummary;
 }
 
 class Count {

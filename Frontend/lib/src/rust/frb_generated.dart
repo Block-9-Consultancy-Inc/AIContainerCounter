@@ -508,11 +508,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BatchGlobalState dco_decode_batch_global_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return BatchGlobalState(
       todaySummary: dco_decode_today_summary(arr[0]),
       batches: dco_decode_list_batch(arr[1]),
+      updateSummary: dco_decode_bool(arr[2]),
     );
   }
 
@@ -767,8 +768,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_todaySummary = sse_decode_today_summary(deserializer);
     var var_batches = sse_decode_list_batch(deserializer);
+    var var_updateSummary = sse_decode_bool(deserializer);
     return BatchGlobalState(
-        todaySummary: var_todaySummary, batches: var_batches);
+        todaySummary: var_todaySummary,
+        batches: var_batches,
+        updateSummary: var_updateSummary);
   }
 
   @protected
@@ -1079,6 +1083,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_today_summary(self.todaySummary, serializer);
     sse_encode_list_batch(self.batches, serializer);
+    sse_encode_bool(self.updateSummary, serializer);
   }
 
   @protected

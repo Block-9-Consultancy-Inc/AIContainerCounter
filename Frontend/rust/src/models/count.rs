@@ -137,6 +137,66 @@ pub struct TodaySummary {
     pub count: Count,
 }
 
+impl TodaySummary {
+    fn updated_accuracy(avg_accuracy: Option<f64>, num_of_batches_with_expected: u64, new_accuracy: Option<f64>) -> Option<f64> {
+        if avg_accuracy.is_none() || new_accuracy.is_none()  {
+            return None;
+        }
+        return Some((avg_accuracy.unwrap() * (num_of_batches_with_expected as f64) + new_accuracy.unwrap()) / (num_of_batches_with_expected + 1) as f64);
+    }
+
+    #[frb(ignore)]
+    pub fn update_with_batch(&mut self, batch: &Batch) {
+        self.count.count += batch.count.count;
+        self.count.can_count += batch.count.can_count;
+        self.count.plastic_count += batch.count.plastic_count;
+        self.count.drinkbox_count += batch.count.drinkbox_count;
+        self.count.gabletop_count += batch.count.gabletop_count;
+        self.count.pouch_count += batch.count.pouch_count;
+        self.num_of_batches += 1;
+
+        if self.count.count_accuracy.is_some() && batch.count.count_accuracy.is_some() {
+            self.count.count_accuracy = Self::updated_accuracy(self.count.count_accuracy, self.num_of_batches_with_expected, batch.count.count_accuracy);
+        } else if self.count.count_accuracy.is_none() && batch.count.count_accuracy.is_some() {
+            self.count.count_accuracy = batch.count.count_accuracy;
+        }
+
+        if self.count.can_accuracy.is_some() && batch.count.can_accuracy.is_some() {
+            self.count.can_accuracy = Self::updated_accuracy(self.count.can_accuracy, self.num_of_batches_with_expected, batch.count.can_accuracy);
+        } else if self.count.can_accuracy.is_none() && batch.count.can_accuracy.is_some() {
+            self.count.can_accuracy = batch.count.can_accuracy;
+        }
+
+        if self.count.plastic_accuracy.is_some() && batch.count.plastic_accuracy.is_some() {
+            self.count.plastic_accuracy = Self::updated_accuracy(self.count.plastic_accuracy, self.num_of_batches_with_expected, batch.count.plastic_accuracy);
+        } else if self.count.plastic_accuracy.is_none() && batch.count.plastic_accuracy.is_some() {
+            self.count.plastic_accuracy = batch.count.plastic_accuracy;
+        }
+
+        if self.count.drinkbox_accuracy.is_some() && batch.count.drinkbox_accuracy.is_some() {
+            self.count.drinkbox_accuracy = Self::updated_accuracy(self.count.drinkbox_accuracy, self.num_of_batches_with_expected, batch.count.drinkbox_accuracy);
+        } else if self.count.drinkbox_accuracy.is_none() && batch.count.drinkbox_accuracy.is_some() {
+            self.count.drinkbox_accuracy = batch.count.drinkbox_accuracy;
+        }
+
+        if self.count.gabletop_accuracy.is_some() && batch.count.gabletop_accuracy.is_some() {
+            self.count.gabletop_accuracy = Self::updated_accuracy(self.count.gabletop_accuracy, self.num_of_batches_with_expected, batch.count.gabletop_accuracy);
+        } else if self.count.gabletop_accuracy.is_none() && batch.count.gabletop_accuracy.is_some() {
+            self.count.gabletop_accuracy = batch.count.gabletop_accuracy;
+        }
+
+        if self.count.pouch_accuracy.is_some() && batch.count.pouch_accuracy.is_some() {
+            self.count.pouch_accuracy = Self::updated_accuracy(self.count.pouch_accuracy, self.num_of_batches_with_expected, batch.count.pouch_accuracy);
+        } else if self.count.pouch_accuracy.is_none() && batch.count.pouch_accuracy.is_some() {
+            self.count.pouch_accuracy = batch.count.pouch_accuracy;
+        }
+
+        if batch.count.count_accuracy.is_some() {
+            self.num_of_batches_with_expected += 1;
+        }
+    }
+}
+
 #[derive(Clone)]
 
 pub struct Batch {
@@ -153,6 +213,7 @@ pub struct Batch {
 pub struct BatchGlobalState {
     pub today_summary: TodaySummary,
     pub batches: Vec<Batch>,
+    pub update_summary: bool,
 }
 
 impl BatchGlobalState {
@@ -160,6 +221,7 @@ impl BatchGlobalState {
     pub fn new(json_str_data: Value) -> Self {
         let string_data = json_str_data.as_str().unwrap();
         let json_data = serde_json::from_str::<Value>(string_data).unwrap();
+        let update_summary = json_data.get("update_summary").unwrap().as_bool().unwrap_or(false);
         let today_summary_json = json_data.as_object().unwrap().get("summary").unwrap();
         let batches_json = json_data
             .as_object()
@@ -224,13 +286,17 @@ impl BatchGlobalState {
                     .unwrap(),
             },
             batches,
+            update_summary
         }
     }
 
     #[frb(ignore)]
     pub fn merge(&mut self, old: &BatchGlobalState) {
+        if self.update_summary {
+            for batch in self.batches.iter() {
+                self.today_summary.update_with_batch(batch);
+            }
+        }
         self.batches.extend(old.batches.clone());
-        self.batches
-            .sort_by(|a, b| b.time_submitted.cmp(&a.time_submitted));
     }
 }

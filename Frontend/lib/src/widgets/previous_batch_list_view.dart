@@ -29,13 +29,14 @@ class PreviousBatchListView extends StatelessWidget {
                 return ListTile(
                   onTap: () {
                     final selectedBatch = snapshot.data!.batches[index];
+                    final actualIndex = snapshot.data!.batches.length - index;
                     final batchDuration = selectedBatch.timeSubmitted
                         .difference(selectedBatch.timeStarted);
                     showDialog(
                       context: context,
                       builder: (builderContext) => AlertDialog(
                         title: Text(
-                          'Batch ${index + 1}',
+                          'Batch $actualIndex',
                           style: TextStyle(
                             fontSize: 60,
                             height: 0.75,
@@ -70,7 +71,7 @@ class PreviousBatchListView extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         AutoSizeText(
-                                          '${selectedBatch.count}',
+                                          '${selectedBatch.count.count}',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w500,
                                             fontSize: 100,
@@ -138,7 +139,7 @@ class PreviousBatchListView extends StatelessWidget {
                     );
                   },
                   title: Text(
-                    'Batch ${index + 1}: ${snapshot.data!.batches[index].count.count}',
+                    'Batch ${snapshot.data!.batches.length - index}: ${snapshot.data!.batches[index].count.count}',
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme

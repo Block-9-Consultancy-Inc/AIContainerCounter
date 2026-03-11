@@ -59,7 +59,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AutoSizeText(
-                              '${snapshot.data?.todaySummary.count.canCount.toInt() ?? 0}',
+                              '${snapshot.data?.todaySummary.count.count.toInt() ?? 0}',
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 100,

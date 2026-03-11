@@ -3,7 +3,7 @@ use crate::{
     utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba},
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
-use chrono::{NaiveDateTime, Local};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use flutter_rust_bridge::frb;
 use lazy_static::lazy_static;
 use log::warn;
@@ -86,10 +86,10 @@ impl Count {
             expected_pouch_count,
             count_accuracy: Self::compute_accuracy(count, expected_count),
             can_accuracy: Self::compute_accuracy(can_count, expected_can_count),
-            plastic_accuracy: Self::compute_accuracy(can_count, expected_can_count),
-            drinkbox_accuracy: Self::compute_accuracy(can_count, expected_can_count),
-            gabletop_accuracy: Self::compute_accuracy(can_count, expected_can_count),
-            pouch_accuracy: Self::compute_accuracy(can_count, expected_can_count),
+            plastic_accuracy: Self::compute_accuracy(plastic_count, expected_plastic_count),
+            drinkbox_accuracy: Self::compute_accuracy(drinkbox_count, expected_drinkbox_count),
+            gabletop_accuracy: Self::compute_accuracy(gabletop_count, expected_gabletop_count),
+            pouch_accuracy: Self::compute_accuracy(pouch_count, expected_pouch_count),
         }
     }
 
@@ -136,7 +136,7 @@ impl Count {
         if expected.is_none() {
             return None;
         }
-        Some((1.0 - ((actual.abs_diff(expected.unwrap()) / expected.unwrap()) as f64)) * 100.0)
+        Some((1.0 - ((actual.abs_diff(expected.unwrap()) as f64) / (expected.unwrap() as f64))) * 100.0)
     }
 }
 
@@ -174,8 +174,8 @@ pub struct TodaySummary {
 pub struct Batch {
     pub id: String,
     pub area_collected: Option<String>,
-    pub time_started: NaiveDateTime,
-    pub time_submitted: NaiveDateTime,
+    pub time_started: DateTime<Local>,
+    pub time_submitted: DateTime<Local>,
     pub count: Count,
     pub yolo_model: String,
     pub category_model: String,
@@ -214,11 +214,7 @@ impl BatchGlobalState {
     fn new(json_str_data: Value) -> Self {
         let string_data = json_str_data.as_str().unwrap();
         let json_data = serde_json::from_str::<Value>(string_data).unwrap();
-        let today_summary_json = json_data
-            .as_object()
-            .unwrap()
-            .get("summary")
-            .unwrap();
+        let today_summary_json = json_data.as_object().unwrap().get("summary").unwrap();
         let batches_json = json_data
             .as_object()
             .unwrap()
@@ -228,22 +224,29 @@ impl BatchGlobalState {
             .unwrap();
         let mut batches: Vec<Batch> = batches_json
             .iter()
-            .map(|value| {
-                Batch {
+            .map(|value| Batch {
                 id: value.get("id").unwrap().as_str().unwrap().to_owned(),
                 area_collected: value
                     .get("area_collected")
                     .unwrap()
                     .as_str()
                     .map(|value| value.to_owned()),
-                time_started: NaiveDateTime::from_str(
-                    value.get("time_started").unwrap().as_str().unwrap(),
-                )
-                .unwrap(),
-                time_submitted: NaiveDateTime::from_str(
-                    value.get("time_submitted").unwrap().as_str().unwrap(),
-                )
-                .unwrap(),
+                time_started: Local
+                    .from_local_datetime(
+                        &NaiveDateTime::from_str(
+                            value.get("time_started").unwrap().as_str().unwrap(),
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                time_submitted: Local
+                    .from_local_datetime(
+                        &NaiveDateTime::from_str(
+                            value.get("time_submitted").unwrap().as_str().unwrap(),
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap(),
                 count: Count::from_json(&value),
                 yolo_model: value
                     .get("yolo_model")
@@ -257,10 +260,9 @@ impl BatchGlobalState {
                     .as_str()
                     .unwrap()
                     .to_owned(),
-            }
-        })
+            })
             .collect();
-        batches.sort_by(|a, b| a.time_submitted.cmp(&b.time_submitted));
+        batches.sort_by(|a, b| b.time_submitted.cmp(&a.time_submitted));
         Self {
             today_summary: TodaySummary {
                 count: Count::for_today_summary(today_summary_json),
@@ -282,7 +284,7 @@ impl BatchGlobalState {
     fn merge(&mut self, old: &BatchGlobalState) {
         self.batches.extend(old.batches.clone());
         self.batches
-            .sort_by(|a, b| a.time_submitted.cmp(&b.time_submitted));
+            .sort_by(|a, b| b.time_submitted.cmp(&a.time_submitted));
     }
 }
 
@@ -387,7 +389,7 @@ pub fn initialize_flutter_texture(texture_ptr: usize) {
     }
 }
 
-#[flutter_rust_bridge::frb(sync)]
+#[frb(sync)]
 pub fn new_socket() -> Socket {
     Socket { inner: None }
 }
@@ -517,13 +519,13 @@ impl Socket {
     }
 }
 
-#[flutter_rust_bridge::frb(sync)] // Synchronous mode for simplicity of the demo
+#[frb(sync)] // Synchronous mode for simplicity of the demo
 pub fn greet(name: String) -> String {
     println!("Hello Rust");
     format!("Hello, {name}!")
 }
 
-#[flutter_rust_bridge::frb(init)]
+#[frb(init)]
 pub fn init_app() {
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();

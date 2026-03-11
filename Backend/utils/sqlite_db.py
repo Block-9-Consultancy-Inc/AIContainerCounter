@@ -22,7 +22,7 @@ class MultiContainerImageToSave:
 @dataclass
 class SingleContainerImageToSave:
     id: uuid.UUID
-    time: datetime
+    time: datetime.datetime
     detected_class: str
     frame_shape: tuple[int, int, int]
     tracker_id: int
@@ -31,7 +31,8 @@ class SingleContainerImageToSave:
 @dataclass
 class BatchToSave:
     id: uuid.UUID
-    time_started: datetime
+    time_started: datetime.datetime
+    time_submitted: datetime.datetime | None
     count: int
     can_count: int
     plastic_count: int
@@ -63,7 +64,7 @@ class Batch(BaseModel):
     id = UUIDField(primary_key=True)
     area_collected = TextField(null=True)
     time_started = DateTimeField()
-    time_submitted = DateTimeField(default=datetime.datetime.now)
+    time_submitted = DateTimeField(null=True)
     count = IntegerField()
     can_count = IntegerField()
     plastic_count = IntegerField()
@@ -118,6 +119,8 @@ def init_db():
     db.create_tables(tables_to_create)
     db.execute_sql('PRAGMA foreign_keys = ON;')
 
+def compute_accuracy(actual: int, expected: int):
+    return 100.0 - (abs(expected - actual) / expected * 100.0)
 @dataclass
 class TodaySummary:
     num_of_batches: int
@@ -143,24 +146,47 @@ class TodaySummary:
         self.gabletop_count += batch.gabletop_count
         self.pouch_count += batch.pouch_count
         self.num_of_batches += 1
-        if batch.expected_count is not None and self.num_of_batches_with_expected is not None:
-            if self.count_accuracy is not None and batch.expected_count is not None:
-                self.count_accuracy = (self.count_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_count - batch.count) / batch.expected_count))) / (self.num_of_batches_with_expected + 1)
-            if self.can_accuracy is not None and batch.expected_can_count is not None:
-                self.can_accuracy = (self.can_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_can_count - batch.can_count) / batch.expected_can_count))) / (self.num_of_batches_with_expected + 1)
-            if self.plastic_accuracy is not None and batch.expected_plastic_count is not None:
-                self.plastic_accuracy = (self.plastic_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_plastic_count - batch.plastic_count) / batch.expected_plastic_count))) / (self.num_of_batches_with_expected + 1)
-            if self.drinkbox_accuracy is not None and batch.expected_drinkbox_count is not None:
-                self.drinkbox_accuracy = (self.drinkbox_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_drinkbox_count - batch.drinkbox_count) / batch.expected_drinkbox_count))) / (self.num_of_batches_with_expected + 1)
-            if self.gabletop_accuracy is not None and batch.expected_gabletop_count is not None:
-                self.gabletop_accuracy = (self.gabletop_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_gabletop_count - batch.gabletop_count) / batch.expected_gabletop_count))) / (self.num_of_batches_with_expected + 1)
-            if self.pouch_accuracy is not None and batch.expected_pouch_count is not None:
-                self.pouch_accuracy = (self.pouch_accuracy * self.num_of_batches_with_expected + (1.0 - (abs(batch.expected_pouch_count - batch.pouch_count) / batch.expected_pouch_count))) / (self.num_of_batches_with_expected + 1)
+        if self.count_accuracy is not None and batch.expected_count is not None:
+            self.count_accuracy = (self.count_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.count, batch.expected_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.count_accuracy is None and batch.expected_count is not None:
+            self.count_accuracy = compute_accuracy(batch.count, batch.expected_count)
+
+        if self.can_accuracy is not None and batch.expected_can_count is not None:
+            self.can_accuracy = (self.can_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.can_count, batch.expected_can_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.can_accuracy is None and batch.expected_can_count is not None:
+            self.can_accuracy = compute_accuracy(batch.can_count, batch.expected_can_count)
+        
+        if self.plastic_accuracy is not None and batch.expected_plastic_count is not None:
+            self.plastic_accuracy = (self.plastic_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.plastic_count, batch.expected_plastic_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.plastic_accuracy is None and batch.expected_plastic_count is not None:
+            self.plastic_accuracy = compute_accuracy(batch.plastic_count, batch.expected_plastic_count)
+
+        if self.drinkbox_accuracy is not None and batch.expected_drinkbox_count is not None:
+            self.drinkbox_accuracy = (self.drinkbox_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.drinkbox_count, batch.expected_drinkbox_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.drinkbox_accuracy is None and batch.expected_drinkbox_count is not None:
+            self.drinkbox_accuracy = compute_accuracy(batch.drinkbox_count, batch.expected_drinkbox_count)
+        
+        if self.gabletop_accuracy is not None and batch.expected_gabletop_count is not None:
+            self.gabletop_accuracy = (self.gabletop_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.gabletop_count, batch.expected_gabletop_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.gabletop_accuracy is None and batch.expected_gabletop_count is not None:
+            self.gabletop_accuracy = compute_accuracy(batch.gabletop_count, batch.expected_gabletop_count)
+        
+        if self.pouch_accuracy is not None and batch.expected_pouch_count is not None:
+            self.pouch_accuracy = (self.pouch_accuracy * self.num_of_batches_with_expected + compute_accuracy(batch.pouch_count, batch.expected_pouch_count)) / (self.num_of_batches_with_expected + 1)
+        elif self.pouch_accuracy is None and batch.expected_pouch_count is not None:
+            self.pouch_accuracy = compute_accuracy(batch.pouch_count, batch.expected_pouch_count)
+        
+        if self.num_of_batches_with_expected is not None and batch.expected_count is not None:
             self.num_of_batches_with_expected += 1
+        elif self.num_of_batches_with_expected is None and batch.expected_count is not None:
+            self.num_of_batches_with_expected = 1
+            
         
 
 
 def get_today_summary():
+    now = datetime.datetime.now()
+    start = datetime.datetime(now.year, now.month, now.day)
     res = list(Database.execute_sql(db,
         f'''select 
                     count(id) as num_of_batches,
@@ -171,14 +197,14 @@ def get_today_summary():
                     sum(gabletop_count),
                     sum(pouch_count),
                     count(expected_count) as num_of_batches_with_expected,
-                    avg(1.0 - (abs((count * 1.0) - (expected_count * 1.0))/(expected_count * 1.0))) as overallaccuracy,
-                    avg(1.0 - (abs((can_count * 1.0) - (expected_can_count * 1.0))/(expected_can_count * 1.0))) as canaccuracy,
-                    avg(1.0 - (abs((plastic_count * 1.0) - (expected_plastic_count * 1.0))/(expected_plastic_count * 1.0))) as plasticaccuracy,
-                    avg(1.0 - (abs((drinkbox_count * 1.0) - (expected_drinkbox_count * 1.0))/(expected_drinkbox_count * 1.0))) as drinkboxaccuracy,
-                    avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count * 1.0))/(expected_gabletop_count * 1.0))) as gabletopaccuracy,
-                    avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count * 1.0))/(expected_pouch_count * 1.0))) as pouchaccuracy 
+                    avg(1.0 - (abs((count * 1.0) - (expected_count * 1.0))/(expected_count * 1.0)))*100.0 as overallaccuracy,
+                    avg(1.0 - (abs((can_count * 1.0) - (expected_can_count * 1.0))/(expected_can_count * 1.0)))*100.0 as canaccuracy,
+                    avg(1.0 - (abs((plastic_count * 1.0) - (expected_plastic_count * 1.0))/(expected_plastic_count * 1.0)))*100.0 as plasticaccuracy,
+                    avg(1.0 - (abs((drinkbox_count * 1.0) - (expected_drinkbox_count * 1.0))/(expected_drinkbox_count * 1.0)))*100.0 as drinkboxaccuracy,
+                    avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count * 1.0))/(expected_gabletop_count * 1.0)))*100.0 as gabletopaccuracy,
+                    avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count * 1.0))/(expected_pouch_count * 1.0)))*100.0 as pouchaccuracy 
                     from Batch
-                    where unixepoch(time_started) - unixepoch('now') > 0'''))[0]
+                    where time_submitted is not null and unixepoch(time_started) > {int(start.timestamp())} and unixepoch(time_started) < {int(now.timestamp())}'''))[0]
 
     return TodaySummary(
         num_of_batches=res[0] if res[0] is not None else 0,
@@ -228,6 +254,7 @@ def save_state(data_to_save: DataToSave):
                 batch = Batch(
                     id=data_to_save.batch.id,
                     time_started=data_to_save.batch.time_started,
+                    time_submitted=data_to_save.batch.time_submitted,
                     count=data_to_save.batch.count,
                     can_count=data_to_save.batch.can_count,
                     plastic_count=data_to_save.batch.plastic_count,

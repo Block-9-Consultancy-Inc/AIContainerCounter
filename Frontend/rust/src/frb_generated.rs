@@ -612,9 +612,11 @@ impl SseDecode for crate::models::count::BatchGlobalState {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_todaySummary = <crate::models::count::TodaySummary>::sse_decode(deserializer);
         let mut var_batches = <Vec<crate::models::count::Batch>>::sse_decode(deserializer);
+        let mut var_updateSummary = <bool>::sse_decode(deserializer);
         return crate::models::count::BatchGlobalState {
             today_summary: var_todaySummary,
             batches: var_batches,
+            update_summary: var_updateSummary,
         };
     }
 }
@@ -923,6 +925,7 @@ impl flutter_rust_bridge::IntoDart for crate::models::count::BatchGlobalState {
         [
             self.today_summary.into_into_dart().into_dart(),
             self.batches.into_into_dart().into_dart(),
+            self.update_summary.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1087,6 +1090,7 @@ impl SseEncode for crate::models::count::BatchGlobalState {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::models::count::TodaySummary>::sse_encode(self.today_summary, serializer);
         <Vec<crate::models::count::Batch>>::sse_encode(self.batches, serializer);
+        <bool>::sse_encode(self.update_summary, serializer);
     }
 }
 

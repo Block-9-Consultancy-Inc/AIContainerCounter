@@ -14,6 +14,8 @@ Future<void> main() async {
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());
+  final jsonResponseEventStream =
+      LastEventCachedStream(setJsonResponseStreamSink());
   WidgetsFlutterBinding.ensureInitialized();
   WindowManager.instance.ensureInitialized();
   WindowManager.instance.setTitleBarStyle(TitleBarStyle.hidden);
@@ -22,6 +24,7 @@ Future<void> main() async {
       create: (context) => GlobalState(
             detectionEventStream: detectionEventStream,
             eventStream: eventStream,
+            batchGlobalStateEventStream: jsonResponseEventStream,
           ),
       child: const AIContainerCounterApp()));
 }
@@ -32,24 +35,24 @@ class AIContainerCounterApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        themeMode: context.select<GlobalState, ThemeMode>(
-            (globalState) => globalState.themeMode),
-        theme: ThemeData(
-          primaryColor: const Color.fromRGBO(56, 182, 255, 1),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromRGBO(56, 182, 255, 1),
-            brightness: Brightness.light,
-          ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
-        ),
-        darkTheme: ThemeData(
-          primaryColor: const Color.fromRGBO(56, 182, 255, 1),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromRGBO(56, 182, 255, 1),
-            brightness: Brightness.dark,
-          ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
-        ),
-        home: const MainScreen(),
-      );
+      debugShowCheckedModeBanner: false,
+      themeMode: context.select<GlobalState, ThemeMode>(
+          (globalState) => globalState.themeMode),
+      theme: ThemeData(
+        primaryColor: const Color.fromRGBO(56, 182, 255, 1),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromRGBO(56, 182, 255, 1),
+          brightness: Brightness.light,
+        ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
+      ),
+      darkTheme: ThemeData(
+        primaryColor: const Color.fromRGBO(56, 182, 255, 1),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromRGBO(56, 182, 255, 1),
+          brightness: Brightness.dark,
+        ).copyWith(secondary: const Color.fromRGBO(56, 182, 255, 1)),
+      ),
+      home: const MainScreen(),
+    );
   }
 }

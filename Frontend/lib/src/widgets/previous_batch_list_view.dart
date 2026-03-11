@@ -1,6 +1,4 @@
-import 'package:ai_container_counter/src/models/batch.dart';
 import 'package:ai_container_counter/src/models/global_state.dart';
-import 'package:ai_container_counter/src/utils/calculation_utils.dart';
 import 'package:ai_container_counter/src/utils/datetime_utils.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -12,9 +10,9 @@ class PreviousBatchListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<GlobalState, List<Batch>>(
-      selector: (context, globalState) => globalState.previousBatches,
-      builder: (context, previousBatches, child) => previousBatches.isEmpty
+    return StreamBuilder(
+      stream: context.read<GlobalState>().batchGlobalStateEventStream.stream,
+      builder: (context, snapshot) => (snapshot.data?.batches.isEmpty ?? true)
           ? Center(
               child: Text(
                 'No previous batches today',
@@ -26,21 +24,18 @@ class PreviousBatchListView extends StatelessWidget {
               ),
             )
           : ListView.builder(
-              itemCount: previousBatches.length,
+              itemCount: snapshot.data!.batches.length,
               itemBuilder: (context, index) {
-                final actualIndex = previousBatches.length - 1 - index;
                 return ListTile(
                   onTap: () {
-                    final selectedBatch = previousBatches[actualIndex];
-                    final batchDuration = selectedBatch.time.difference(
-                        actualIndex == 0
-                            ? context.read<GlobalState>().timeStarted
-                            : previousBatches[actualIndex - 1].time);
+                    final selectedBatch = snapshot.data!.batches[index];
+                    final batchDuration = selectedBatch.timeSubmitted
+                        .difference(selectedBatch.timeStarted);
                     showDialog(
                       context: context,
                       builder: (builderContext) => AlertDialog(
                         title: Text(
-                          'Batch ${actualIndex + 1}',
+                          'Batch ${index + 1}',
                           style: TextStyle(
                             fontSize: 60,
                             height: 0.75,
@@ -75,7 +70,7 @@ class PreviousBatchListView extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         AutoSizeText(
-                                          '${selectedBatch.actualCount.count}',
+                                          '${selectedBatch.count}',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w500,
                                             fontSize: 100,
@@ -86,15 +81,11 @@ class PreviousBatchListView extends StatelessWidget {
                                                 .withOpacity(0.7),
                                           ),
                                         ),
-                                        if (selectedBatch.expectedCount !=
+                                        if (selectedBatch.count.countAccuracy !=
                                             null) ...[
                                           const SizedBox(height: 30),
                                           AutoSizeText(
-                                            computeCountAccuracy(
-                                              selectedBatch.actualCount.count,
-                                              selectedBatch
-                                                  .expectedCount!.count,
-                                            ),
+                                            '${selectedBatch.count.countAccuracy!.toStringAsFixed(2)}%',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w500,
                                               fontSize: 50,
@@ -111,10 +102,7 @@ class PreviousBatchListView extends StatelessWidget {
                                     const SizedBox(width: 75),
                                     Expanded(
                                       child: CategoryCountDisplayer(
-                                        classWiseCount: selectedBatch
-                                            .actualCount.classWiseCount,
-                                        expectedClassWiseCount: selectedBatch
-                                            .expectedCount?.classWiseCount,
+                                        count: selectedBatch.count,
                                         scale: 0.75,
                                       ),
                                     ),
@@ -133,7 +121,7 @@ class PreviousBatchListView extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'Time Submitted: ${selectedBatch.time.timeAgo()}',
+                                  'Time Submitted: ${selectedBatch.timeSubmitted.timeAgo()}',
                                   style: TextStyle(
                                     fontSize: 18,
                                     height: 0.75,
@@ -150,7 +138,7 @@ class PreviousBatchListView extends StatelessWidget {
                     );
                   },
                   title: Text(
-                    'Batch ${actualIndex + 1}: ${previousBatches[actualIndex].actualCount.count}',
+                    'Batch ${index + 1}: ${snapshot.data!.batches[index].count.count}',
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
@@ -160,7 +148,7 @@ class PreviousBatchListView extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    previousBatches[actualIndex].time.timeAgo(),
+                    snapshot.data!.batches[index].timeSubmitted.timeAgo(),
                     style: TextStyle(
                       fontSize: 30,
                       color: Theme.of(context).colorScheme.inversePrimary,

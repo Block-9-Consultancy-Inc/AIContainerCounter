@@ -38,7 +38,7 @@ class Counter:
             height: int,
             yolo_model_path: str,
             category_model_path: str,
-            only_use_yolo_model = False
+            only_use_yolo_model = False,
         ):
         self.only_use_yolo_model = only_use_yolo_model
         self.width = width
@@ -90,6 +90,23 @@ class Counter:
 
     def set_expected_count(self, expected_category_counts: dict[str, int]):
         self.expected_category_counts = expected_category_counts
+
+    def _current_count(self):
+        return {
+            'count': self.center_line_zone.in_count,
+            'can_count': self.category_counts.get('can'),
+            'plastic_count': self.category_counts.get('plastic'),
+            'drinkbox_count': self.category_counts.get('drinkbox'),
+            'gabletop_count': self.category_counts.get('gabletop'),
+            'pouch_count': self.category_counts.get('pouch'),
+            **({
+                'expected_can_count': self.expected_category_counts.get('can') if self.expected_category_counts is not None else None,
+                'expected_plastic_count': self.expected_category_counts.get('plastic') if self.expected_category_counts is not None else None,
+                'expected_drinkbox_count': self.expected_category_counts.get('drinkbox') if self.expected_category_counts is not None else None,
+                'expected_gabletop_count': self.expected_category_counts.get('gabletop') if self.expected_category_counts is not None else None,
+                'expected_pouch_count': self.expected_category_counts.get('pouch') if self.expected_category_counts is not None else None,
+            }) 
+        }
 
     def trigger(self, decoded_frame: np.ndarray, detections: Detections):
 
@@ -157,7 +174,7 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
             
-            return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
+            return annotated_frame, self._current_count()
 
         center_crossed_in_coords = np.argwhere(center_crossed_in == True)
         if center_crossed_in_coords.shape[0] == 0:
@@ -183,7 +200,7 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
-            return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
+            return annotated_frame, self._current_count()
 
         try:
             squeeze_axis = 0
@@ -260,7 +277,7 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
-            return annotated_frame, self.center_line_zone.in_count, self.center_line_zone.out_count
+            return annotated_frame, self._current_count()
         except Exception as e:
             print(f'got error in counter trigger: {e}')
             error_traceback = traceback.format_exc()
@@ -295,6 +312,7 @@ class Counter:
         self.last_image_last_line_zone_in_count = self.last_line_zone_in_count
 
     def reset_counter(self):
+        batch = counter_to_batch(self)
         self.data_to_save.batch = counter_to_batch_to_save(self)
         self.data_to_save_queue.put(self.data_to_save)
         self.prev_data_to_save = self.data_to_save
@@ -329,10 +347,31 @@ class Counter:
         self.last_image_first_line_zone_in_count = 0
         self.last_image_center_line_zone_in_count = 0
         self.last_image_last_line_zone_in_count = 0
+        return batch
 
 
 def counter_to_batch_to_save(counter: Counter):
         return sqlite_db.BatchToSave(
+            id=counter.current_batch_uuid,
+            time_started=counter.time_batch_started,
+            count=counter.center_line_zone.in_count,
+            can_count=counter.category_counts.get('can'),
+            plastic_count=counter.category_counts.get('plastic'),
+            drinkbox_count=counter.category_counts.get('drinkbox'),
+            gabletop_count=counter.category_counts.get('gabletop'),
+            pouch_count=counter.category_counts.get('pouch'),
+            expected_count=sum(list(map(lambda e: e[1], counter.expected_category_counts.items()))) if counter.expected_category_counts is not None else None,
+            expected_can_count=counter.expected_category_counts.get('can') if counter.expected_category_counts is not None else None,
+            expected_plastic_count=counter.expected_category_counts.get('plastic') if counter.expected_category_counts is not None else None,
+            expected_drinkbox_count=counter.expected_category_counts.get('drinkbox') if counter.expected_category_counts is not None else None,
+            expected_gabletop_count=counter.expected_category_counts.get('gabletop') if counter.expected_category_counts is not None else None,
+            expected_pouch_count=counter.expected_category_counts.get('pouch') if counter.expected_category_counts is not None else None,
+            yolo_model=counter.yolo_model,
+            category_model=counter.category_model
+        )
+
+def counter_to_batch(counter: Counter):
+        return sqlite_db.Batch(
             id=counter.current_batch_uuid,
             time_started=counter.time_batch_started,
             count=counter.center_line_zone.in_count,

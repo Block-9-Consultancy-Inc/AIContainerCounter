@@ -130,7 +130,7 @@ class CounterApp:
             now = datetime.now()
             batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
             today_summary = get_today_summary().__dict__
-            self.sio.emit('batches_state', json.dumps({'summary': today_summary, 'batches': batches}, cls=CustomJSONEncoder))
+            self.sio.emit('batches_state', json.dumps({'summary': today_summary, 'batches': batches, 'update_summary': False}, cls=CustomJSONEncoder))
 
 
         @sio.on('disconnect')
@@ -340,9 +340,8 @@ showing_video: {self.showing_video}
                     if self.reset_counter:
                         today_summary = get_today_summary()
                         batch = counter.reset_counter()
-                        today_summary.add_batch(batch)
                         self.reset_counter = False
-                        self.sio.emit('batches_state', json.dumps({ 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)]}, cls=CustomJSONEncoder))
+                        self.sio.emit('batches_state', json.dumps({ 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True}, cls=CustomJSONEncoder))
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(
                         current_frame_time,

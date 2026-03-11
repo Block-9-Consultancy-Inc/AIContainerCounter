@@ -1,6 +1,4 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
-import 'package:ai_container_counter/src/rust/api/simple.dart';
-import 'package:ai_container_counter/src/utils/calculation_utils.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
@@ -52,65 +50,52 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                 ),
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Selector<GlobalState, int?>(
-                    selector: (context, state) => state.expectedCount == null
-                        ? null
-                        : state.runningExpected.count,
-                    builder: (context, runningExpectedCount, child) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              StreamBuilder(
+                  stream: context.read<GlobalState>().batchGlobalStateEventStream.stream,
+                  builder: (context, snapshot) {
+                    return Row(
                       children: [
-                        AutoSizeText(
-                          context.select<GlobalState, String>(
-                              (state) => '${state.runningActual.count}'),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 100,
-                            height: 0.75,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.7),
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AutoSizeText(
+                              '${snapshot.data?.todaySummary.count.canCount.toInt() ?? 0}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 100,
+                                height: 0.75,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.7),
+                              ),
+                            ),
+                            if (snapshot.data?.todaySummary.count.countAccuracy != null) ...[
+                              const SizedBox(height: 30),
+                              AutoSizeText(
+                                '${snapshot.data!.todaySummary.count.countAccuracy!.toStringAsFixed(2)}%',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 50,
+                                  height: 0.75,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.8),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        if (runningExpectedCount != null) ...[
-                          const SizedBox(height: 30),
-                          AutoSizeText(
-                            computeCountAccuracy(
-                              context.select<GlobalState, int>(
-                                  (state) => state.runningActual.count),
-                              runningExpectedCount,
-                            ),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 50,
-                              height: 0.75,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.8),
-                            ),
-                          ),
-                        ],
+                        const SizedBox(width: 75),
+                        CategoryCountDisplayer(
+                          count: snapshot.data?.todaySummary.count,
+                          scale: 0.75,
+                          endPadding: 300,
+                        ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: 75),
-                  CategoryCountDisplayer(
-                    classWiseCount:
-                        context.select<GlobalState, List<ClassWiseCount>>(
-                            (state) => state.runningActual.classWiseCount),
-                    expectedClassWiseCount:
-                        context.select<GlobalState, List<ClassWiseCount>?>(
-                            (state) => state.expectedCount == null
-                                ? null
-                                : state.runningExpected.classWiseCount),
-                    scale: 0.75,
-                    endPadding: 300,
-                  ),
-                ],
-              ),
+                    );
+                  }),
             ],
           ),
         ),
@@ -172,7 +157,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AutoSizeText(
-                          '${snapshot.hasData ? snapshot.data!.totalIn : 0}',
+                          '${snapshot.hasData ? snapshot.data!.count : 0}',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 150,
@@ -187,12 +172,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                             (state) => state.expectedCount != null)) ...[
                           const SizedBox(height: 30),
                           AutoSizeText(
-                            computeCountAccuracy(
-                              snapshot.hasData ? snapshot.data!.totalIn : 0,
-                              context.select<GlobalState, int>(
-                                (state) => state.expectedCount!.count,
-                              ),
-                            ),
+                            '${snapshot.hasData ? snapshot.data?.countAccuracy?.toStringAsFixed(2) ?? '0.0' : '0.0'}%',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 50,
@@ -209,10 +189,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                     const SizedBox(width: 100),
                     Expanded(
                       child: CategoryCountDisplayer(
-                        classWiseCount: snapshot.data?.classWiseCount ?? [],
-                        expectedClassWiseCount:
-                            context.select<GlobalState, List<ClassWiseCount>?>(
-                                (state) => state.expectedCount?.classWiseCount),
+                        count: snapshot.data,
                       ),
                     ),
                   ],

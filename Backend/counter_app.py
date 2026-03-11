@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, jsonify
+from flask.json.provider import DefaultJSONProvider
 from os import environ
 import socketio
 import base64
@@ -16,6 +17,32 @@ import numpy as np
 import traceback
 from supervision import Detections
 import counter as ctr
+from utils.sqlite_db import Batch, get_today_summary
+from playhouse.shortcuts import model_to_dict
+from datetime import datetime
+import json
+import uuid
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """ Special json encoder for numpy types """
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
+
+class ISODateTimeJSONProvider(DefaultJSONProvider):
+    def __init__(self, app):
+        super().__init__(app)
+
+    @staticmethod
+    def default(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return DefaultJSONProvider.default(obj)
 
 class CounterApp:
     def __init__(self,
@@ -62,6 +89,7 @@ class CounterApp:
                     static_url_path='', 
                     static_folder='static',
                     template_folder='templates')
+        self.app.json = ISODateTimeJSONProvider(self.app)
         CORS(self.app)
         self.app.wsgi_app = socketio.Middleware(self.sio, self.app.wsgi_app)
 
@@ -97,15 +125,20 @@ class CounterApp:
         self.showing_video = self.force_transmit_video
 
         @sio.on('connect')
-        def test_connect(sid, msg):
+        def on_connect(sid, msg):
             print('Client connected')
+            now = datetime.now()
+            batches = list(Batch.select().where((Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
+            today_summary = get_today_summary().__dict__
+            self.sio.emit('batches_state', json.dumps({'summary': today_summary, 'batches': batches}, cls=CustomJSONEncoder))
+
 
         @sio.on('disconnect')
-        def test_disconnect(sid):
+        def on_disconnect(sid):
             print('Client disconnected')
 
         @sio.on('test')
-        def test(sid, msg):
+        def on_test(sid, msg):
             print(f'Test {msg}')
 
         @sio.on('reset-count')
@@ -125,6 +158,10 @@ class CounterApp:
             print(f'set video {msg}')
             if not self.force_transmit_video:
                 self.showing_video = bool(msg)
+
+        @self.app.route('/batch/<batch_id>', methods=['GET'])
+        def handle_get_batch_details(batch_id: str):
+            return jsonify(model_to_dict(Batch.get_by_id(batch_id), backrefs=True))
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -265,14 +302,9 @@ showing_video: {self.showing_video}
                     print(decoded_frame.shape)
                     results = model.predict(decoded_frame)[0]
                     detections = Detections.from_ultralytics(results)
-                    decoded_frame, in_count, out_count = counter.trigger(decoded_frame, detections)
+                    decoded_frame, payload = counter.trigger(decoded_frame, detections)
                     after_inference = perf_counter_ns()
                     total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
-                    payload = {
-                        'total_in': in_count,
-                        'total_out': out_count,
-                        'class_wise_count': {k: { 'IN': v, 'OUT': 0 } for k, v in counter.category_counts.items()}
-                    }
 
                     if self.showing_video:
                         buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
@@ -300,8 +332,11 @@ showing_video: {self.showing_video}
                         self.new_expected_count = None
                         self.set_expected_count = False
                     if self.reset_counter:
-                        counter.reset_counter()
+                        today_summary = get_today_summary()
+                        batch = counter.reset_counter()
+                        today_summary.add_batch(batch)
                         self.reset_counter = False
+                        self.sio.emit('batches_state', json.dumps({ 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)]}, cls=CustomJSONEncoder))
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(
                         current_frame_time,

@@ -37,7 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   rust_lib_ai_container_counter:
     path: rust_builder
-  flutter_rust_bridge: 2.4.0
+  flutter_rust_bridge: 2.8.0
   auto_size_text: ^3.0.0
   texture_rgba_renderer:
     git: https://github.com/h3x4d3c1m4l/flutter_texture_rgba_renderer
@@ -46,6 +46,8 @@ dependencies:
   http: ^1.2.2
   provider: ^6.1.2
   equatable: ^2.0.7
+  freezed: ^2.5.7
+  freezed_annotation: ^2.4.4
 
 dev_dependencies:
   flutter_test:

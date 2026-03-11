@@ -1,35 +1,19 @@
 import 'package:ai_container_counter/src/rust/api/simple.dart';
-import 'package:ai_container_counter/src/utils/calculation_utils.dart';
-import 'package:ai_container_counter/src/utils/class_wise_count_utils.dart';
 import 'package:flutter/material.dart';
 
 class CategoryCountDisplayer extends StatelessWidget {
   final double scale;
   final double endPadding;
-  final List<ClassWiseCount> classWiseCount;
-  final List<ClassWiseCount>? expectedClassWiseCount;
+  final Count? count;
   const CategoryCountDisplayer({
     super.key,
     this.scale = 1.0,
     this.endPadding = 0,
-    this.classWiseCount = const [],
-    this.expectedClassWiseCount,
+    this.count,
   });
 
   @override
   Widget build(BuildContext context) {
-    final can = getCategoryCount(classWiseCount, 'can');
-    final canExpected = getCategoryCount(expectedClassWiseCount, 'can');
-    final plastic = getCategoryCount(classWiseCount, 'plastic');
-    final plasticExpected = getCategoryCount(expectedClassWiseCount, 'plastic');
-    final gableTop = getCategoryCount(classWiseCount, 'gabletop');
-    final gableTopExpected =
-        getCategoryCount(expectedClassWiseCount, 'gabletop');
-    final drinkBox = getCategoryCount(classWiseCount, 'drinkbox');
-    final drinkBoxExpected =
-        getCategoryCount(expectedClassWiseCount, 'drinkbox');
-    final pouch = getCategoryCount(classWiseCount, 'pouch');
-    final pouchExpected = getCategoryCount(expectedClassWiseCount, 'pouch');
     return Expanded(
         child: Row(
       children: [
@@ -40,7 +24,7 @@ class CategoryCountDisplayer extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Can: $can${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(can, canExpected)}'}',
+                  'Can: ${count?.canCount ?? 0}${count?.canAccuracy == null ? '' : ' ${count!.canAccuracy!.toStringAsFixed(2)}%'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -52,7 +36,7 @@ class CategoryCountDisplayer extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Plastic: $plastic${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(plastic, plasticExpected)}'}',
+                  'Plastic: ${count?.plasticCount ?? 0}${count?.plasticAccuracy == null ? '' : ' ${count!.plasticAccuracy!.toStringAsFixed(2)}%'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -64,7 +48,7 @@ class CategoryCountDisplayer extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Gable Top: $gableTop${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(gableTop, gableTopExpected)}'}',
+                  'Gable Top: ${count?.gabletopCount ?? 0}${count?.gabletopAccuracy == null ? '' : ' ${count!.gabletopAccuracy!.toStringAsFixed(2)}%'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -83,7 +67,7 @@ class CategoryCountDisplayer extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Drink Box: $drinkBox${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(drinkBox, drinkBoxExpected)}'}',
+                  'Drink Box: ${count?.drinkboxCount ?? 0}${count?.drinkboxAccuracy == null ? '' : ' ${count!.drinkboxAccuracy!.toStringAsFixed(2)}%'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
@@ -95,7 +79,7 @@ class CategoryCountDisplayer extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.all(12.5 * scale),
                 child: Text(
-                  'Pouch: $pouch${expectedClassWiseCount == null ? '' : ' ${computeCountAccuracy(pouch, pouchExpected)}'}',
+                  'Pouch: ${count?.pouchCount ?? 0}${count?.pouchAccuracy == null ? '' : ' ${count!.pouchAccuracy!.toStringAsFixed(2)}%'}',
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,

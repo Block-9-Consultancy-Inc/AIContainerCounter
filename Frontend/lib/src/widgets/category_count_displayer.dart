@@ -1,4 +1,4 @@
-import 'package:ai_container_counter/src/rust/api/simple.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:flutter/material.dart';
 
 class CategoryCountDisplayer extends StatelessWidget {

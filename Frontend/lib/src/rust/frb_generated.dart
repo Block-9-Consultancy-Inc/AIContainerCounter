@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+import 'models/count.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -68,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.8.0';
 
   @override
-  int get rustContentHash => 1645019296;
+  int get rustContentHash => 1927162657;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -87,19 +88,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiSimpleSocketEmitNewExpectedCategoryCount(
       {required Socket that, required Map<String, BigInt> data});
-
-  Count crateApiSimpleCountNew(
-      {required BigInt count,
-      required BigInt canCount,
-      required BigInt plasticCount,
-      required BigInt drinkboxCount,
-      required BigInt gabletopCount,
-      required BigInt pouchCount,
-      BigInt? expectedCanCount,
-      BigInt? expectedPlasticCount,
-      BigInt? expectedDrinkboxCount,
-      BigInt? expectedGabletopCount,
-      BigInt? expectedPouchCount});
 
   String crateApiSimpleGreet({required String name});
 
@@ -221,80 +209,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
 
   @override
-  Count crateApiSimpleCountNew(
-      {required BigInt count,
-      required BigInt canCount,
-      required BigInt plasticCount,
-      required BigInt drinkboxCount,
-      required BigInt gabletopCount,
-      required BigInt pouchCount,
-      BigInt? expectedCanCount,
-      BigInt? expectedPlasticCount,
-      BigInt? expectedDrinkboxCount,
-      BigInt? expectedGabletopCount,
-      BigInt? expectedPouchCount}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_u_64(count, serializer);
-        sse_encode_u_64(canCount, serializer);
-        sse_encode_u_64(plasticCount, serializer);
-        sse_encode_u_64(drinkboxCount, serializer);
-        sse_encode_u_64(gabletopCount, serializer);
-        sse_encode_u_64(pouchCount, serializer);
-        sse_encode_opt_box_autoadd_u_64(expectedCanCount, serializer);
-        sse_encode_opt_box_autoadd_u_64(expectedPlasticCount, serializer);
-        sse_encode_opt_box_autoadd_u_64(expectedDrinkboxCount, serializer);
-        sse_encode_opt_box_autoadd_u_64(expectedGabletopCount, serializer);
-        sse_encode_opt_box_autoadd_u_64(expectedPouchCount, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_count,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateApiSimpleCountNewConstMeta,
-      argValues: [
-        count,
-        canCount,
-        plasticCount,
-        drinkboxCount,
-        gabletopCount,
-        pouchCount,
-        expectedCanCount,
-        expectedPlasticCount,
-        expectedDrinkboxCount,
-        expectedGabletopCount,
-        expectedPouchCount
-      ],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateApiSimpleCountNewConstMeta => const TaskConstMeta(
-        debugName: "count_new",
-        argNames: [
-          "count",
-          "canCount",
-          "plasticCount",
-          "drinkboxCount",
-          "gabletopCount",
-          "pouchCount",
-          "expectedCanCount",
-          "expectedPlasticCount",
-          "expectedDrinkboxCount",
-          "expectedGabletopCount",
-          "expectedPouchCount"
-        ],
-      );
-
-  @override
   String crateApiSimpleGreet({required String name}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(name, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -317,7 +237,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 6, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -342,7 +262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_usize(texturePtr, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 7, port: port_);
+            funcId: 6, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -365,7 +285,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -391,7 +311,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_count_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 9, port: port_);
+            funcId: 8, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -418,7 +338,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_String_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 10, port: port_);
+            funcId: 9, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -445,7 +365,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_StreamSink_batch_global_state_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 11, port: port_);
+            funcId: 10, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -473,7 +393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_box_autoadd_batch_global_state(
             newBatchGlobalState, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 12, port: port_);
+            funcId: 11, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -626,7 +546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 18)
       throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
-    return Count.raw(
+    return Count(
       count: dco_decode_u_64(arr[0]),
       canCount: dco_decode_u_64(arr[1]),
       plasticCount: dco_decode_u_64(arr[2]),
@@ -900,7 +820,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_drinkboxAccuracy = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_gabletopAccuracy = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_pouchAccuracy = sse_decode_opt_box_autoadd_f_64(deserializer);
-    return Count.raw(
+    return Count(
         count: var_count,
         canCount: var_canCount,
         plasticCount: var_plasticCount,

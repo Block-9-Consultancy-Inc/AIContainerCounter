@@ -522,9 +522,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DateTime dco_decode_Chrono_Naive(dynamic raw) {
+  DateTime dco_decode_Chrono_Local(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeTimestamp(ts: dco_decode_i_64(raw).toInt(), isUtc: true);
+    return dcoDecodeTimestamp(ts: dco_decode_i_64(raw).toInt(), isUtc: false);
   }
 
   @protected
@@ -576,8 +576,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return Batch(
       id: dco_decode_String(arr[0]),
       areaCollected: dco_decode_opt_String(arr[1]),
-      timeStarted: dco_decode_Chrono_Naive(arr[2]),
-      timeSubmitted: dco_decode_Chrono_Naive(arr[3]),
+      timeStarted: dco_decode_Chrono_Local(arr[2]),
+      timeSubmitted: dco_decode_Chrono_Local(arr[3]),
       count: dco_decode_count(arr[4]),
       yoloModel: dco_decode_String(arr[5]),
       categoryModel: dco_decode_String(arr[6]),
@@ -772,10 +772,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DateTime sse_decode_Chrono_Naive(SseDeserializer deserializer) {
+  DateTime sse_decode_Chrono_Local(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_64(deserializer);
-    return DateTime.fromMicrosecondsSinceEpoch(inner.toInt(), isUtc: true);
+    return DateTime.fromMicrosecondsSinceEpoch(inner.toInt(), isUtc: false);
   }
 
   @protected
@@ -827,8 +827,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
     var var_areaCollected = sse_decode_opt_String(deserializer);
-    var var_timeStarted = sse_decode_Chrono_Naive(deserializer);
-    var var_timeSubmitted = sse_decode_Chrono_Naive(deserializer);
+    var var_timeStarted = sse_decode_Chrono_Local(deserializer);
+    var var_timeSubmitted = sse_decode_Chrono_Local(deserializer);
     var var_count = sse_decode_count(deserializer);
     var var_yoloModel = sse_decode_String(deserializer);
     var var_categoryModel = sse_decode_String(deserializer);
@@ -1073,7 +1073,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_Chrono_Naive(DateTime self, SseSerializer serializer) {
+  void sse_encode_Chrono_Local(DateTime self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_64(
         PlatformInt64Util.from(self.microsecondsSinceEpoch), serializer);
@@ -1146,8 +1146,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
     sse_encode_opt_String(self.areaCollected, serializer);
-    sse_encode_Chrono_Naive(self.timeStarted, serializer);
-    sse_encode_Chrono_Naive(self.timeSubmitted, serializer);
+    sse_encode_Chrono_Local(self.timeStarted, serializer);
+    sse_encode_Chrono_Local(self.timeSubmitted, serializer);
     sse_encode_count(self.count, serializer);
     sse_encode_String(self.yoloModel, serializer);
     sse_encode_String(self.categoryModel, serializer);

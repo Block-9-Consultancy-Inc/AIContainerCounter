@@ -567,13 +567,18 @@ impl SseDecode for Socket {
     }
 }
 
-impl SseDecode for chrono::NaiveDateTime {
+impl SseDecode for chrono::DateTime<chrono::Local> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i64>::sse_decode(deserializer);
-        return chrono::DateTime::from_timestamp_micros(inner)
-            .expect("invalid or out-of-range datetime")
-            .naive_utc();
+        return chrono::DateTime::<chrono::Local>::from(
+            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                chrono::DateTime::from_timestamp_micros(inner)
+                    .expect("invalid or out-of-range datetime")
+                    .naive_utc(),
+                chrono::Utc,
+            ),
+        );
     }
 }
 
@@ -637,8 +642,8 @@ impl SseDecode for crate::api::simple::Batch {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_areaCollected = <Option<String>>::sse_decode(deserializer);
-        let mut var_timeStarted = <chrono::NaiveDateTime>::sse_decode(deserializer);
-        let mut var_timeSubmitted = <chrono::NaiveDateTime>::sse_decode(deserializer);
+        let mut var_timeStarted = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
+        let mut var_timeSubmitted = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
         let mut var_count = <crate::api::simple::Count>::sse_decode(deserializer);
         let mut var_yoloModel = <String>::sse_decode(deserializer);
         let mut var_categoryModel = <String>::sse_decode(deserializer);
@@ -1055,10 +1060,10 @@ impl SseEncode for Socket {
     }
 }
 
-impl SseEncode for chrono::NaiveDateTime {
+impl SseEncode for chrono::DateTime<chrono::Local> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i64>::sse_encode(self.and_utc().timestamp_micros(), serializer);
+        <i64>::sse_encode(self.timestamp_micros(), serializer);
     }
 }
 
@@ -1118,8 +1123,8 @@ impl SseEncode for crate::api::simple::Batch {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <Option<String>>::sse_encode(self.area_collected, serializer);
-        <chrono::NaiveDateTime>::sse_encode(self.time_started, serializer);
-        <chrono::NaiveDateTime>::sse_encode(self.time_submitted, serializer);
+        <chrono::DateTime<chrono::Local>>::sse_encode(self.time_started, serializer);
+        <chrono::DateTime<chrono::Local>>::sse_encode(self.time_submitted, serializer);
         <crate::api::simple::Count>::sse_encode(self.count, serializer);
         <String>::sse_encode(self.yolo_model, serializer);
         <String>::sse_encode(self.category_model, serializer);

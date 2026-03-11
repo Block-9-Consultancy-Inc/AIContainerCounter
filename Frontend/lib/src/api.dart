@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show json;
 

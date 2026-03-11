@@ -1,5 +1,6 @@
 import 'package:ai_container_counter/src/models/last_cached_stream.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:flutter/material.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';

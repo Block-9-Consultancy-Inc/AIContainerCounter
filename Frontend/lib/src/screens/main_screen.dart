@@ -1,5 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
-import 'package:ai_container_counter/src/rust/api/simple.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:ai_container_counter/src/screens/real_time_video_stream.dart';
 import 'package:ai_container_counter/src/widgets/current_batch_view.dart';
 import 'package:ai_container_counter/src/widgets/previous_batch_list_view.dart';

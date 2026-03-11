@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.8.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1645019296;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1927162657;
 
 // Section: executor
 
@@ -210,58 +210,6 @@ fn wire__crate__api__simple__Socket_emit_new_expected_category_count_impl(
         },
     )
 }
-fn wire__crate__api__simple__count_new_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "count_new",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_count = <u64>::sse_decode(&mut deserializer);
-            let api_can_count = <u64>::sse_decode(&mut deserializer);
-            let api_plastic_count = <u64>::sse_decode(&mut deserializer);
-            let api_drinkbox_count = <u64>::sse_decode(&mut deserializer);
-            let api_gabletop_count = <u64>::sse_decode(&mut deserializer);
-            let api_pouch_count = <u64>::sse_decode(&mut deserializer);
-            let api_expected_can_count = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_expected_plastic_count = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_expected_drinkbox_count = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_expected_gabletop_count = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_expected_pouch_count = <Option<u64>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::simple::Count::new(
-                    api_count,
-                    api_can_count,
-                    api_plastic_count,
-                    api_drinkbox_count,
-                    api_gabletop_count,
-                    api_pouch_count,
-                    api_expected_can_count,
-                    api_expected_plastic_count,
-                    api_expected_drinkbox_count,
-                    api_expected_gabletop_count,
-                    api_expected_pouch_count,
-                ))?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__simple__greet_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -413,7 +361,7 @@ fn wire__crate__api__simple__set_detection_event_stream_sink_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_stream_sink = <StreamSink<
-                crate::api::simple::Count,
+                crate::models::count::Count,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -489,7 +437,7 @@ fn wire__crate__api__simple__set_json_response_stream_sink_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_stream_sink = <StreamSink<
-                crate::api::simple::BatchGlobalState,
+                crate::models::count::BatchGlobalState,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -527,7 +475,7 @@ fn wire__crate__api__simple__set_prev_batch_global_state_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_new_batch_global_state =
-                <crate::api::simple::BatchGlobalState>::sse_decode(&mut deserializer);
+                <crate::models::count::BatchGlobalState>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -608,7 +556,7 @@ impl SseDecode for StreamSink<String, flutter_rust_bridge::for_generated::SseCod
 
 impl SseDecode
     for StreamSink<
-        crate::api::simple::BatchGlobalState,
+        crate::models::count::BatchGlobalState,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -620,7 +568,7 @@ impl SseDecode
 }
 
 impl SseDecode
-    for StreamSink<crate::api::simple::Count, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -637,17 +585,17 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for crate::api::simple::Batch {
+impl SseDecode for crate::models::count::Batch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_areaCollected = <Option<String>>::sse_decode(deserializer);
         let mut var_timeStarted = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
         let mut var_timeSubmitted = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
-        let mut var_count = <crate::api::simple::Count>::sse_decode(deserializer);
+        let mut var_count = <crate::models::count::Count>::sse_decode(deserializer);
         let mut var_yoloModel = <String>::sse_decode(deserializer);
         let mut var_categoryModel = <String>::sse_decode(deserializer);
-        return crate::api::simple::Batch {
+        return crate::models::count::Batch {
             id: var_id,
             area_collected: var_areaCollected,
             time_started: var_timeStarted,
@@ -659,12 +607,12 @@ impl SseDecode for crate::api::simple::Batch {
     }
 }
 
-impl SseDecode for crate::api::simple::BatchGlobalState {
+impl SseDecode for crate::models::count::BatchGlobalState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_todaySummary = <crate::api::simple::TodaySummary>::sse_decode(deserializer);
-        let mut var_batches = <Vec<crate::api::simple::Batch>>::sse_decode(deserializer);
-        return crate::api::simple::BatchGlobalState {
+        let mut var_todaySummary = <crate::models::count::TodaySummary>::sse_decode(deserializer);
+        let mut var_batches = <Vec<crate::models::count::Batch>>::sse_decode(deserializer);
+        return crate::models::count::BatchGlobalState {
             today_summary: var_todaySummary,
             batches: var_batches,
         };
@@ -678,7 +626,7 @@ impl SseDecode for bool {
     }
 }
 
-impl SseDecode for crate::api::simple::Count {
+impl SseDecode for crate::models::count::Count {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_count = <u64>::sse_decode(deserializer);
@@ -699,7 +647,7 @@ impl SseDecode for crate::api::simple::Count {
         let mut var_drinkboxAccuracy = <Option<f64>>::sse_decode(deserializer);
         let mut var_gabletopAccuracy = <Option<f64>>::sse_decode(deserializer);
         let mut var_pouchAccuracy = <Option<f64>>::sse_decode(deserializer);
-        return crate::api::simple::Count {
+        return crate::models::count::Count {
             count: var_count,
             can_count: var_canCount,
             plastic_count: var_plasticCount,
@@ -736,13 +684,13 @@ impl SseDecode for i64 {
     }
 }
 
-impl SseDecode for Vec<crate::api::simple::Batch> {
+impl SseDecode for Vec<crate::models::count::Batch> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::simple::Batch>::sse_decode(deserializer));
+            ans_.push(<crate::models::count::Batch>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -814,13 +762,13 @@ impl SseDecode for (String, u64) {
     }
 }
 
-impl SseDecode for crate::api::simple::TodaySummary {
+impl SseDecode for crate::models::count::TodaySummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_numOfBatches = <u64>::sse_decode(deserializer);
         let mut var_numOfBatchesWithExpected = <u64>::sse_decode(deserializer);
-        let mut var_count = <crate::api::simple::Count>::sse_decode(deserializer);
-        return crate::api::simple::TodaySummary {
+        let mut var_count = <crate::models::count::Count>::sse_decode(deserializer);
+        return crate::models::count::TodaySummary {
             num_of_batches: var_numOfBatches,
             num_of_batches_with_expected: var_numOfBatchesWithExpected,
             count: var_count,
@@ -883,29 +831,29 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__simple__initialize_flutter_texture_impl(
+        5 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__simple__initialize_flutter_texture_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__simple__set_detection_event_stream_sink_impl(
+        8 => wire__crate__api__simple__set_detection_event_stream_sink_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => {
+        9 => {
             wire__crate__api__simple__set_event_stream_sink_impl(port, ptr, rust_vec_len, data_len)
         }
-        11 => wire__crate__api__simple__set_json_response_stream_sink_impl(
+        10 => wire__crate__api__simple__set_json_response_stream_sink_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__simple__set_prev_batch_global_state_impl(
+        11 => wire__crate__api__simple__set_prev_batch_global_state_impl(
             port,
             ptr,
             rust_vec_len,
@@ -923,9 +871,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        4 => wire__crate__api__simple__count_new_impl(ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__simple__new_socket_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__simple__new_socket_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -948,7 +895,7 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Socket>> for Socket {
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::simple::Batch {
+impl flutter_rust_bridge::IntoDart for crate::models::count::Batch {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -962,14 +909,16 @@ impl flutter_rust_bridge::IntoDart for crate::api::simple::Batch {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::simple::Batch {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::simple::Batch> for crate::api::simple::Batch {
-    fn into_into_dart(self) -> crate::api::simple::Batch {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::models::count::Batch {}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::count::Batch>
+    for crate::models::count::Batch
+{
+    fn into_into_dart(self) -> crate::models::count::Batch {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::simple::BatchGlobalState {
+impl flutter_rust_bridge::IntoDart for crate::models::count::BatchGlobalState {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.today_summary.into_into_dart().into_dart(),
@@ -979,18 +928,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::simple::BatchGlobalState {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::simple::BatchGlobalState
+    for crate::models::count::BatchGlobalState
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::simple::BatchGlobalState>
-    for crate::api::simple::BatchGlobalState
+impl flutter_rust_bridge::IntoIntoDart<crate::models::count::BatchGlobalState>
+    for crate::models::count::BatchGlobalState
 {
-    fn into_into_dart(self) -> crate::api::simple::BatchGlobalState {
+    fn into_into_dart(self) -> crate::models::count::BatchGlobalState {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::simple::Count {
+impl flutter_rust_bridge::IntoDart for crate::models::count::Count {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.count.into_into_dart().into_dart(),
@@ -1015,14 +964,16 @@ impl flutter_rust_bridge::IntoDart for crate::api::simple::Count {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::simple::Count {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::simple::Count> for crate::api::simple::Count {
-    fn into_into_dart(self) -> crate::api::simple::Count {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::models::count::Count {}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::count::Count>
+    for crate::models::count::Count
+{
+    fn into_into_dart(self) -> crate::models::count::Count {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::simple::TodaySummary {
+impl flutter_rust_bridge::IntoDart for crate::models::count::TodaySummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.num_of_batches.into_into_dart().into_dart(),
@@ -1035,13 +986,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::simple::TodaySummary {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::simple::TodaySummary
+    for crate::models::count::TodaySummary
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::simple::TodaySummary>
-    for crate::api::simple::TodaySummary
+impl flutter_rust_bridge::IntoIntoDart<crate::models::count::TodaySummary>
+    for crate::models::count::TodaySummary
 {
-    fn into_into_dart(self) -> crate::api::simple::TodaySummary {
+    fn into_into_dart(self) -> crate::models::count::TodaySummary {
         self
     }
 }
@@ -1092,7 +1043,7 @@ impl SseEncode for StreamSink<String, flutter_rust_bridge::for_generated::SseCod
 
 impl SseEncode
     for StreamSink<
-        crate::api::simple::BatchGlobalState,
+        crate::models::count::BatchGlobalState,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -1103,7 +1054,7 @@ impl SseEncode
 }
 
 impl SseEncode
-    for StreamSink<crate::api::simple::Count, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1118,24 +1069,24 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for crate::api::simple::Batch {
+impl SseEncode for crate::models::count::Batch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <Option<String>>::sse_encode(self.area_collected, serializer);
         <chrono::DateTime<chrono::Local>>::sse_encode(self.time_started, serializer);
         <chrono::DateTime<chrono::Local>>::sse_encode(self.time_submitted, serializer);
-        <crate::api::simple::Count>::sse_encode(self.count, serializer);
+        <crate::models::count::Count>::sse_encode(self.count, serializer);
         <String>::sse_encode(self.yolo_model, serializer);
         <String>::sse_encode(self.category_model, serializer);
     }
 }
 
-impl SseEncode for crate::api::simple::BatchGlobalState {
+impl SseEncode for crate::models::count::BatchGlobalState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::simple::TodaySummary>::sse_encode(self.today_summary, serializer);
-        <Vec<crate::api::simple::Batch>>::sse_encode(self.batches, serializer);
+        <crate::models::count::TodaySummary>::sse_encode(self.today_summary, serializer);
+        <Vec<crate::models::count::Batch>>::sse_encode(self.batches, serializer);
     }
 }
 
@@ -1146,7 +1097,7 @@ impl SseEncode for bool {
     }
 }
 
-impl SseEncode for crate::api::simple::Count {
+impl SseEncode for crate::models::count::Count {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.count, serializer);
@@ -1184,12 +1135,12 @@ impl SseEncode for i64 {
     }
 }
 
-impl SseEncode for Vec<crate::api::simple::Batch> {
+impl SseEncode for Vec<crate::models::count::Batch> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::simple::Batch>::sse_encode(item, serializer);
+            <crate::models::count::Batch>::sse_encode(item, serializer);
         }
     }
 }
@@ -1252,12 +1203,12 @@ impl SseEncode for (String, u64) {
     }
 }
 
-impl SseEncode for crate::api::simple::TodaySummary {
+impl SseEncode for crate::models::count::TodaySummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.num_of_batches, serializer);
         <u64>::sse_encode(self.num_of_batches_with_expected, serializer);
-        <crate::api::simple::Count>::sse_encode(self.count, serializer);
+        <crate::models::count::Count>::sse_encode(self.count, serializer);
     }
 }
 

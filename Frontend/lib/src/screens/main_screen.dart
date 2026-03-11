@@ -54,15 +54,15 @@ class MainScreen extends StatelessWidget {
               Count? newExpectedCount;
               final formKey = GlobalKey<FormState>();
               final canController = TextEditingController(
-                  text: globalState.expectedCount?.canCount.toString());
+                  text: globalState.expectedCount?.expectedCanCount.toString());
               final plasticController = TextEditingController(
-                  text: globalState.expectedCount?.plasticCount.toString());
+                  text: globalState.expectedCount?.expectedPlasticCount.toString());
               final gabletopController = TextEditingController(
-                  text: globalState.expectedCount?.gabletopCount.toString());
+                  text: globalState.expectedCount?.expectedGabletopCount.toString());
               final drinkboxController = TextEditingController(
-                  text: globalState.expectedCount?.drinkboxCount.toString());
+                  text: globalState.expectedCount?.expectedDrinkboxCount.toString());
               final pouchController = TextEditingController(
-                  text: globalState.expectedCount?.pouchCount.toString());
+                  text: globalState.expectedCount?.expectedPouchCount.toString());
 
               int getNewTotal() {
                 final can = int.tryParse(canController.text) ?? 0;
@@ -174,22 +174,32 @@ class MainScreen extends StatelessWidget {
                                 drinkboxCount: BigInt.from(0),
                                 gabletopCount: BigInt.from(0),
                                 pouchCount: BigInt.from(0),
-                                expectedCanCount: BigInt.from(int.tryParse(canController.text) ?? 0),
-                                expectedPlasticCount: BigInt.from(int.tryParse(plasticController.text) ?? 0),
-                                expectedDrinkboxCount: BigInt.from(int.tryParse(drinkboxController.text) ?? 0),
-                                expectedGabletopCount: BigInt.from(int.tryParse(gabletopController.text) ?? 0),
-                                expectedPouchCount: BigInt.from(int.tryParse(pouchController.text) ?? 0),
+                                expectedCanCount: BigInt.from(
+                                    int.tryParse(canController.text) ?? 0),
+                                expectedPlasticCount: BigInt.from(
+                                    int.tryParse(plasticController.text) ?? 0),
+                                expectedDrinkboxCount: BigInt.from(
+                                    int.tryParse(drinkboxController.text) ?? 0),
+                                expectedGabletopCount: BigInt.from(
+                                    int.tryParse(gabletopController.text) ?? 0),
+                                expectedPouchCount: BigInt.from(
+                                    int.tryParse(pouchController.text) ?? 0),
                               );
                               context
                                   .read<GlobalState>()
                                   .socket
                                   ?.emitNewExpectedCategoryCount(data: {
-                                    'can': BigInt.from(int.parse(canController.text)),
-                                    'plastic': BigInt.from(int.parse(plasticController.text)),
-                                    'drinkbox': BigInt.from(int.parse(drinkboxController.text)),
-                                    'gabletop': BigInt.from(int.parse(gabletopController.text)),
-                                    'pouch': BigInt.from(int.parse(pouchController.text)),
-                                  });
+                                'can':
+                                    BigInt.from(int.parse(canController.text)),
+                                'plastic': BigInt.from(
+                                    int.parse(plasticController.text)),
+                                'drinkbox': BigInt.from(
+                                    int.parse(drinkboxController.text)),
+                                'gabletop': BigInt.from(
+                                    int.parse(gabletopController.text)),
+                                'pouch': BigInt.from(
+                                    int.parse(pouchController.text)),
+                              });
                               Navigator.of(builderContext).pop(false);
                             }
                           },
@@ -202,6 +212,10 @@ class MainScreen extends StatelessWidget {
               );
               if (shouldClear != null) {
                 globalState.expectedCount = newExpectedCount;
+                if (shouldClear) {
+                  globalState.socket
+                      ?.emitEvent(event: 'clear-expected-count', data: '');
+                }
               }
             },
             iconSize: 80,

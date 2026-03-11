@@ -128,7 +128,7 @@ class CounterApp:
         def on_connect(sid, msg):
             print('Client connected')
             now = datetime.now()
-            batches = list(Batch.select().where((Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
+            batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
             today_summary = get_today_summary().__dict__
             self.sio.emit('batches_state', json.dumps({'summary': today_summary, 'batches': batches}, cls=CustomJSONEncoder))
 
@@ -150,6 +150,12 @@ class CounterApp:
         def set_expected_count(sid, msg):
             print(f'setting expected count {msg}')
             self.new_expected_count = msg
+            self.set_expected_count = True
+
+        @sio.on('clear-expected-count')
+        def set_expected_count(sid, msg):
+            print(f'setting expected count {msg}')
+            self.new_expected_count = None
             self.set_expected_count = True
 
 

@@ -313,7 +313,7 @@ class Counter:
 
     def reset_counter(self):
         batch = counter_to_batch(self)
-        self.data_to_save.batch = counter_to_batch_to_save(self)
+        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
         self.data_to_save_queue.put(self.data_to_save)
         self.prev_data_to_save = self.data_to_save
         for shm in self.prev_data_to_save_shms:
@@ -350,10 +350,11 @@ class Counter:
         return batch
 
 
-def counter_to_batch_to_save(counter: Counter):
+def counter_to_batch_to_save(counter: Counter, submitted = False):
         return sqlite_db.BatchToSave(
             id=counter.current_batch_uuid,
             time_started=counter.time_batch_started,
+            time_submitted=datetime.now() if submitted else None,
             count=counter.center_line_zone.in_count,
             can_count=counter.category_counts.get('can'),
             plastic_count=counter.category_counts.get('plastic'),
@@ -374,6 +375,7 @@ def counter_to_batch(counter: Counter):
         return sqlite_db.Batch(
             id=counter.current_batch_uuid,
             time_started=counter.time_batch_started,
+            time_submitted=datetime.now(),
             count=counter.center_line_zone.in_count,
             can_count=counter.category_counts.get('can'),
             plastic_count=counter.category_counts.get('plastic'),

@@ -99,13 +99,11 @@ class Counter:
             'drinkbox_count': self.category_counts.get('drinkbox'),
             'gabletop_count': self.category_counts.get('gabletop'),
             'pouch_count': self.category_counts.get('pouch'),
-            **({
-                'expected_can_count': self.expected_category_counts.get('can') if self.expected_category_counts is not None else None,
-                'expected_plastic_count': self.expected_category_counts.get('plastic') if self.expected_category_counts is not None else None,
-                'expected_drinkbox_count': self.expected_category_counts.get('drinkbox') if self.expected_category_counts is not None else None,
-                'expected_gabletop_count': self.expected_category_counts.get('gabletop') if self.expected_category_counts is not None else None,
-                'expected_pouch_count': self.expected_category_counts.get('pouch') if self.expected_category_counts is not None else None,
-            }) 
+            'expected_can_count': self.expected_category_counts.get('can') if self.expected_category_counts is not None else None,
+            'expected_plastic_count': self.expected_category_counts.get('plastic') if self.expected_category_counts is not None else None,
+            'expected_drinkbox_count': self.expected_category_counts.get('drinkbox') if self.expected_category_counts is not None else None,
+            'expected_gabletop_count': self.expected_category_counts.get('gabletop') if self.expected_category_counts is not None else None,
+            'expected_pouch_count': self.expected_category_counts.get('pouch') if self.expected_category_counts is not None else None,
         }
 
     def trigger(self, decoded_frame: np.ndarray, detections: Detections):

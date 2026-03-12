@@ -585,6 +585,28 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::models::multi_container_image::BBox {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_x1 = <i64>::sse_decode(deserializer);
+        let mut var_y1 = <i64>::sse_decode(deserializer);
+        let mut var_x2 = <i64>::sse_decode(deserializer);
+        let mut var_y2 = <i64>::sse_decode(deserializer);
+        let mut var_trackerId = <i64>::sse_decode(deserializer);
+        let mut var_imageId = <String>::sse_decode(deserializer);
+        return crate::models::multi_container_image::BBox {
+            id: var_id,
+            x1: var_x1,
+            y1: var_y1,
+            x2: var_x2,
+            y2: var_y2,
+            tracker_id: var_trackerId,
+            image_id: var_imageId,
+        };
+    }
+}
+
 impl SseDecode for crate::models::count::Batch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -595,6 +617,12 @@ impl SseDecode for crate::models::count::Batch {
         let mut var_count = <crate::models::count::Count>::sse_decode(deserializer);
         let mut var_yoloModel = <String>::sse_decode(deserializer);
         let mut var_categoryModel = <String>::sse_decode(deserializer);
+        let mut var_multiContainerImages = <Vec<
+            crate::models::multi_container_image::MultiContainerImage,
+        >>::sse_decode(deserializer);
+        let mut var_singleContainerImages = <Vec<
+            crate::models::multi_container_image::SingleContainerImage,
+        >>::sse_decode(deserializer);
         return crate::models::count::Batch {
             id: var_id,
             area_collected: var_areaCollected,
@@ -603,6 +631,8 @@ impl SseDecode for crate::models::count::Batch {
             count: var_count,
             yolo_model: var_yoloModel,
             category_model: var_categoryModel,
+            multi_container_images: var_multiContainerImages,
+            single_container_images: var_singleContainerImages,
         };
     }
 }
@@ -686,6 +716,20 @@ impl SseDecode for i64 {
     }
 }
 
+impl SseDecode for Vec<crate::models::multi_container_image::BBox> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::models::multi_container_image::BBox>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::models::count::Batch> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -693,6 +737,22 @@ impl SseDecode for Vec<crate::models::count::Batch> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::models::count::Batch>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::models::multi_container_image::MultiContainerImage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::models::multi_container_image::MultiContainerImage>::sse_decode(
+                    deserializer,
+                ),
+            );
         }
         return ans_;
     }
@@ -719,6 +779,45 @@ impl SseDecode for Vec<(String, u64)> {
             ans_.push(<(String, u64)>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::models::multi_container_image::SingleContainerImage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::models::multi_container_image::SingleContainerImage>::sse_decode(
+                    deserializer,
+                ),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for crate::models::multi_container_image::MultiContainerImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_height = <i64>::sse_decode(deserializer);
+        let mut var_width = <i64>::sse_decode(deserializer);
+        let mut var_index = <i64>::sse_decode(deserializer);
+        let mut var_timeCollected = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
+        let mut var_batchId = <String>::sse_decode(deserializer);
+        let mut var_bboxes =
+            <Vec<crate::models::multi_container_image::BBox>>::sse_decode(deserializer);
+        return crate::models::multi_container_image::MultiContainerImage {
+            id: var_id,
+            height: var_height,
+            width: var_width,
+            index: var_index,
+            time_collected: var_timeCollected,
+            batch_id: var_batchId,
+            bboxes: var_bboxes,
+        };
     }
 }
 
@@ -761,6 +860,28 @@ impl SseDecode for (String, u64) {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <u64>::sse_decode(deserializer);
         return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for crate::models::multi_container_image::SingleContainerImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_height = <i64>::sse_decode(deserializer);
+        let mut var_width = <i64>::sse_decode(deserializer);
+        let mut var_timeCollected = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
+        let mut var_trackerId = <i64>::sse_decode(deserializer);
+        let mut var_predictedCategory = <String>::sse_decode(deserializer);
+        let mut var_batchId = <String>::sse_decode(deserializer);
+        return crate::models::multi_container_image::SingleContainerImage {
+            id: var_id,
+            height: var_height,
+            width: var_width,
+            time_collected: var_timeCollected,
+            tracker_id: var_trackerId,
+            predicted_category: var_predictedCategory,
+            batch_id: var_batchId,
+        };
     }
 }
 
@@ -897,6 +1018,32 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Socket>> for Socket {
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::BBox {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.x1.into_into_dart().into_dart(),
+            self.y1.into_into_dart().into_dart(),
+            self.x2.into_into_dart().into_dart(),
+            self.y2.into_into_dart().into_dart(),
+            self.tracker_id.into_into_dart().into_dart(),
+            self.image_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::models::multi_container_image::BBox
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::multi_container_image::BBox>
+    for crate::models::multi_container_image::BBox
+{
+    fn into_into_dart(self) -> crate::models::multi_container_image::BBox {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::models::count::Batch {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -907,6 +1054,8 @@ impl flutter_rust_bridge::IntoDart for crate::models::count::Batch {
             self.count.into_into_dart().into_dart(),
             self.yolo_model.into_into_dart().into_dart(),
             self.category_model.into_into_dart().into_dart(),
+            self.multi_container_images.into_into_dart().into_dart(),
+            self.single_container_images.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -972,6 +1121,58 @@ impl flutter_rust_bridge::IntoIntoDart<crate::models::count::Count>
     for crate::models::count::Count
 {
     fn into_into_dart(self) -> crate::models::count::Count {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::MultiContainerImage {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+            self.index.into_into_dart().into_dart(),
+            self.time_collected.into_into_dart().into_dart(),
+            self.batch_id.into_into_dart().into_dart(),
+            self.bboxes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::models::multi_container_image::MultiContainerImage
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::multi_container_image::MultiContainerImage>
+    for crate::models::multi_container_image::MultiContainerImage
+{
+    fn into_into_dart(self) -> crate::models::multi_container_image::MultiContainerImage {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::SingleContainerImage {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+            self.time_collected.into_into_dart().into_dart(),
+            self.tracker_id.into_into_dart().into_dart(),
+            self.predicted_category.into_into_dart().into_dart(),
+            self.batch_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::models::multi_container_image::SingleContainerImage
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::multi_container_image::SingleContainerImage>
+    for crate::models::multi_container_image::SingleContainerImage
+{
+    fn into_into_dart(self) -> crate::models::multi_container_image::SingleContainerImage {
         self
     }
 }
@@ -1072,6 +1273,19 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for crate::models::multi_container_image::BBox {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <i64>::sse_encode(self.x1, serializer);
+        <i64>::sse_encode(self.y1, serializer);
+        <i64>::sse_encode(self.x2, serializer);
+        <i64>::sse_encode(self.y2, serializer);
+        <i64>::sse_encode(self.tracker_id, serializer);
+        <String>::sse_encode(self.image_id, serializer);
+    }
+}
+
 impl SseEncode for crate::models::count::Batch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1082,6 +1296,14 @@ impl SseEncode for crate::models::count::Batch {
         <crate::models::count::Count>::sse_encode(self.count, serializer);
         <String>::sse_encode(self.yolo_model, serializer);
         <String>::sse_encode(self.category_model, serializer);
+        <Vec<crate::models::multi_container_image::MultiContainerImage>>::sse_encode(
+            self.multi_container_images,
+            serializer,
+        );
+        <Vec<crate::models::multi_container_image::SingleContainerImage>>::sse_encode(
+            self.single_container_images,
+            serializer,
+        );
     }
 }
 
@@ -1139,12 +1361,34 @@ impl SseEncode for i64 {
     }
 }
 
+impl SseEncode for Vec<crate::models::multi_container_image::BBox> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::models::multi_container_image::BBox>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::models::count::Batch> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::models::count::Batch>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::models::multi_container_image::MultiContainerImage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::models::multi_container_image::MultiContainerImage>::sse_encode(
+                item, serializer,
+            );
         }
     }
 }
@@ -1166,6 +1410,31 @@ impl SseEncode for Vec<(String, u64)> {
         for item in self {
             <(String, u64)>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for Vec<crate::models::multi_container_image::SingleContainerImage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::models::multi_container_image::SingleContainerImage>::sse_encode(
+                item, serializer,
+            );
+        }
+    }
+}
+
+impl SseEncode for crate::models::multi_container_image::MultiContainerImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <i64>::sse_encode(self.height, serializer);
+        <i64>::sse_encode(self.width, serializer);
+        <i64>::sse_encode(self.index, serializer);
+        <chrono::DateTime<chrono::Local>>::sse_encode(self.time_collected, serializer);
+        <String>::sse_encode(self.batch_id, serializer);
+        <Vec<crate::models::multi_container_image::BBox>>::sse_encode(self.bboxes, serializer);
     }
 }
 
@@ -1204,6 +1473,19 @@ impl SseEncode for (String, u64) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <u64>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for crate::models::multi_container_image::SingleContainerImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <i64>::sse_encode(self.height, serializer);
+        <i64>::sse_encode(self.width, serializer);
+        <chrono::DateTime<chrono::Local>>::sse_encode(self.time_collected, serializer);
+        <i64>::sse_encode(self.tracker_id, serializer);
+        <String>::sse_encode(self.predicted_category, serializer);
+        <String>::sse_encode(self.batch_id, serializer);
     }
 }
 

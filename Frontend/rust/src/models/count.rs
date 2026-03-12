@@ -1,7 +1,9 @@
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
+use flutter_rust_bridge::frb;
 use serde_json::Value;
 use std::str::FromStr;
-use flutter_rust_bridge::frb;
+
+use super::multi_container_image::{MultiContainerImage, SingleContainerImage};
 
 #[derive(Clone)]
 pub struct Count {
@@ -125,7 +127,10 @@ impl Count {
         if expected.is_none() {
             return None;
         }
-        Some((1.0 - ((actual.abs_diff(expected.unwrap()) as f64) / (expected.unwrap() as f64))) * 100.0)
+        Some(
+            (1.0 - ((actual.abs_diff(expected.unwrap()) as f64) / (expected.unwrap() as f64)))
+                * 100.0,
+        )
     }
 }
 
@@ -138,11 +143,18 @@ pub struct TodaySummary {
 }
 
 impl TodaySummary {
-    fn updated_accuracy(avg_accuracy: Option<f64>, num_of_batches_with_expected: u64, new_accuracy: Option<f64>) -> Option<f64> {
-        if avg_accuracy.is_none() || new_accuracy.is_none()  {
+    fn updated_accuracy(
+        avg_accuracy: Option<f64>,
+        num_of_batches_with_expected: u64,
+        new_accuracy: Option<f64>,
+    ) -> Option<f64> {
+        if avg_accuracy.is_none() || new_accuracy.is_none() {
             return None;
         }
-        return Some((avg_accuracy.unwrap() * (num_of_batches_with_expected as f64) + new_accuracy.unwrap()) / (num_of_batches_with_expected + 1) as f64);
+        return Some(
+            (avg_accuracy.unwrap() * (num_of_batches_with_expected as f64) + new_accuracy.unwrap())
+                / (num_of_batches_with_expected + 1) as f64,
+        );
     }
 
     #[frb(ignore)]
@@ -156,37 +168,63 @@ impl TodaySummary {
         self.num_of_batches += 1;
 
         if self.count.count_accuracy.is_some() && batch.count.count_accuracy.is_some() {
-            self.count.count_accuracy = Self::updated_accuracy(self.count.count_accuracy, self.num_of_batches_with_expected, batch.count.count_accuracy);
+            self.count.count_accuracy = Self::updated_accuracy(
+                self.count.count_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.count_accuracy,
+            );
         } else if self.count.count_accuracy.is_none() && batch.count.count_accuracy.is_some() {
             self.count.count_accuracy = batch.count.count_accuracy;
         }
 
         if self.count.can_accuracy.is_some() && batch.count.can_accuracy.is_some() {
-            self.count.can_accuracy = Self::updated_accuracy(self.count.can_accuracy, self.num_of_batches_with_expected, batch.count.can_accuracy);
+            self.count.can_accuracy = Self::updated_accuracy(
+                self.count.can_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.can_accuracy,
+            );
         } else if self.count.can_accuracy.is_none() && batch.count.can_accuracy.is_some() {
             self.count.can_accuracy = batch.count.can_accuracy;
         }
 
         if self.count.plastic_accuracy.is_some() && batch.count.plastic_accuracy.is_some() {
-            self.count.plastic_accuracy = Self::updated_accuracy(self.count.plastic_accuracy, self.num_of_batches_with_expected, batch.count.plastic_accuracy);
+            self.count.plastic_accuracy = Self::updated_accuracy(
+                self.count.plastic_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.plastic_accuracy,
+            );
         } else if self.count.plastic_accuracy.is_none() && batch.count.plastic_accuracy.is_some() {
             self.count.plastic_accuracy = batch.count.plastic_accuracy;
         }
 
         if self.count.drinkbox_accuracy.is_some() && batch.count.drinkbox_accuracy.is_some() {
-            self.count.drinkbox_accuracy = Self::updated_accuracy(self.count.drinkbox_accuracy, self.num_of_batches_with_expected, batch.count.drinkbox_accuracy);
-        } else if self.count.drinkbox_accuracy.is_none() && batch.count.drinkbox_accuracy.is_some() {
+            self.count.drinkbox_accuracy = Self::updated_accuracy(
+                self.count.drinkbox_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.drinkbox_accuracy,
+            );
+        } else if self.count.drinkbox_accuracy.is_none() && batch.count.drinkbox_accuracy.is_some()
+        {
             self.count.drinkbox_accuracy = batch.count.drinkbox_accuracy;
         }
 
         if self.count.gabletop_accuracy.is_some() && batch.count.gabletop_accuracy.is_some() {
-            self.count.gabletop_accuracy = Self::updated_accuracy(self.count.gabletop_accuracy, self.num_of_batches_with_expected, batch.count.gabletop_accuracy);
-        } else if self.count.gabletop_accuracy.is_none() && batch.count.gabletop_accuracy.is_some() {
+            self.count.gabletop_accuracy = Self::updated_accuracy(
+                self.count.gabletop_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.gabletop_accuracy,
+            );
+        } else if self.count.gabletop_accuracy.is_none() && batch.count.gabletop_accuracy.is_some()
+        {
             self.count.gabletop_accuracy = batch.count.gabletop_accuracy;
         }
 
         if self.count.pouch_accuracy.is_some() && batch.count.pouch_accuracy.is_some() {
-            self.count.pouch_accuracy = Self::updated_accuracy(self.count.pouch_accuracy, self.num_of_batches_with_expected, batch.count.pouch_accuracy);
+            self.count.pouch_accuracy = Self::updated_accuracy(
+                self.count.pouch_accuracy,
+                self.num_of_batches_with_expected,
+                batch.count.pouch_accuracy,
+            );
         } else if self.count.pouch_accuracy.is_none() && batch.count.pouch_accuracy.is_some() {
             self.count.pouch_accuracy = batch.count.pouch_accuracy;
         }
@@ -198,7 +236,6 @@ impl TodaySummary {
 }
 
 #[derive(Clone)]
-
 pub struct Batch {
     pub id: String,
     pub area_collected: Option<String>,
@@ -207,6 +244,82 @@ pub struct Batch {
     pub count: Count,
     pub yolo_model: String,
     pub category_model: String,
+    pub multi_container_images: Vec<MultiContainerImage>,
+    pub single_container_images: Vec<SingleContainerImage>,
+}
+
+impl Batch {
+    #[frb(ignore)]
+    pub fn from_json(value: &Value) -> Self {
+        let single_container_images: Vec<SingleContainerImage> = if value
+            .get("single_container_images")
+            .map_or(true, |v| v.is_null())
+        {
+            Vec::new()
+        } else {
+            value
+                .get("single_container_images")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .into_iter()
+                .map(|value| SingleContainerImage::from_json(value))
+                .collect()
+        };
+
+        let multi_container_images: Vec<MultiContainerImage> = if value
+            .get("multi_container_images")
+            .map_or(true, |v| v.is_null())
+        {
+            Vec::new()
+        } else {
+            value
+                .get("multi_container_images")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .into_iter()
+                .map(|value| MultiContainerImage::from_json(value))
+                .collect()
+        };
+        Self {
+            id: value.get("id").unwrap().as_str().unwrap().to_owned(),
+            area_collected: value
+                .get("area_collected")
+                .unwrap()
+                .as_str()
+                .map(|value| value.to_owned()),
+            time_started: Local
+                .from_local_datetime(
+                    &NaiveDateTime::from_str(value.get("time_started").unwrap().as_str().unwrap())
+                        .unwrap(),
+                )
+                .unwrap(),
+            time_submitted: Local
+                .from_local_datetime(
+                    &NaiveDateTime::from_str(
+                        value.get("time_submitted").unwrap().as_str().unwrap(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap(),
+            count: Count::from_json(&value),
+            yolo_model: value
+                .get("yolo_model")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned(),
+            category_model: value
+                .get("category_model")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned(),
+            single_container_images,
+            multi_container_images
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -221,7 +334,11 @@ impl BatchGlobalState {
     pub fn new(json_str_data: Value) -> Self {
         let string_data = json_str_data.as_str().unwrap();
         let json_data = serde_json::from_str::<Value>(string_data).unwrap();
-        let update_summary = json_data.get("update_summary").unwrap().as_bool().unwrap_or(false);
+        let update_summary = json_data
+            .get("update_summary")
+            .unwrap()
+            .as_bool()
+            .unwrap_or(false);
         let today_summary_json = json_data.as_object().unwrap().get("summary").unwrap();
         let batches_json = json_data
             .as_object()
@@ -232,43 +349,7 @@ impl BatchGlobalState {
             .unwrap();
         let mut batches: Vec<Batch> = batches_json
             .iter()
-            .map(|value| Batch {
-                id: value.get("id").unwrap().as_str().unwrap().to_owned(),
-                area_collected: value
-                    .get("area_collected")
-                    .unwrap()
-                    .as_str()
-                    .map(|value| value.to_owned()),
-                time_started: Local
-                    .from_local_datetime(
-                        &NaiveDateTime::from_str(
-                            value.get("time_started").unwrap().as_str().unwrap(),
-                        )
-                        .unwrap(),
-                    )
-                    .unwrap(),
-                time_submitted: Local
-                    .from_local_datetime(
-                        &NaiveDateTime::from_str(
-                            value.get("time_submitted").unwrap().as_str().unwrap(),
-                        )
-                        .unwrap(),
-                    )
-                    .unwrap(),
-                count: Count::from_json(&value),
-                yolo_model: value
-                    .get("yolo_model")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_owned(),
-                category_model: value
-                    .get("category_model")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_owned(),
-            })
+            .map(|value| Batch::from_json(value))
             .collect();
         batches.sort_by(|a, b| b.time_submitted.cmp(&a.time_submitted));
         Self {
@@ -286,7 +367,7 @@ impl BatchGlobalState {
                     .unwrap(),
             },
             batches,
-            update_summary
+            update_summary,
         }
     }
 

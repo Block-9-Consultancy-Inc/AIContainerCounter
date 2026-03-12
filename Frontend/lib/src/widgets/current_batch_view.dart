@@ -51,7 +51,10 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
               ),
               const SizedBox(height: 10),
               StreamBuilder(
-                  stream: context.read<GlobalState>().batchGlobalStateEventStream.stream,
+                  stream: context
+                      .read<GlobalState>()
+                      .batchGlobalStateEventStream
+                      .stream,
                   builder: (context, snapshot) {
                     return Row(
                       children: [
@@ -67,10 +70,12 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .primary
-                                    .withOpacity(0.7),
+                                    .withAlpha((0.7 * 255).toInt()),
                               ),
                             ),
-                            if (snapshot.data?.todaySummary.count.countAccuracy != null) ...[
+                            if (snapshot
+                                    .data?.todaySummary.count.countAccuracy !=
+                                null) ...[
                               const SizedBox(height: 30),
                               AutoSizeText(
                                 '${snapshot.data!.todaySummary.count.countAccuracy!.toStringAsFixed(2)}%',
@@ -81,7 +86,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                                   color: Theme.of(context)
                                       .colorScheme
                                       .primary
-                                      .withOpacity(0.8),
+                                      .withAlpha((0.8 * 255).toInt()),
                                 ),
                               ),
                             ],
@@ -128,7 +133,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                         color: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.7),
+                            .withAlpha((0.7 * 255).toInt()),
                       ),
                     );
                   }),
@@ -165,7 +170,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .primary
-                                .withOpacity(0.8),
+                                .withAlpha((0.8 * 255).toInt()),
                           ),
                         ),
                         if (context.select<GlobalState, bool>(
@@ -180,7 +185,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                               color: Theme.of(context)
                                   .colorScheme
                                   .primary
-                                  .withOpacity(0.8),
+                                  .withAlpha((0.8 * 255).toInt()),
                             ),
                           ),
                         ],

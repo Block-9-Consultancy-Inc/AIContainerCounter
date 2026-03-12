@@ -323,6 +323,16 @@ impl Batch {
 }
 
 #[derive(Clone)]
+pub enum StateUpdate {
+    BatchFetch {
+        batch: Batch
+    },
+    BatchGlobalState{
+        batch_global_state: BatchGlobalState
+    },
+}
+
+#[derive(Clone)]
 pub struct BatchGlobalState {
     pub today_summary: TodaySummary,
     pub batches: Vec<Batch>,

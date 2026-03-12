@@ -103,7 +103,7 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<String> crateApiSimpleSetEventStreamSink();
 
-  Stream<BatchGlobalState> crateApiSimpleSetJsonResponseStreamSink();
+  Stream<StateUpdate> crateApiSimpleSetJsonResponseStreamSink();
 
   Future<void> crateApiSimpleSetPrevBatchGlobalState(
       {required BatchGlobalState newBatchGlobalState});
@@ -359,12 +359,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Stream<BatchGlobalState> crateApiSimpleSetJsonResponseStreamSink() {
-    final streamSink = RustStreamSink<BatchGlobalState>();
+  Stream<StateUpdate> crateApiSimpleSetJsonResponseStreamSink() {
+    final streamSink = RustStreamSink<StateUpdate>();
     unawaited(handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_StreamSink_batch_global_state_Sse(streamSink, serializer);
+        sse_encode_StreamSink_state_update_Sse(streamSink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 10, port: port_);
       },
@@ -470,14 +470,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RustStreamSink<BatchGlobalState> dco_decode_StreamSink_batch_global_state_Sse(
-      dynamic raw) {
+  RustStreamSink<Count> dco_decode_StreamSink_count_Sse(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
 
   @protected
-  RustStreamSink<Count> dco_decode_StreamSink_count_Sse(dynamic raw) {
+  RustStreamSink<StateUpdate> dco_decode_StreamSink_state_update_Sse(
+      dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
@@ -541,6 +541,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  Batch dco_decode_box_autoadd_batch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_batch(raw);
   }
 
   @protected
@@ -708,6 +714,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  StateUpdate dco_decode_state_update(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return StateUpdate_BatchFetch(
+          batch: dco_decode_box_autoadd_batch(raw[1]),
+        );
+      case 1:
+        return StateUpdate_BatchGlobalState(
+          batchGlobalState: dco_decode_box_autoadd_batch_global_state(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   TodaySummary dco_decode_today_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -800,14 +823,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RustStreamSink<BatchGlobalState> sse_decode_StreamSink_batch_global_state_Sse(
+  RustStreamSink<Count> sse_decode_StreamSink_count_Sse(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
   }
 
   @protected
-  RustStreamSink<Count> sse_decode_StreamSink_count_Sse(
+  RustStreamSink<StateUpdate> sse_decode_StreamSink_state_update_Sse(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
@@ -882,6 +905,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  Batch sse_decode_box_autoadd_batch(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_batch(deserializer));
   }
 
   @protected
@@ -1114,6 +1143,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  StateUpdate sse_decode_state_update(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_batch = sse_decode_box_autoadd_batch(deserializer);
+        return StateUpdate_BatchFetch(batch: var_batch);
+      case 1:
+        var var_batchGlobalState =
+            sse_decode_box_autoadd_batch_global_state(deserializer);
+        return StateUpdate_BatchGlobalState(
+            batchGlobalState: var_batchGlobalState);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   TodaySummary sse_decode_today_summary(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_numOfBatches = sse_decode_u_64(deserializer);
@@ -1217,19 +1265,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_StreamSink_batch_global_state_Sse(
-      RustStreamSink<BatchGlobalState> self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(
-        self.setupAndSerialize(
-            codec: SseCodec(
-          decodeSuccessData: sse_decode_batch_global_state,
-          decodeErrorData: sse_decode_AnyhowException,
-        )),
-        serializer);
-  }
-
-  @protected
   void sse_encode_StreamSink_count_Sse(
       RustStreamSink<Count> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1237,6 +1272,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         self.setupAndSerialize(
             codec: SseCodec(
           decodeSuccessData: sse_decode_count,
+          decodeErrorData: sse_decode_AnyhowException,
+        )),
+        serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_state_update_Sse(
+      RustStreamSink<StateUpdate> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+        self.setupAndSerialize(
+            codec: SseCodec(
+          decodeSuccessData: sse_decode_state_update,
           decodeErrorData: sse_decode_AnyhowException,
         )),
         serializer);
@@ -1289,6 +1337,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_batch(Batch self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_batch(self, serializer);
   }
 
   @protected
@@ -1463,6 +1517,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.trackerId, serializer);
     sse_encode_String(self.predictedCategory, serializer);
     sse_encode_String(self.batchId, serializer);
+  }
+
+  @protected
+  void sse_encode_state_update(StateUpdate self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case StateUpdate_BatchFetch(batch: final batch):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_batch(batch, serializer);
+      case StateUpdate_BatchGlobalState(
+          batchGlobalState: final batchGlobalState
+        ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_batch_global_state(batchGlobalState, serializer);
+    }
   }
 
   @protected

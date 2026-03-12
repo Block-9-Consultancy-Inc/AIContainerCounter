@@ -1,4 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
@@ -53,8 +54,10 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
               StreamBuilder(
                   stream: context
                       .read<GlobalState>()
-                      .batchGlobalStateEventStream
-                      .stream,
+                      .stateUpdateEventStream
+                      .stream
+                      .where((e) => e is StateUpdate_BatchGlobalState)
+                      .map((e) => e as StateUpdate_BatchGlobalState),
                   builder: (context, snapshot) {
                     return Row(
                       children: [
@@ -62,7 +65,7 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AutoSizeText(
-                              '${snapshot.data?.todaySummary.count.count.toInt() ?? 0}',
+                              '${snapshot.data?.batchGlobalState.todaySummary.count.count.toInt() ?? 0}',
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 100,
@@ -73,12 +76,12 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                                     .withAlpha((0.7 * 255).toInt()),
                               ),
                             ),
-                            if (snapshot
-                                    .data?.todaySummary.count.countAccuracy !=
+                            if (snapshot.data?.batchGlobalState.todaySummary
+                                    .count.countAccuracy !=
                                 null) ...[
                               const SizedBox(height: 30),
                               AutoSizeText(
-                                '${snapshot.data!.todaySummary.count.countAccuracy!.toStringAsFixed(2)}%',
+                                '${snapshot.data!.batchGlobalState.todaySummary.count.countAccuracy!.toStringAsFixed(2)}%',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w500,
                                   fontSize: 50,
@@ -94,7 +97,8 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                         ),
                         const SizedBox(width: 75),
                         CategoryCountDisplayer(
-                          count: snapshot.data?.todaySummary.count,
+                          count: snapshot
+                              .data?.batchGlobalState.todaySummary.count,
                           scale: 0.75,
                           endPadding: 300,
                         ),

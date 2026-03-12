@@ -53,11 +53,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
 
   @protected
-  RustStreamSink<BatchGlobalState> dco_decode_StreamSink_batch_global_state_Sse(
-      dynamic raw);
+  RustStreamSink<Count> dco_decode_StreamSink_count_Sse(dynamic raw);
 
   @protected
-  RustStreamSink<Count> dco_decode_StreamSink_count_Sse(dynamic raw);
+  RustStreamSink<StateUpdate> dco_decode_StreamSink_state_update_Sse(
+      dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -73,6 +73,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  Batch dco_decode_box_autoadd_batch(dynamic raw);
 
   @protected
   BatchGlobalState dco_decode_box_autoadd_batch_global_state(dynamic raw);
@@ -130,6 +133,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SingleContainerImage dco_decode_single_container_image(dynamic raw);
 
   @protected
+  StateUpdate dco_decode_state_update(dynamic raw);
+
+  @protected
   TodaySummary dco_decode_today_summary(dynamic raw);
 
   @protected
@@ -173,11 +179,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
-  RustStreamSink<BatchGlobalState> sse_decode_StreamSink_batch_global_state_Sse(
+  RustStreamSink<Count> sse_decode_StreamSink_count_Sse(
       SseDeserializer deserializer);
 
   @protected
-  RustStreamSink<Count> sse_decode_StreamSink_count_Sse(
+  RustStreamSink<StateUpdate> sse_decode_StreamSink_state_update_Sse(
       SseDeserializer deserializer);
 
   @protected
@@ -194,6 +200,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  Batch sse_decode_box_autoadd_batch(SseDeserializer deserializer);
 
   @protected
   BatchGlobalState sse_decode_box_autoadd_batch_global_state(
@@ -256,6 +265,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  StateUpdate sse_decode_state_update(SseDeserializer deserializer);
+
+  @protected
   TodaySummary sse_decode_today_summary(SseDeserializer deserializer);
 
   @protected
@@ -304,12 +316,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       RustStreamSink<String> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_StreamSink_batch_global_state_Sse(
-      RustStreamSink<BatchGlobalState> self, SseSerializer serializer);
-
-  @protected
   void sse_encode_StreamSink_count_Sse(
       RustStreamSink<Count> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_StreamSink_state_update_Sse(
+      RustStreamSink<StateUpdate> self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -326,6 +338,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_batch(Batch self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_batch_global_state(
@@ -388,6 +403,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_single_container_image(
       SingleContainerImage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_state_update(StateUpdate self, SseSerializer serializer);
 
   @protected
   void sse_encode_today_summary(TodaySummary self, SseSerializer serializer);

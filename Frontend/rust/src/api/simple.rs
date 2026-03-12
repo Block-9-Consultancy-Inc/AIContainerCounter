@@ -1,6 +1,5 @@
 use crate::{
-    frb_generated::StreamSink,
-    utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba},
+    frb_generated::StreamSink, models::count::StateUpdate, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use flutter_rust_bridge::frb;
@@ -26,7 +25,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref GLOBAL_STATE_STREAM_SINK: RwLock<Option<StreamSink<BatchGlobalState>>> =
+    static ref STATE_UPDATE_STREAM_SINK: RwLock<Option<StreamSink<StateUpdate>>> =
         RwLock::new(None);
 }
 
@@ -60,8 +59,8 @@ pub fn set_event_stream_sink(stream_sink: StreamSink<String>) {
     }
 }
 
-pub fn set_json_response_stream_sink(stream_sink: StreamSink<BatchGlobalState>) {
-    let mut guard = GLOBAL_STATE_STREAM_SINK.write();
+pub fn set_json_response_stream_sink(stream_sink: StreamSink<StateUpdate>) {
+    let mut guard = STATE_UPDATE_STREAM_SINK.write();
     let overriding = guard.is_some();
 
     *guard = Some(stream_sink);
@@ -216,13 +215,15 @@ impl Socket {
                     return;
                 }
 
-                if let Some(sink) = &*GLOBAL_STATE_STREAM_SINK.read() {
-                    let mut new_batch_global_state = BatchGlobalState::new(payload_json.unwrap());
+                if let Some(sink) = &*STATE_UPDATE_STREAM_SINK.read() {
+                    let mut new_batch_global_state: BatchGlobalState = BatchGlobalState::new(payload_json.unwrap());
                     let prev_batch_global_state = PREVIOUS_BATCH_GLOBAL_STATE.read();
                     if prev_batch_global_state.is_some() {
                         new_batch_global_state.merge((*prev_batch_global_state).as_ref().unwrap());
                     }
-                    let _ = sink.add(new_batch_global_state.clone());
+                    let _ = sink.add(StateUpdate::BatchGlobalState{
+                        batch_global_state: new_batch_global_state.clone()
+                    });
                     drop(prev_batch_global_state);
                     set_prev_batch_global_state(new_batch_global_state);
                 }

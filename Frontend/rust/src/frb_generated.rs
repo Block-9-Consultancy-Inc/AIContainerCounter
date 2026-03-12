@@ -437,7 +437,7 @@ fn wire__crate__api__simple__set_json_response_stream_sink_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_stream_sink = <StreamSink<
-                crate::models::count::BatchGlobalState,
+                crate::models::count::StateUpdate,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -555,10 +555,7 @@ impl SseDecode for StreamSink<String, flutter_rust_bridge::for_generated::SseCod
 }
 
 impl SseDecode
-    for StreamSink<
-        crate::models::count::BatchGlobalState,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
+    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -568,7 +565,7 @@ impl SseDecode
 }
 
 impl SseDecode
-    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<crate::models::count::StateUpdate, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -885,6 +882,29 @@ impl SseDecode for crate::models::multi_container_image::SingleContainerImage {
     }
 }
 
+impl SseDecode for crate::models::count::StateUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_batch = <crate::models::count::Batch>::sse_decode(deserializer);
+                return crate::models::count::StateUpdate::BatchFetch { batch: var_batch };
+            }
+            1 => {
+                let mut var_batchGlobalState =
+                    <crate::models::count::BatchGlobalState>::sse_decode(deserializer);
+                return crate::models::count::StateUpdate::BatchGlobalState {
+                    batch_global_state: var_batchGlobalState,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::models::count::TodaySummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1177,6 +1197,35 @@ impl flutter_rust_bridge::IntoIntoDart<crate::models::multi_container_image::Sin
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::models::count::StateUpdate {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::models::count::StateUpdate::BatchFetch { batch } => {
+                [0.into_dart(), batch.into_into_dart().into_dart()].into_dart()
+            }
+            crate::models::count::StateUpdate::BatchGlobalState { batch_global_state } => [
+                1.into_dart(),
+                batch_global_state.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::models::count::StateUpdate
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::models::count::StateUpdate>
+    for crate::models::count::StateUpdate
+{
+    fn into_into_dart(self) -> crate::models::count::StateUpdate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::models::count::TodaySummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1246,10 +1295,7 @@ impl SseEncode for StreamSink<String, flutter_rust_bridge::for_generated::SseCod
 }
 
 impl SseEncode
-    for StreamSink<
-        crate::models::count::BatchGlobalState,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
+    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1258,7 +1304,7 @@ impl SseEncode
 }
 
 impl SseEncode
-    for StreamSink<crate::models::count::Count, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<crate::models::count::StateUpdate, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1486,6 +1532,28 @@ impl SseEncode for crate::models::multi_container_image::SingleContainerImage {
         <i64>::sse_encode(self.tracker_id, serializer);
         <String>::sse_encode(self.predicted_category, serializer);
         <String>::sse_encode(self.batch_id, serializer);
+    }
+}
+
+impl SseEncode for crate::models::count::StateUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::models::count::StateUpdate::BatchFetch { batch } => {
+                <i32>::sse_encode(0, serializer);
+                <crate::models::count::Batch>::sse_encode(batch, serializer);
+            }
+            crate::models::count::StateUpdate::BatchGlobalState { batch_global_state } => {
+                <i32>::sse_encode(1, serializer);
+                <crate::models::count::BatchGlobalState>::sse_encode(
+                    batch_global_state,
+                    serializer,
+                );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

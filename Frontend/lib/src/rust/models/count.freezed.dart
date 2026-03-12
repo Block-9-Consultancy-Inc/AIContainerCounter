@@ -1,0 +1,164 @@
+// dart format width=80
+// coverage:ignore-file
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
+
+part of 'count.dart';
+
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
+// dart format off
+T _$identity<T>(T value) => value;
+
+/// @nodoc
+mixin _$StateUpdate {
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is StateUpdate);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate()';
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_BatchFetch extends StateUpdate {
+  const StateUpdate_BatchFetch({required this.batch}) : super._();
+
+  final Batch batch;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_BatchFetchCopyWith<StateUpdate_BatchFetch> get copyWith =>
+      _$StateUpdate_BatchFetchCopyWithImpl<StateUpdate_BatchFetch>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_BatchFetch &&
+            (identical(other.batch, batch) || other.batch == batch));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, batch);
+
+  @override
+  String toString() {
+    return 'StateUpdate.batchFetch(batch: $batch)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_BatchFetchCopyWith<$Res> {
+  factory $StateUpdate_BatchFetchCopyWith(StateUpdate_BatchFetch value,
+          $Res Function(StateUpdate_BatchFetch) _then) =
+      _$StateUpdate_BatchFetchCopyWithImpl;
+  @useResult
+  $Res call({Batch batch});
+}
+
+/// @nodoc
+class _$StateUpdate_BatchFetchCopyWithImpl<$Res>
+    implements $StateUpdate_BatchFetchCopyWith<$Res> {
+  _$StateUpdate_BatchFetchCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_BatchFetch _self;
+  final $Res Function(StateUpdate_BatchFetch) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? batch = null,
+  }) {
+    return _then(StateUpdate_BatchFetch(
+      batch: null == batch
+          ? _self.batch
+          : batch // ignore: cast_nullable_to_non_nullable
+              as Batch,
+    ));
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_BatchGlobalState extends StateUpdate {
+  const StateUpdate_BatchGlobalState({required this.batchGlobalState})
+      : super._();
+
+  final BatchGlobalState batchGlobalState;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_BatchGlobalStateCopyWith<StateUpdate_BatchGlobalState>
+      get copyWith => _$StateUpdate_BatchGlobalStateCopyWithImpl<
+          StateUpdate_BatchGlobalState>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_BatchGlobalState &&
+            (identical(other.batchGlobalState, batchGlobalState) ||
+                other.batchGlobalState == batchGlobalState));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, batchGlobalState);
+
+  @override
+  String toString() {
+    return 'StateUpdate.batchGlobalState(batchGlobalState: $batchGlobalState)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_BatchGlobalStateCopyWith<$Res> {
+  factory $StateUpdate_BatchGlobalStateCopyWith(
+          StateUpdate_BatchGlobalState value,
+          $Res Function(StateUpdate_BatchGlobalState) _then) =
+      _$StateUpdate_BatchGlobalStateCopyWithImpl;
+  @useResult
+  $Res call({BatchGlobalState batchGlobalState});
+}
+
+/// @nodoc
+class _$StateUpdate_BatchGlobalStateCopyWithImpl<$Res>
+    implements $StateUpdate_BatchGlobalStateCopyWith<$Res> {
+  _$StateUpdate_BatchGlobalStateCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_BatchGlobalState _self;
+  final $Res Function(StateUpdate_BatchGlobalState) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? batchGlobalState = null,
+  }) {
+    return _then(StateUpdate_BatchGlobalState(
+      batchGlobalState: null == batchGlobalState
+          ? _self.batchGlobalState
+          : batchGlobalState // ignore: cast_nullable_to_non_nullable
+              as BatchGlobalState,
+    ));
+  }
+}
+
+// dart format on

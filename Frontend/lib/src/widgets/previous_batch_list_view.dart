@@ -1,4 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:ai_container_counter/src/utils/datetime_utils.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -11,8 +12,15 @@ class PreviousBatchListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: context.read<GlobalState>().batchGlobalStateEventStream.stream,
-      builder: (context, snapshot) => (snapshot.data?.batches.isEmpty ?? true)
+      stream: context
+          .read<GlobalState>()
+          .stateUpdateEventStream
+          .stream
+          .where((e) => e is StateUpdate_BatchGlobalState)
+          .map((e) => e as StateUpdate_BatchGlobalState),
+      builder: (context, snapshot) => (snapshot
+                  .data?.batchGlobalState.batches.isEmpty ??
+              true)
           ? Center(
               child: Text(
                 'No previous batches today',
@@ -24,12 +32,14 @@ class PreviousBatchListView extends StatelessWidget {
               ),
             )
           : ListView.builder(
-              itemCount: snapshot.data!.batches.length,
+              itemCount: snapshot.data!.batchGlobalState.batches.length,
               itemBuilder: (context, index) {
                 return ListTile(
                   onTap: () {
-                    final selectedBatch = snapshot.data!.batches[index];
-                    final actualIndex = snapshot.data!.batches.length - index;
+                    final selectedBatch =
+                        snapshot.data!.batchGlobalState.batches[index];
+                    final actualIndex =
+                        snapshot.data!.batchGlobalState.batches.length - index;
                     final batchDuration = selectedBatch.timeSubmitted
                         .difference(selectedBatch.timeStarted);
                     showDialog(
@@ -140,7 +150,7 @@ class PreviousBatchListView extends StatelessWidget {
                     );
                   },
                   title: Text(
-                    'Batch ${snapshot.data!.batches.length - index}: ${snapshot.data!.batches[index].count.count}',
+                    'Batch ${snapshot.data!.batchGlobalState.batches.length - index}: ${snapshot.data!.batchGlobalState.batches[index].count.count}',
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
@@ -150,7 +160,8 @@ class PreviousBatchListView extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    snapshot.data!.batches[index].timeSubmitted.timeAgo(),
+                    snapshot.data!.batchGlobalState.batches[index].timeSubmitted
+                        .timeAgo(),
                     style: TextStyle(
                       fontSize: 30,
                       color: Theme.of(context).colorScheme.inversePrimary,

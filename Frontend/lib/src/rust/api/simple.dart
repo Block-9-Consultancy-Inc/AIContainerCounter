@@ -8,7 +8,7 @@ import '../models/count.dart';
 import '../models/multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`, `GLOBAL_STATE_STREAM_SINK`, `PREVIOUS_BATCH_GLOBAL_STATE`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`, `PREVIOUS_BATCH_GLOBAL_STATE`, `STATE_UPDATE_STREAM_SINK`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `deref`, `deref`, `deref`, `deref`, `deref`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`
 
 Future<void> setPrevBatchGlobalState(
@@ -19,7 +19,7 @@ Future<void> setPrevBatchGlobalState(
 Stream<String> setEventStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetEventStreamSink();
 
-Stream<BatchGlobalState> setJsonResponseStreamSink() =>
+Stream<StateUpdate> setJsonResponseStreamSink() =>
     RustLib.instance.api.crateApiSimpleSetJsonResponseStreamSink();
 
 Stream<Count> setDetectionEventStreamSink() =>

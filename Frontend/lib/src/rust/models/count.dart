@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class Batch {
@@ -14,6 +15,8 @@ class Batch {
   final Count count;
   final String yoloModel;
   final String categoryModel;
+  final List<MultiContainerImage> multiContainerImages;
+  final List<SingleContainerImage> singleContainerImages;
 
   const Batch({
     required this.id,
@@ -23,6 +26,8 @@ class Batch {
     required this.count,
     required this.yoloModel,
     required this.categoryModel,
+    required this.multiContainerImages,
+    required this.singleContainerImages,
   });
 
   @override
@@ -33,7 +38,9 @@ class Batch {
       timeSubmitted.hashCode ^
       count.hashCode ^
       yoloModel.hashCode ^
-      categoryModel.hashCode;
+      categoryModel.hashCode ^
+      multiContainerImages.hashCode ^
+      singleContainerImages.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -46,7 +53,9 @@ class Batch {
           timeSubmitted == other.timeSubmitted &&
           count == other.count &&
           yoloModel == other.yoloModel &&
-          categoryModel == other.categoryModel;
+          categoryModel == other.categoryModel &&
+          multiContainerImages == other.multiContainerImages &&
+          singleContainerImages == other.singleContainerImages;
 }
 
 class BatchGlobalState {

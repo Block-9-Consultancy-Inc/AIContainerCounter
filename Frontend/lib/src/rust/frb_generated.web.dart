@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
 import 'models/count.dart';
+import 'models/multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -62,6 +63,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  BBox dco_decode_b_box(dynamic raw);
+
+  @protected
   Batch dco_decode_batch(dynamic raw);
 
   @protected
@@ -89,13 +93,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  List<BBox> dco_decode_list_b_box(dynamic raw);
+
+  @protected
   List<Batch> dco_decode_list_batch(dynamic raw);
+
+  @protected
+  List<MultiContainerImage> dco_decode_list_multi_container_image(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   List<(String, BigInt)> dco_decode_list_record_string_u_64(dynamic raw);
+
+  @protected
+  List<SingleContainerImage> dco_decode_list_single_container_image(
+      dynamic raw);
+
+  @protected
+  MultiContainerImage dco_decode_multi_container_image(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -108,6 +125,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, BigInt) dco_decode_record_string_u_64(dynamic raw);
+
+  @protected
+  SingleContainerImage dco_decode_single_container_image(dynamic raw);
 
   @protected
   TodaySummary dco_decode_today_summary(dynamic raw);
@@ -164,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  BBox sse_decode_b_box(SseDeserializer deserializer);
+
+  @protected
   Batch sse_decode_batch(SseDeserializer deserializer);
 
   @protected
@@ -192,13 +215,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  List<BBox> sse_decode_list_b_box(SseDeserializer deserializer);
+
+  @protected
   List<Batch> sse_decode_list_batch(SseDeserializer deserializer);
+
+  @protected
+  List<MultiContainerImage> sse_decode_list_multi_container_image(
+      SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   List<(String, BigInt)> sse_decode_list_record_string_u_64(
+      SseDeserializer deserializer);
+
+  @protected
+  List<SingleContainerImage> sse_decode_list_single_container_image(
+      SseDeserializer deserializer);
+
+  @protected
+  MultiContainerImage sse_decode_multi_container_image(
       SseDeserializer deserializer);
 
   @protected
@@ -212,6 +250,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, BigInt) sse_decode_record_string_u_64(SseDeserializer deserializer);
+
+  @protected
+  SingleContainerImage sse_decode_single_container_image(
+      SseDeserializer deserializer);
 
   @protected
   TodaySummary sse_decode_today_summary(SseDeserializer deserializer);
@@ -273,6 +315,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_b_box(BBox self, SseSerializer serializer);
+
+  @protected
   void sse_encode_batch(Batch self, SseSerializer serializer);
 
   @protected
@@ -302,7 +347,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_b_box(List<BBox> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_batch(List<Batch> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_multi_container_image(
+      List<MultiContainerImage> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -311,6 +363,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_record_string_u_64(
       List<(String, BigInt)> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_single_container_image(
+      List<SingleContainerImage> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_multi_container_image(
+      MultiContainerImage self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
@@ -324,6 +384,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_u_64(
       (String, BigInt) self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_single_container_image(
+      SingleContainerImage self, SseSerializer serializer);
 
   @protected
   void sse_encode_today_summary(TodaySummary self, SseSerializer serializer);

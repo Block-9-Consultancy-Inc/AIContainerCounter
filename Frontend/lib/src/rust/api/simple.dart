@@ -5,6 +5,7 @@
 
 import '../frb_generated.dart';
 import '../models/count.dart';
+import '../models/multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CURRENT_FLUTTER_TEXTURE`, `DETECTION_EVENT_STREAM_SINK`, `EVENT_STREAM_SINK`, `GLOBAL_STATE_STREAM_SINK`, `PREVIOUS_BATCH_GLOBAL_STATE`

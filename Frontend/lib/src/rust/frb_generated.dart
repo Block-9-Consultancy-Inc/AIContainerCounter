@@ -10,6 +10,7 @@ import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
 import 'models/count.dart';
+import 'models/multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -488,11 +489,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Batch dco_decode_batch(dynamic raw) {
+  BBox dco_decode_b_box(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 7)
       throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return BBox(
+      id: dco_decode_String(arr[0]),
+      x1: dco_decode_i_64(arr[1]),
+      y1: dco_decode_i_64(arr[2]),
+      x2: dco_decode_i_64(arr[3]),
+      y2: dco_decode_i_64(arr[4]),
+      trackerId: dco_decode_i_64(arr[5]),
+      imageId: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
+  Batch dco_decode_batch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return Batch(
       id: dco_decode_String(arr[0]),
       areaCollected: dco_decode_opt_String(arr[1]),
@@ -501,6 +519,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       count: dco_decode_count(arr[4]),
       yoloModel: dco_decode_String(arr[5]),
       categoryModel: dco_decode_String(arr[6]),
+      multiContainerImages: dco_decode_list_multi_container_image(arr[7]),
+      singleContainerImages: dco_decode_list_single_container_image(arr[8]),
     );
   }
 
@@ -582,9 +602,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BBox> dco_decode_list_b_box(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_b_box).toList();
+  }
+
+  @protected
   List<Batch> dco_decode_list_batch(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_batch).toList();
+  }
+
+  @protected
+  List<MultiContainerImage> dco_decode_list_multi_container_image(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_multi_container_image)
+        .toList();
   }
 
   @protected
@@ -597,6 +631,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<(String, BigInt)> dco_decode_list_record_string_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_record_string_u_64).toList();
+  }
+
+  @protected
+  List<SingleContainerImage> dco_decode_list_single_container_image(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_single_container_image)
+        .toList();
+  }
+
+  @protected
+  MultiContainerImage dco_decode_multi_container_image(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return MultiContainerImage(
+      id: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      width: dco_decode_i_64(arr[2]),
+      index: dco_decode_i_64(arr[3]),
+      timeCollected: dco_decode_Chrono_Local(arr[4]),
+      batchId: dco_decode_String(arr[5]),
+      bboxes: dco_decode_list_b_box(arr[6]),
+    );
   }
 
   @protected
@@ -627,6 +687,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (
       dco_decode_String(arr[0]),
       dco_decode_u_64(arr[1]),
+    );
+  }
+
+  @protected
+  SingleContainerImage dco_decode_single_container_image(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SingleContainerImage(
+      id: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      width: dco_decode_i_64(arr[2]),
+      timeCollected: dco_decode_Chrono_Local(arr[3]),
+      trackerId: dco_decode_i_64(arr[4]),
+      predictedCategory: dco_decode_String(arr[5]),
+      batchId: dco_decode_String(arr[6]),
     );
   }
 
@@ -744,6 +821,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BBox sse_decode_b_box(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_x1 = sse_decode_i_64(deserializer);
+    var var_y1 = sse_decode_i_64(deserializer);
+    var var_x2 = sse_decode_i_64(deserializer);
+    var var_y2 = sse_decode_i_64(deserializer);
+    var var_trackerId = sse_decode_i_64(deserializer);
+    var var_imageId = sse_decode_String(deserializer);
+    return BBox(
+        id: var_id,
+        x1: var_x1,
+        y1: var_y1,
+        x2: var_x2,
+        y2: var_y2,
+        trackerId: var_trackerId,
+        imageId: var_imageId);
+  }
+
+  @protected
   Batch sse_decode_batch(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -753,6 +850,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_count = sse_decode_count(deserializer);
     var var_yoloModel = sse_decode_String(deserializer);
     var var_categoryModel = sse_decode_String(deserializer);
+    var var_multiContainerImages =
+        sse_decode_list_multi_container_image(deserializer);
+    var var_singleContainerImages =
+        sse_decode_list_single_container_image(deserializer);
     return Batch(
         id: var_id,
         areaCollected: var_areaCollected,
@@ -760,7 +861,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         timeSubmitted: var_timeSubmitted,
         count: var_count,
         yoloModel: var_yoloModel,
-        categoryModel: var_categoryModel);
+        categoryModel: var_categoryModel,
+        multiContainerImages: var_multiContainerImages,
+        singleContainerImages: var_singleContainerImages);
   }
 
   @protected
@@ -858,6 +961,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BBox> sse_decode_list_b_box(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BBox>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_b_box(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<Batch> sse_decode_list_batch(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -865,6 +980,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <Batch>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_batch(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<MultiContainerImage> sse_decode_list_multi_container_image(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MultiContainerImage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_multi_container_image(deserializer));
     }
     return ans_;
   }
@@ -887,6 +1015,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_record_string_u_64(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  List<SingleContainerImage> sse_decode_list_single_container_image(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SingleContainerImage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_single_container_image(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  MultiContainerImage sse_decode_multi_container_image(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_width = sse_decode_i_64(deserializer);
+    var var_index = sse_decode_i_64(deserializer);
+    var var_timeCollected = sse_decode_Chrono_Local(deserializer);
+    var var_batchId = sse_decode_String(deserializer);
+    var var_bboxes = sse_decode_list_b_box(deserializer);
+    return MultiContainerImage(
+        id: var_id,
+        height: var_height,
+        width: var_width,
+        index: var_index,
+        timeCollected: var_timeCollected,
+        batchId: var_batchId,
+        bboxes: var_bboxes);
   }
 
   @protected
@@ -928,6 +1090,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_field0 = sse_decode_String(deserializer);
     var var_field1 = sse_decode_u_64(deserializer);
     return (var_field0, var_field1);
+  }
+
+  @protected
+  SingleContainerImage sse_decode_single_container_image(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_width = sse_decode_i_64(deserializer);
+    var var_timeCollected = sse_decode_Chrono_Local(deserializer);
+    var var_trackerId = sse_decode_i_64(deserializer);
+    var var_predictedCategory = sse_decode_String(deserializer);
+    var var_batchId = sse_decode_String(deserializer);
+    return SingleContainerImage(
+        id: var_id,
+        height: var_height,
+        width: var_width,
+        timeCollected: var_timeCollected,
+        trackerId: var_trackerId,
+        predictedCategory: var_predictedCategory,
+        batchId: var_batchId);
   }
 
   @protected
@@ -1066,6 +1249,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_b_box(BBox self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_i_64(self.x1, serializer);
+    sse_encode_i_64(self.y1, serializer);
+    sse_encode_i_64(self.x2, serializer);
+    sse_encode_i_64(self.y2, serializer);
+    sse_encode_i_64(self.trackerId, serializer);
+    sse_encode_String(self.imageId, serializer);
+  }
+
+  @protected
   void sse_encode_batch(Batch self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -1075,6 +1270,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_count(self.count, serializer);
     sse_encode_String(self.yoloModel, serializer);
     sse_encode_String(self.categoryModel, serializer);
+    sse_encode_list_multi_container_image(
+        self.multiContainerImages, serializer);
+    sse_encode_list_single_container_image(
+        self.singleContainerImages, serializer);
   }
 
   @protected
@@ -1147,11 +1346,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_b_box(List<BBox> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_b_box(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_batch(List<Batch> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_batch(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_multi_container_image(
+      List<MultiContainerImage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_multi_container_image(item, serializer);
     }
   }
 
@@ -1171,6 +1389,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_record_string_u_64(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_single_container_image(
+      List<SingleContainerImage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_single_container_image(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_multi_container_image(
+      MultiContainerImage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_i_64(self.width, serializer);
+    sse_encode_i_64(self.index, serializer);
+    sse_encode_Chrono_Local(self.timeCollected, serializer);
+    sse_encode_String(self.batchId, serializer);
+    sse_encode_list_b_box(self.bboxes, serializer);
   }
 
   @protected
@@ -1209,6 +1450,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.$1, serializer);
     sse_encode_u_64(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_single_container_image(
+      SingleContainerImage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_i_64(self.width, serializer);
+    sse_encode_Chrono_Local(self.timeCollected, serializer);
+    sse_encode_i_64(self.trackerId, serializer);
+    sse_encode_String(self.predictedCategory, serializer);
+    sse_encode_String(self.batchId, serializer);
   }
 
   @protected

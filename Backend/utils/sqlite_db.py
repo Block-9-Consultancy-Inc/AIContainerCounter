@@ -104,6 +104,7 @@ class SingleContainerImage(BaseModel):
     width = IntegerField()
     time_collected = DateTimeField()
     predicted_category = TextField()
+    tracker_id = IntegerField()
     batch_id = ForeignKeyField(Batch, backref='singleContainerImages')
 
 all_tables = [
@@ -257,6 +258,7 @@ def save_state(data_to_save: DataToSave):
                 predicted_category=e.detected_class,
                 height=e.frame_shape[0],
                 width=e.frame_shape[1],
+                tracker_id=e.tracker_id,
                 batch_id=e.batch_id
             ), data_to_save.single_container_images))
 

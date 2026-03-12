@@ -56,13 +56,17 @@ class MainScreen extends StatelessWidget {
               final canController = TextEditingController(
                   text: globalState.expectedCount?.expectedCanCount.toString());
               final plasticController = TextEditingController(
-                  text: globalState.expectedCount?.expectedPlasticCount.toString());
+                  text: globalState.expectedCount?.expectedPlasticCount
+                      .toString());
               final gabletopController = TextEditingController(
-                  text: globalState.expectedCount?.expectedGabletopCount.toString());
+                  text: globalState.expectedCount?.expectedGabletopCount
+                      .toString());
               final drinkboxController = TextEditingController(
-                  text: globalState.expectedCount?.expectedDrinkboxCount.toString());
+                  text: globalState.expectedCount?.expectedDrinkboxCount
+                      .toString());
               final pouchController = TextEditingController(
-                  text: globalState.expectedCount?.expectedPouchCount.toString());
+                  text:
+                      globalState.expectedCount?.expectedPouchCount.toString());
 
               int getNewTotal() {
                 final can = int.tryParse(canController.text) ?? 0;
@@ -96,7 +100,7 @@ class MainScreen extends StatelessWidget {
                             foregroundColor:
                                 const WidgetStatePropertyAll(Colors.white),
                             overlayColor: WidgetStatePropertyAll(
-                                Colors.red.withOpacity(0.3)),
+                                Colors.red.withAlpha((0.3 * 255).toInt())),
                           ),
                           onPressed: () {
                             Navigator.of(builderContext).pop(true);

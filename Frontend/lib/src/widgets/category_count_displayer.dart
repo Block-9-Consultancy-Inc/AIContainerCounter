@@ -28,8 +28,10 @@ class CategoryCountDisplayer extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((0.8 * 255).toInt()),
                   ),
                 ),
               ),
@@ -40,8 +42,10 @@ class CategoryCountDisplayer extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((0.8 * 255).toInt()),
                   ),
                 ),
               ),
@@ -52,8 +56,10 @@ class CategoryCountDisplayer extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((0.8 * 255).toInt()),
                   ),
                 ),
               ),
@@ -71,8 +77,10 @@ class CategoryCountDisplayer extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((0.8 * 255).toInt()),
                   ),
                 ),
               ),
@@ -83,8 +91,10 @@ class CategoryCountDisplayer extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20 * scale,
                     height: 0.75 * scale,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((0.8 * 255).toInt()),
                   ),
                 ),
               ),

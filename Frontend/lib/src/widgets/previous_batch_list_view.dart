@@ -79,7 +79,7 @@ class PreviousBatchListView extends StatelessWidget {
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .primary
-                                                .withOpacity(0.7),
+                                                .withAlpha((0.7 * 255).toInt()),
                                           ),
                                         ),
                                         if (selectedBatch.count.countAccuracy !=
@@ -94,7 +94,8 @@ class PreviousBatchListView extends StatelessWidget {
                                               color: Theme.of(context)
                                                   .colorScheme
                                                   .primary
-                                                  .withOpacity(0.8),
+                                                  .withAlpha(
+                                                      (0.8 * 255).toInt()),
                                             ),
                                           ),
                                         ],
@@ -144,7 +145,7 @@ class PreviousBatchListView extends StatelessWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.7),
+                          .withAlpha((0.7 * 255).toInt()),
                       fontSize: 40,
                     ),
                   ),

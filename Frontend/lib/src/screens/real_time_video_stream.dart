@@ -10,7 +10,7 @@ class RealTimeVideoStream extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.black.withOpacity(0.0),
+        backgroundColor: Colors.black.withAlpha(0),
         title: Row(
           children: [
             IconButton(

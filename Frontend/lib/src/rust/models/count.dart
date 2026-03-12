@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'count.freezed.dart';
 
 class Batch {
   final String id;
@@ -168,6 +170,18 @@ class Count {
           drinkboxAccuracy == other.drinkboxAccuracy &&
           gabletopAccuracy == other.gabletopAccuracy &&
           pouchAccuracy == other.pouchAccuracy;
+}
+
+@freezed
+sealed class StateUpdate with _$StateUpdate {
+  const StateUpdate._();
+
+  const factory StateUpdate.batchFetch({
+    required Batch batch,
+  }) = StateUpdate_BatchFetch;
+  const factory StateUpdate.batchGlobalState({
+    required BatchGlobalState batchGlobalState,
+  }) = StateUpdate_BatchGlobalState;
 }
 
 class TodaySummary {

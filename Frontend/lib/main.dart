@@ -14,7 +14,7 @@ Future<void> main() async {
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());
-  final jsonResponseEventStream =
+  final stateUpdateEventStream =
       LastEventCachedStream(setJsonResponseStreamSink());
   WidgetsFlutterBinding.ensureInitialized();
   WindowManager.instance.ensureInitialized();
@@ -24,7 +24,7 @@ Future<void> main() async {
       create: (context) => GlobalState(
             detectionEventStream: detectionEventStream,
             eventStream: eventStream,
-            batchGlobalStateEventStream: jsonResponseEventStream,
+            stateUpdateEventStream: stateUpdateEventStream,
           ),
       child: const AIContainerCounterApp()));
 }

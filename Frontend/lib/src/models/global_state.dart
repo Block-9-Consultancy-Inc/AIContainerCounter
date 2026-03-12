@@ -8,7 +8,7 @@ import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
 class GlobalState extends ChangeNotifier {
   final LastEventCachedStream<Count> detectionEventStream;
   final LastEventCachedStream<String> eventStream;
-  final LastEventCachedStream<BatchGlobalState> batchGlobalStateEventStream;
+  final LastEventCachedStream<StateUpdate> stateUpdateEventStream;
   Socket? socket;
   int? textureId;
 
@@ -33,7 +33,7 @@ class GlobalState extends ChangeNotifier {
   GlobalState({
     required this.detectionEventStream,
     required this.eventStream,
-    required this.batchGlobalStateEventStream,
+    required this.stateUpdateEventStream,
   }) {
     _initializeTextureAndSocket();
   }

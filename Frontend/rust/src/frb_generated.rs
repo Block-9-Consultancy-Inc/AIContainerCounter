@@ -591,7 +591,6 @@ impl SseDecode for crate::models::multi_container_image::BBox {
         let mut var_x2 = <i64>::sse_decode(deserializer);
         let mut var_y2 = <i64>::sse_decode(deserializer);
         let mut var_trackerId = <i64>::sse_decode(deserializer);
-        let mut var_imageId = <String>::sse_decode(deserializer);
         return crate::models::multi_container_image::BBox {
             id: var_id,
             x1: var_x1,
@@ -599,7 +598,6 @@ impl SseDecode for crate::models::multi_container_image::BBox {
             x2: var_x2,
             y2: var_y2,
             tracker_id: var_trackerId,
-            image_id: var_imageId,
         };
     }
 }
@@ -803,7 +801,6 @@ impl SseDecode for crate::models::multi_container_image::MultiContainerImage {
         let mut var_width = <i64>::sse_decode(deserializer);
         let mut var_index = <i64>::sse_decode(deserializer);
         let mut var_timeCollected = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
-        let mut var_batchId = <String>::sse_decode(deserializer);
         let mut var_bboxes =
             <Vec<crate::models::multi_container_image::BBox>>::sse_decode(deserializer);
         return crate::models::multi_container_image::MultiContainerImage {
@@ -812,7 +809,6 @@ impl SseDecode for crate::models::multi_container_image::MultiContainerImage {
             width: var_width,
             index: var_index,
             time_collected: var_timeCollected,
-            batch_id: var_batchId,
             bboxes: var_bboxes,
         };
     }
@@ -869,7 +865,6 @@ impl SseDecode for crate::models::multi_container_image::SingleContainerImage {
         let mut var_timeCollected = <chrono::DateTime<chrono::Local>>::sse_decode(deserializer);
         let mut var_trackerId = <i64>::sse_decode(deserializer);
         let mut var_predictedCategory = <String>::sse_decode(deserializer);
-        let mut var_batchId = <String>::sse_decode(deserializer);
         return crate::models::multi_container_image::SingleContainerImage {
             id: var_id,
             height: var_height,
@@ -877,7 +872,6 @@ impl SseDecode for crate::models::multi_container_image::SingleContainerImage {
             time_collected: var_timeCollected,
             tracker_id: var_trackerId,
             predicted_category: var_predictedCategory,
-            batch_id: var_batchId,
         };
     }
 }
@@ -1047,7 +1041,6 @@ impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::BBo
             self.x2.into_into_dart().into_dart(),
             self.y2.into_into_dart().into_dart(),
             self.tracker_id.into_into_dart().into_dart(),
-            self.image_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1153,7 +1146,6 @@ impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::Mul
             self.width.into_into_dart().into_dart(),
             self.index.into_into_dart().into_dart(),
             self.time_collected.into_into_dart().into_dart(),
-            self.batch_id.into_into_dart().into_dart(),
             self.bboxes.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -1180,7 +1172,6 @@ impl flutter_rust_bridge::IntoDart for crate::models::multi_container_image::Sin
             self.time_collected.into_into_dart().into_dart(),
             self.tracker_id.into_into_dart().into_dart(),
             self.predicted_category.into_into_dart().into_dart(),
-            self.batch_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1328,7 +1319,6 @@ impl SseEncode for crate::models::multi_container_image::BBox {
         <i64>::sse_encode(self.x2, serializer);
         <i64>::sse_encode(self.y2, serializer);
         <i64>::sse_encode(self.tracker_id, serializer);
-        <String>::sse_encode(self.image_id, serializer);
     }
 }
 
@@ -1479,7 +1469,6 @@ impl SseEncode for crate::models::multi_container_image::MultiContainerImage {
         <i64>::sse_encode(self.width, serializer);
         <i64>::sse_encode(self.index, serializer);
         <chrono::DateTime<chrono::Local>>::sse_encode(self.time_collected, serializer);
-        <String>::sse_encode(self.batch_id, serializer);
         <Vec<crate::models::multi_container_image::BBox>>::sse_encode(self.bboxes, serializer);
     }
 }
@@ -1531,7 +1520,6 @@ impl SseEncode for crate::models::multi_container_image::SingleContainerImage {
         <chrono::DateTime<chrono::Local>>::sse_encode(self.time_collected, serializer);
         <i64>::sse_encode(self.tracker_id, serializer);
         <String>::sse_encode(self.predicted_category, serializer);
-        <String>::sse_encode(self.batch_id, serializer);
     }
 }
 

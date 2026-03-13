@@ -252,13 +252,13 @@ impl Batch {
     #[frb(ignore)]
     pub fn from_json(value: &Value) -> Self {
         let single_container_images: Vec<SingleContainerImage> = if value
-            .get("single_container_images")
+            .get("singleContainerImages")
             .map_or(true, |v| v.is_null())
         {
             Vec::new()
         } else {
             value
-                .get("single_container_images")
+                .get("singleContainerImages")
                 .unwrap()
                 .as_array()
                 .unwrap()
@@ -268,13 +268,13 @@ impl Batch {
         };
 
         let multi_container_images: Vec<MultiContainerImage> = if value
-            .get("multi_container_images")
+            .get("multiContainerImages")
             .map_or(true, |v| v.is_null())
         {
             Vec::new()
         } else {
             value
-                .get("multi_container_images")
+                .get("multiContainerImages")
                 .unwrap()
                 .as_array()
                 .unwrap()
@@ -341,7 +341,7 @@ pub struct BatchGlobalState {
 
 impl BatchGlobalState {
     #[frb(ignore)]
-    pub fn new(json_data: Value) -> Self {
+    pub fn from_json(json_data: &Value) -> Self {
         let update_summary = json_data
             .get("update_summary")
             .unwrap()

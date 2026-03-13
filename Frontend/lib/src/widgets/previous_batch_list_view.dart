@@ -53,6 +53,26 @@ class PreviousBatchListView extends StatelessWidget {
                             color: Theme.of(context).colorScheme.inversePrimary,
                           ),
                         ),
+                        actions: [
+                          ElevatedButton(
+                              onPressed: () async {
+                                final globalState = context.read<GlobalState>();
+                                final fetchDetailsFuture = globalState
+                                    .stateUpdateEventStream.stream
+                                    .where((e) => e is StateUpdate_BatchFetch)
+                                    .map((e) => e as StateUpdate_BatchFetch)
+                                    .first;
+                                globalState.socket!.emitEvent(
+                                    event: 'get-batch-details',
+                                    data: selectedBatch.id);
+                                final batchDetails = await fetchDetailsFuture;
+                                print(
+                                    'got batch details: ${batchDetails.batch.id}');
+                                print(
+                                    'images: ${batchDetails.batch.multiContainerImages.length}');
+                              },
+                              child: const Text('Fetch Details')),
+                        ],
                         content: SizedBox(
                           height: 300,
                           width: 850,

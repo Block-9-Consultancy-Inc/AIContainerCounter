@@ -11,7 +11,6 @@ pub struct MultiContainerImage {
     pub width: i64,
     pub index: i64,
     pub time_collected: DateTime<Local>,
-    pub batch_id: String,
     pub bboxes: Vec<BBox>,
 }
 
@@ -23,7 +22,6 @@ pub struct BBox {
     pub x2: i64,
     pub y2: i64,
     pub tracker_id: i64,
-    pub image_id: String,
 }
 
 impl MultiContainerImage {
@@ -44,7 +42,6 @@ impl MultiContainerImage {
                 x2: value.get("x2").unwrap().as_i64().unwrap(),
                 y2: value.get("y2").unwrap().as_i64().unwrap(),
                 tracker_id: value.get("tracker_id").unwrap().as_i64().unwrap(),
-                image_id: value.get("image_id").unwrap().as_str().unwrap().to_owned(),
             })
             .collect();
         Self {
@@ -60,7 +57,6 @@ impl MultiContainerImage {
                         .unwrap(),
                     )
                     .unwrap(),
-            batch_id: json_data.get("batch_id").unwrap().as_str().unwrap().to_owned(),
             bboxes,
         }
     }
@@ -74,7 +70,6 @@ pub struct SingleContainerImage {
     pub time_collected: DateTime<Local>,
     pub tracker_id: i64,
     pub predicted_category: String,
-    pub batch_id: String,
 }
 
 impl SingleContainerImage {
@@ -94,7 +89,6 @@ impl SingleContainerImage {
                     )
                     .unwrap(),
             predicted_category: json_data.get("predicted_category").unwrap().as_str().unwrap().to_owned(),
-            batch_id: json_data.get("batch_id").unwrap().as_str().unwrap().to_owned(),
         }
     }
 }

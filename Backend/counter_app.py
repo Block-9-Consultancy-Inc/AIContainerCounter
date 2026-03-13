@@ -167,7 +167,7 @@ class CounterApp:
 
         @sio.on('get-batch-details')
         def get_batch_details(sid, msg):
-            sio.emit('batch-details-json', model_to_dict(Batch.get_by_id(msg), backrefs=True))
+            sio.emit('batch_details_state', model_to_dict(Batch.get_by_id(msg), backrefs=True))
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)

@@ -492,8 +492,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BBox dco_decode_b_box(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return BBox(
       id: dco_decode_String(arr[0]),
       x1: dco_decode_i_64(arr[1]),
@@ -501,7 +501,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       x2: dco_decode_i_64(arr[3]),
       y2: dco_decode_i_64(arr[4]),
       trackerId: dco_decode_i_64(arr[5]),
-      imageId: dco_decode_String(arr[6]),
     );
   }
 
@@ -652,16 +651,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MultiContainerImage dco_decode_multi_container_image(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return MultiContainerImage(
       id: dco_decode_String(arr[0]),
       height: dco_decode_i_64(arr[1]),
       width: dco_decode_i_64(arr[2]),
       index: dco_decode_i_64(arr[3]),
       timeCollected: dco_decode_Chrono_Local(arr[4]),
-      batchId: dco_decode_String(arr[5]),
-      bboxes: dco_decode_list_b_box(arr[6]),
+      bboxes: dco_decode_list_b_box(arr[5]),
     );
   }
 
@@ -700,8 +698,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SingleContainerImage dco_decode_single_container_image(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return SingleContainerImage(
       id: dco_decode_String(arr[0]),
       height: dco_decode_i_64(arr[1]),
@@ -709,7 +707,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       timeCollected: dco_decode_Chrono_Local(arr[3]),
       trackerId: dco_decode_i_64(arr[4]),
       predictedCategory: dco_decode_String(arr[5]),
-      batchId: dco_decode_String(arr[6]),
     );
   }
 
@@ -852,15 +849,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_x2 = sse_decode_i_64(deserializer);
     var var_y2 = sse_decode_i_64(deserializer);
     var var_trackerId = sse_decode_i_64(deserializer);
-    var var_imageId = sse_decode_String(deserializer);
     return BBox(
         id: var_id,
         x1: var_x1,
         y1: var_y1,
         x2: var_x2,
         y2: var_y2,
-        trackerId: var_trackerId,
-        imageId: var_imageId);
+        trackerId: var_trackerId);
   }
 
   @protected
@@ -1068,7 +1063,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_i_64(deserializer);
     var var_index = sse_decode_i_64(deserializer);
     var var_timeCollected = sse_decode_Chrono_Local(deserializer);
-    var var_batchId = sse_decode_String(deserializer);
     var var_bboxes = sse_decode_list_b_box(deserializer);
     return MultiContainerImage(
         id: var_id,
@@ -1076,7 +1070,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         width: var_width,
         index: var_index,
         timeCollected: var_timeCollected,
-        batchId: var_batchId,
         bboxes: var_bboxes);
   }
 
@@ -1131,15 +1124,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_timeCollected = sse_decode_Chrono_Local(deserializer);
     var var_trackerId = sse_decode_i_64(deserializer);
     var var_predictedCategory = sse_decode_String(deserializer);
-    var var_batchId = sse_decode_String(deserializer);
     return SingleContainerImage(
         id: var_id,
         height: var_height,
         width: var_width,
         timeCollected: var_timeCollected,
         trackerId: var_trackerId,
-        predictedCategory: var_predictedCategory,
-        batchId: var_batchId);
+        predictedCategory: var_predictedCategory);
   }
 
   @protected
@@ -1305,7 +1296,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.x2, serializer);
     sse_encode_i_64(self.y2, serializer);
     sse_encode_i_64(self.trackerId, serializer);
-    sse_encode_String(self.imageId, serializer);
   }
 
   @protected
@@ -1464,7 +1454,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.width, serializer);
     sse_encode_i_64(self.index, serializer);
     sse_encode_Chrono_Local(self.timeCollected, serializer);
-    sse_encode_String(self.batchId, serializer);
     sse_encode_list_b_box(self.bboxes, serializer);
   }
 
@@ -1516,7 +1505,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_Chrono_Local(self.timeCollected, serializer);
     sse_encode_i_64(self.trackerId, serializer);
     sse_encode_String(self.predictedCategory, serializer);
-    sse_encode_String(self.batchId, serializer);
   }
 
   @protected

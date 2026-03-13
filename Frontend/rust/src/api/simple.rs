@@ -1,5 +1,5 @@
 use crate::{
-    frb_generated::StreamSink, models::count::StateUpdate, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
+    frb_generated::StreamSink, models::count::{Batch, StateUpdate}, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use flutter_rust_bridge::frb;
@@ -8,7 +8,7 @@ use log::warn;
 use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Event, Payload};
 use serde_json::json;
-use std::{collections::HashMap, time::Instant};
+use std::collections::HashMap;
 use crate::models::count::{Count, BatchGlobalState};
 
 #[frb(opaque)]
@@ -159,21 +159,21 @@ impl Socket {
                     }
                     let encoded_frame = object.get("encoded_frame");
                     if encoded_frame.is_some() {
-                        let mut now = Instant::now();
+                        // let mut now = Instant::now();
                         let encoded_frame_base64 = encoded_frame.unwrap().as_str().unwrap();
                         let frame = STANDARD.decode(encoded_frame_base64).unwrap();
-                        let base64_decode_time = now.elapsed();
-                        println!(
-                            "base64_decode took {:#?} ms",
-                            base64_decode_time.as_millis()
-                        );
-                        now = Instant::now();
+                        // let base64_decode_time = now.elapsed();
+                        // println!(
+                        //     "base64_decode took {:#?} ms",
+                        //     base64_decode_time.as_millis()
+                        // );
+                        // now = Instant::now();
                         let raw_frame = decode_jpeg_to_rgba(frame.as_slice());
-                        let jpeg_to_rgba_decode_time = now.elapsed();
-                        println!(
-                            "jpeg_to_rgba took {:#?} ms",
-                            jpeg_to_rgba_decode_time.as_millis()
-                        );
+                        // let jpeg_to_rgba_decode_time = now.elapsed();
+                        // println!(
+                        //     "jpeg_to_rgba took {:#?} ms",
+                        //     jpeg_to_rgba_decode_time.as_millis()
+                        // );
                         if let Some(renderer) = &*CURRENT_FLUTTER_TEXTURE.read() {
                             renderer.on_rgba(&raw_frame);
                         }
@@ -214,18 +214,28 @@ impl Socket {
                 if payload_json.is_none() {
                     return;
                 }
+                
 
                 if let Some(sink) = &*STATE_UPDATE_STREAM_SINK.read() {
-                    let mut new_batch_global_state: BatchGlobalState = BatchGlobalState::new(payload_json.unwrap());
-                    let prev_batch_global_state = PREVIOUS_BATCH_GLOBAL_STATE.read();
-                    if prev_batch_global_state.is_some() {
-                        new_batch_global_state.merge((*prev_batch_global_state).as_ref().unwrap());
+                    match event.as_str() {
+                        "batches_state" => {
+                            let mut new_batch_global_state: BatchGlobalState = BatchGlobalState::from_json(&payload_json.unwrap());
+                            let prev_batch_global_state = PREVIOUS_BATCH_GLOBAL_STATE.read();
+                            if prev_batch_global_state.is_some() {
+                                new_batch_global_state.merge((*prev_batch_global_state).as_ref().unwrap());
+                            }
+                            let _ = sink.add(StateUpdate::BatchGlobalState{
+                                batch_global_state: new_batch_global_state.clone()
+                            });
+                            drop(prev_batch_global_state);
+                            set_prev_batch_global_state(new_batch_global_state);
+                        },
+                        _ => {
+                            let batch = Batch::from_json(&payload_json.unwrap());
+                            let _ = sink.add(StateUpdate::BatchFetch { batch });
+                        }
                     }
-                    let _ = sink.add(StateUpdate::BatchGlobalState{
-                        batch_global_state: new_batch_global_state.clone()
-                    });
-                    drop(prev_batch_global_state);
-                    set_prev_batch_global_state(new_batch_global_state);
+                    
                 }
             })
             .on("error", |err, _| eprintln!("Error: {:#?}", err))

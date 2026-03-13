@@ -13,7 +13,6 @@ class BBox {
   final PlatformInt64 x2;
   final PlatformInt64 y2;
   final PlatformInt64 trackerId;
-  final String imageId;
 
   const BBox({
     required this.id,
@@ -22,7 +21,6 @@ class BBox {
     required this.x2,
     required this.y2,
     required this.trackerId,
-    required this.imageId,
   });
 
   @override
@@ -32,8 +30,7 @@ class BBox {
       y1.hashCode ^
       x2.hashCode ^
       y2.hashCode ^
-      trackerId.hashCode ^
-      imageId.hashCode;
+      trackerId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -45,8 +42,7 @@ class BBox {
           y1 == other.y1 &&
           x2 == other.x2 &&
           y2 == other.y2 &&
-          trackerId == other.trackerId &&
-          imageId == other.imageId;
+          trackerId == other.trackerId;
 }
 
 class MultiContainerImage {
@@ -55,7 +51,6 @@ class MultiContainerImage {
   final PlatformInt64 width;
   final PlatformInt64 index;
   final DateTime timeCollected;
-  final String batchId;
   final List<BBox> bboxes;
 
   const MultiContainerImage({
@@ -64,7 +59,6 @@ class MultiContainerImage {
     required this.width,
     required this.index,
     required this.timeCollected,
-    required this.batchId,
     required this.bboxes,
   });
 
@@ -75,7 +69,6 @@ class MultiContainerImage {
       width.hashCode ^
       index.hashCode ^
       timeCollected.hashCode ^
-      batchId.hashCode ^
       bboxes.hashCode;
 
   @override
@@ -88,7 +81,6 @@ class MultiContainerImage {
           width == other.width &&
           index == other.index &&
           timeCollected == other.timeCollected &&
-          batchId == other.batchId &&
           bboxes == other.bboxes;
 }
 
@@ -99,7 +91,6 @@ class SingleContainerImage {
   final DateTime timeCollected;
   final PlatformInt64 trackerId;
   final String predictedCategory;
-  final String batchId;
 
   const SingleContainerImage({
     required this.id,
@@ -108,7 +99,6 @@ class SingleContainerImage {
     required this.timeCollected,
     required this.trackerId,
     required this.predictedCategory,
-    required this.batchId,
   });
 
   @override
@@ -118,8 +108,7 @@ class SingleContainerImage {
       width.hashCode ^
       timeCollected.hashCode ^
       trackerId.hashCode ^
-      predictedCategory.hashCode ^
-      batchId.hashCode;
+      predictedCategory.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -131,6 +120,5 @@ class SingleContainerImage {
           width == other.width &&
           timeCollected == other.timeCollected &&
           trackerId == other.trackerId &&
-          predictedCategory == other.predictedCategory &&
-          batchId == other.batchId;
+          predictedCategory == other.predictedCategory;
 }

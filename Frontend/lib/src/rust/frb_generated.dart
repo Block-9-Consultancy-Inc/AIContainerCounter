@@ -456,6 +456,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Map<PlatformInt64, String> dco_decode_Map_i_64_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(dco_decode_list_record_i_64_string(raw)
+        .map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
   Socket
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           dynamic raw) {
@@ -508,8 +515,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Batch dco_decode_batch(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return Batch(
       id: dco_decode_String(arr[0]),
       areaCollected: dco_decode_opt_String(arr[1]),
@@ -520,6 +527,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       categoryModel: dco_decode_String(arr[6]),
       multiContainerImages: dco_decode_list_multi_container_image(arr[7]),
       singleContainerImages: dco_decode_list_single_container_image(arr[8]),
+      predictedCategories: dco_decode_Map_i_64_String(arr[9]),
     );
   }
 
@@ -633,6 +641,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<(PlatformInt64, String)> dco_decode_list_record_i_64_string(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_record_i_64_string).toList();
+  }
+
+  @protected
   List<(String, BigInt)> dco_decode_list_record_string_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_record_string_u_64).toList();
@@ -679,6 +694,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
+  (PlatformInt64, String) dco_decode_record_i_64_string(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_i_64(arr[0]),
+      dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -804,6 +832,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Map<PlatformInt64, String> sse_decode_Map_i_64_String(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_i_64_string(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
   Socket
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           SseDeserializer deserializer) {
@@ -872,6 +908,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_decode_list_multi_container_image(deserializer);
     var var_singleContainerImages =
         sse_decode_list_single_container_image(deserializer);
+    var var_predictedCategories = sse_decode_Map_i_64_String(deserializer);
     return Batch(
         id: var_id,
         areaCollected: var_areaCollected,
@@ -881,7 +918,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         yoloModel: var_yoloModel,
         categoryModel: var_categoryModel,
         multiContainerImages: var_multiContainerImages,
-        singleContainerImages: var_singleContainerImages);
+        singleContainerImages: var_singleContainerImages,
+        predictedCategories: var_predictedCategories);
   }
 
   @protected
@@ -1029,6 +1067,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<(PlatformInt64, String)> sse_decode_list_record_i_64_string(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(PlatformInt64, String)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_i_64_string(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<(String, BigInt)> sse_decode_list_record_string_u_64(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1104,6 +1155,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  (PlatformInt64, String) sse_decode_record_i_64_string(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_i_64(deserializer);
+    var var_field1 = sse_decode_String(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -1234,6 +1294,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_Map_i_64_String(
+      Map<PlatformInt64, String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_i_64_string(
+        self.entries.map((e) => (e.key, e.value)).toList(), serializer);
+  }
+
+  @protected
   void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSocket(
           Socket self, SseSerializer serializer) {
@@ -1312,6 +1380,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         self.multiContainerImages, serializer);
     sse_encode_list_single_container_image(
         self.singleContainerImages, serializer);
+    sse_encode_Map_i_64_String(self.predictedCategories, serializer);
   }
 
   @protected
@@ -1426,6 +1495,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_record_i_64_string(
+      List<(PlatformInt64, String)> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_i_64_string(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_record_string_u_64(
       List<(String, BigInt)> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1485,6 +1564,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_u_64(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_record_i_64_string(
+      (PlatformInt64, String) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.$1, serializer);
+    sse_encode_String(self.$2, serializer);
   }
 
   @protected

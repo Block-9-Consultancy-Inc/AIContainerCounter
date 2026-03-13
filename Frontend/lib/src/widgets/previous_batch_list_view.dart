@@ -1,5 +1,6 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
 import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/screens/batch_details_viewer.dart';
 import 'package:ai_container_counter/src/utils/datetime_utils.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -66,12 +67,16 @@ class PreviousBatchListView extends StatelessWidget {
                                     event: 'get-batch-details',
                                     data: selectedBatch.id);
                                 final batchDetails = await fetchDetailsFuture;
-                                print(
-                                    'got batch details: ${batchDetails.batch.id}');
-                                print(
-                                    'images: ${batchDetails.batch.multiContainerImages.length}');
+                                if (batchDetails
+                                    .batch.multiContainerImages.isNotEmpty) {
+                                  // ignore: use_build_context_synchronously
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => BatchDetailsViewer(
+                                            batch: batchDetails.batch,
+                                          )));
+                                }
                               },
-                              child: const Text('Fetch Details')),
+                              child: const Text('View Images')),
                         ],
                         content: SizedBox(
                           height: 300,

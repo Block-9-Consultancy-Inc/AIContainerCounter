@@ -19,6 +19,7 @@ class Batch {
   final String categoryModel;
   final List<MultiContainerImage> multiContainerImages;
   final List<SingleContainerImage> singleContainerImages;
+  final Map<PlatformInt64, String> predictedCategories;
 
   const Batch({
     required this.id,
@@ -30,6 +31,7 @@ class Batch {
     required this.categoryModel,
     required this.multiContainerImages,
     required this.singleContainerImages,
+    required this.predictedCategories,
   });
 
   @override
@@ -42,7 +44,8 @@ class Batch {
       yoloModel.hashCode ^
       categoryModel.hashCode ^
       multiContainerImages.hashCode ^
-      singleContainerImages.hashCode;
+      singleContainerImages.hashCode ^
+      predictedCategories.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -57,7 +60,8 @@ class Batch {
           yoloModel == other.yoloModel &&
           categoryModel == other.categoryModel &&
           multiContainerImages == other.multiContainerImages &&
-          singleContainerImages == other.singleContainerImages;
+          singleContainerImages == other.singleContainerImages &&
+          predictedCategories == other.predictedCategories;
 }
 
 class BatchGlobalState {

@@ -5,12 +5,16 @@
 import FlutterMacOS
 import Foundation
 
+import path_provider_foundation
 import screen_retriever_macos
+import sqflite_darwin
 import texture_rgba_renderer
 import window_manager
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  PathProviderPlugin.register(with: registry.registrar(forPlugin: "PathProviderPlugin"))
   ScreenRetrieverMacosPlugin.register(with: registry.registrar(forPlugin: "ScreenRetrieverMacosPlugin"))
+  SqflitePlugin.register(with: registry.registrar(forPlugin: "SqflitePlugin"))
   TextureRgbaRendererPlugin.register(with: registry.registrar(forPlugin: "TextureRgbaRendererPlugin"))
   WindowManagerPlugin.register(with: registry.registrar(forPlugin: "WindowManagerPlugin"))
 }

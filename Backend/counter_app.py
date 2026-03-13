@@ -24,7 +24,7 @@ import json
 import uuid
 
 class CustomJSONEncoder(json.JSONEncoder):
-    """ Special json encoder for numpy types """
+    """ Special json encoder """
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.isoformat()
@@ -83,13 +83,13 @@ class CounterApp:
             
 
         self.jpeg = TurboJPEG(self.turbo_jpeg_library_path)
-        sio = socketio.Server(async_mode='threading')
-        self.sio = sio
         self.app = Flask(__name__, 
                     static_url_path='', 
                     static_folder='static',
                     template_folder='templates')
         self.app.json = ISODateTimeJSONProvider(self.app)
+        sio = socketio.Server(async_mode='threading', json=self.app.json)
+        self.sio = sio
         CORS(self.app)
         self.app.wsgi_app = socketio.Middleware(self.sio, self.app.wsgi_app)
 
@@ -130,7 +130,7 @@ class CounterApp:
             now = datetime.now()
             batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
             today_summary = get_today_summary().__dict__
-            self.sio.emit('batches_state', json.dumps({'summary': today_summary, 'batches': batches, 'update_summary': False}, cls=CustomJSONEncoder))
+            self.sio.emit('batches_state', {'summary': today_summary, 'batches': batches, 'update_summary': False})
 
 
         @sio.on('disconnect')
@@ -165,9 +165,9 @@ class CounterApp:
             if not self.force_transmit_video:
                 self.showing_video = bool(msg)
 
-        @self.app.route('/batch/<batch_id>', methods=['GET'])
-        def handle_get_batch_details(batch_id: str):
-            return jsonify(model_to_dict(Batch.get_by_id(batch_id), backrefs=True))
+        @sio.on('get-batch-details')
+        def get_batch_details(sid, msg):
+            sio.emit('batch-details-json', model_to_dict(Batch.get_by_id(msg), backrefs=True))
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -341,7 +341,7 @@ showing_video: {self.showing_video}
                         today_summary = get_today_summary()
                         batch = counter.reset_counter()
                         self.reset_counter = False
-                        self.sio.emit('batches_state', json.dumps({ 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True}, cls=CustomJSONEncoder))
+                        self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
                     print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(
                         current_frame_time,

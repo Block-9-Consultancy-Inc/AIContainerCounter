@@ -14,8 +14,7 @@ class CategoryCountDisplayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-        child: Row(
+    return Row(
       children: [
         Expanded(
           child: Column(
@@ -103,6 +102,6 @@ class CategoryCountDisplayer extends StatelessWidget {
         ),
         SizedBox(width: endPadding)
       ],
-    ));
+    );
   }
 }

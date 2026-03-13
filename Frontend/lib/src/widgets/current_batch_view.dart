@@ -96,11 +96,13 @@ class _CurrentBatchViewState extends State<CurrentBatchView> {
                           ],
                         ),
                         const SizedBox(width: 75),
-                        CategoryCountDisplayer(
-                          count: snapshot
-                              .data?.batchGlobalState.todaySummary.count,
-                          scale: 0.75,
-                          endPadding: 300,
+                        Expanded(
+                          child: CategoryCountDisplayer(
+                            count: snapshot
+                                .data?.batchGlobalState.todaySummary.count,
+                            scale: 0.75,
+                            endPadding: 300,
+                          ),
                         ),
                       ],
                     );

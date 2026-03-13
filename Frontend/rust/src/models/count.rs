@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use flutter_rust_bridge::frb;
 use serde_json::Value;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use super::multi_container_image::{MultiContainerImage, SingleContainerImage};
 
@@ -246,6 +246,7 @@ pub struct Batch {
     pub category_model: String,
     pub multi_container_images: Vec<MultiContainerImage>,
     pub single_container_images: Vec<SingleContainerImage>,
+    pub predicted_categories: HashMap<i64, String>
 }
 
 impl Batch {
@@ -282,6 +283,12 @@ impl Batch {
                 .map(|value| MultiContainerImage::from_json(value))
                 .collect()
         };
+
+        let mut predicted_categories = HashMap::new();
+
+        for single_container_image in single_container_images.iter() {
+            predicted_categories.insert(single_container_image.tracker_id, single_container_image.predicted_category.clone());
+        }
         Self {
             id: value.get("id").unwrap().as_str().unwrap().to_owned(),
             area_collected: value
@@ -317,7 +324,8 @@ impl Batch {
                 .unwrap()
                 .to_owned(),
             single_container_images,
-            multi_container_images
+            multi_container_images,
+            predicted_categories
         }
     }
 }

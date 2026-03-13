@@ -84,8 +84,7 @@ class CounterApp:
 
         self.jpeg = TurboJPEG(self.turbo_jpeg_library_path)
         self.app = Flask(__name__, 
-                    static_url_path='', 
-                    static_folder='static',
+                    static_folder='images',
                     template_folder='templates')
         self.app.json = ISODateTimeJSONProvider(self.app)
         sio = socketio.Server(async_mode='threading', json=self.app.json)

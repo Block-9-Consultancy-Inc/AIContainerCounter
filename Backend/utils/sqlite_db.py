@@ -145,22 +145,22 @@ def get_today_summary():
     start = datetime.datetime(now.year, now.month, now.day)
     res = list(Database.execute_sql(db,
         f'''select 
-                    count(id) as num_of_batches,
-                    sum(count),
-                    sum(can_count),
-                    sum(plastic_count),
-                    sum(drinkbox_count),
-                    sum(gabletop_count),
-                    sum(pouch_count),
-                    count(expected_count) as num_of_batches_with_expected,
-                    avg(1.0 - (abs((count * 1.0) - (expected_count * 1.0))/(expected_count * 1.0)))*100.0 as overallaccuracy,
-                    avg(1.0 - (abs((can_count * 1.0) - (expected_can_count * 1.0))/(expected_can_count * 1.0)))*100.0 as canaccuracy,
-                    avg(1.0 - (abs((plastic_count * 1.0) - (expected_plastic_count * 1.0))/(expected_plastic_count * 1.0)))*100.0 as plasticaccuracy,
-                    avg(1.0 - (abs((drinkbox_count * 1.0) - (expected_drinkbox_count * 1.0))/(expected_drinkbox_count * 1.0)))*100.0 as drinkboxaccuracy,
-                    avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count * 1.0))/(expected_gabletop_count * 1.0)))*100.0 as gabletopaccuracy,
-                    avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count * 1.0))/(expected_pouch_count * 1.0)))*100.0 as pouchaccuracy 
-                    from Batch
-                    where time_submitted is not null and unixepoch(time_started) > {int(start.timestamp())} and unixepoch(time_started) < {int(now.timestamp())}'''))[0]
+            count(id) as num_of_batches,
+            sum(count),
+            sum(can_count),
+            sum(plastic_count),
+            sum(drinkbox_count),
+            sum(gabletop_count),
+            sum(pouch_count),
+            count(expected_count) as num_of_batches_with_expected,
+            avg(1.0 - (abs((count * 1.0) - (expected_count * 1.0))/(expected_count * 1.0)))*100.0 as overallaccuracy,
+            avg(1.0 - (abs((can_count * 1.0) - (expected_can_count * 1.0))/(expected_can_count * 1.0)))*100.0 as canaccuracy,
+            avg(1.0 - (abs((plastic_count * 1.0) - (expected_plastic_count * 1.0))/(expected_plastic_count * 1.0)))*100.0 as plasticaccuracy,
+            avg(1.0 - (abs((drinkbox_count * 1.0) - (expected_drinkbox_count * 1.0))/(expected_drinkbox_count * 1.0)))*100.0 as drinkboxaccuracy,
+            avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count * 1.0))/(expected_gabletop_count * 1.0)))*100.0 as gabletopaccuracy,
+            avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count * 1.0))/(expected_pouch_count * 1.0)))*100.0 as pouchaccuracy 
+            from Batch
+            where time_submitted is not null and unixepoch(time_started) > {int(start.timestamp())} and unixepoch(time_started) < {int(now.timestamp())}'''))[0]
 
     return TodaySummary(
         num_of_batches=res[0] if res[0] is not None else 0,

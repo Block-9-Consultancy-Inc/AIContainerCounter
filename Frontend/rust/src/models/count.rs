@@ -341,9 +341,7 @@ pub struct BatchGlobalState {
 
 impl BatchGlobalState {
     #[frb(ignore)]
-    pub fn new(json_str_data: Value) -> Self {
-        let string_data = json_str_data.as_str().unwrap();
-        let json_data = serde_json::from_str::<Value>(string_data).unwrap();
+    pub fn new(json_data: Value) -> Self {
         let update_summary = json_data
             .get("update_summary")
             .unwrap()

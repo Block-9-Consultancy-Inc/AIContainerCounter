@@ -186,6 +186,9 @@ sealed class StateUpdate with _$StateUpdate {
   const factory StateUpdate.batchGlobalState({
     required BatchGlobalState batchGlobalState,
   }) = StateUpdate_BatchGlobalState;
+  const factory StateUpdate.buttonPressed({
+    required PlatformInt64 buttonId,
+  }) = StateUpdate_ButtonPressed;
 }
 
 class TodaySummary {

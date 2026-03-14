@@ -750,6 +750,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return StateUpdate_BatchGlobalState(
           batchGlobalState: dco_decode_box_autoadd_batch_global_state(raw[1]),
         );
+      case 2:
+        return StateUpdate_ButtonPressed(
+          buttonId: dco_decode_i_64(raw[1]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -1207,6 +1211,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             sse_decode_box_autoadd_batch_global_state(deserializer);
         return StateUpdate_BatchGlobalState(
             batchGlobalState: var_batchGlobalState);
+      case 2:
+        var var_buttonId = sse_decode_i_64(deserializer);
+        return StateUpdate_ButtonPressed(buttonId: var_buttonId);
       default:
         throw UnimplementedError('');
     }
@@ -1606,6 +1613,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ):
         sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_batch_global_state(batchGlobalState, serializer);
+      case StateUpdate_ButtonPressed(buttonId: final buttonId):
+        sse_encode_i_32(2, serializer);
+        sse_encode_i_64(buttonId, serializer);
     }
   }
 

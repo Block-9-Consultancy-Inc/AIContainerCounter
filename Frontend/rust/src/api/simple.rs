@@ -230,6 +230,10 @@ impl Socket {
                             drop(prev_batch_global_state);
                             set_prev_batch_global_state(new_batch_global_state);
                         },
+                        "button_pressed_state" => {
+                            let button_id = payload_json.unwrap().as_i64().unwrap();
+                            let _ = sink.add(StateUpdate::ButtonPressed { button_id });
+                        }
                         _ => {
                             let batch = Batch::from_json(&payload_json.unwrap());
                             let _ = sink.add(StateUpdate::BatchFetch { batch });

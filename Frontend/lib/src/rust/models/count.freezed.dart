@@ -161,4 +161,69 @@ class _$StateUpdate_BatchGlobalStateCopyWithImpl<$Res>
   }
 }
 
+/// @nodoc
+
+class StateUpdate_ButtonPressed extends StateUpdate {
+  const StateUpdate_ButtonPressed({required this.buttonId}) : super._();
+
+  final int buttonId;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_ButtonPressedCopyWith<StateUpdate_ButtonPressed> get copyWith =>
+      _$StateUpdate_ButtonPressedCopyWithImpl<StateUpdate_ButtonPressed>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_ButtonPressed &&
+            (identical(other.buttonId, buttonId) ||
+                other.buttonId == buttonId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, buttonId);
+
+  @override
+  String toString() {
+    return 'StateUpdate.buttonPressed(buttonId: $buttonId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_ButtonPressedCopyWith<$Res> {
+  factory $StateUpdate_ButtonPressedCopyWith(StateUpdate_ButtonPressed value,
+          $Res Function(StateUpdate_ButtonPressed) _then) =
+      _$StateUpdate_ButtonPressedCopyWithImpl;
+  @useResult
+  $Res call({int buttonId});
+}
+
+/// @nodoc
+class _$StateUpdate_ButtonPressedCopyWithImpl<$Res>
+    implements $StateUpdate_ButtonPressedCopyWith<$Res> {
+  _$StateUpdate_ButtonPressedCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_ButtonPressed _self;
+  final $Res Function(StateUpdate_ButtonPressed) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? buttonId = null,
+  }) {
+    return _then(StateUpdate_ButtonPressed(
+      buttonId: null == buttonId
+          ? _self.buttonId
+          : buttonId // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
 // dart format on

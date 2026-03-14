@@ -924,6 +924,12 @@ impl SseDecode for crate::models::count::StateUpdate {
                     batch_global_state: var_batchGlobalState,
                 };
             }
+            2 => {
+                let mut var_buttonId = <i64>::sse_decode(deserializer);
+                return crate::models::count::StateUpdate::ButtonPressed {
+                    button_id: var_buttonId,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -1232,6 +1238,9 @@ impl flutter_rust_bridge::IntoDart for crate::models::count::StateUpdate {
                 batch_global_state.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::models::count::StateUpdate::ButtonPressed { button_id } => {
+                [2.into_dart(), button_id.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -1596,6 +1605,10 @@ impl SseEncode for crate::models::count::StateUpdate {
                     batch_global_state,
                     serializer,
                 );
+            }
+            crate::models::count::StateUpdate::ButtonPressed { button_id } => {
+                <i32>::sse_encode(2, serializer);
+                <i64>::sse_encode(button_id, serializer);
             }
             _ => {
                 unimplemented!("");

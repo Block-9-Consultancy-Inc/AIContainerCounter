@@ -60,13 +60,12 @@ class PreviousBatchListView extends StatelessWidget {
                                 final globalState = context.read<GlobalState>();
                                 final fetchDetailsFuture = globalState
                                     .stateUpdateEventStream.stream
-                                    .where((e) => e is StateUpdate_BatchFetch)
-                                    .map((e) => e as StateUpdate_BatchFetch)
-                                    .first;
+                                    .firstWhere(
+                                        (e) => e is StateUpdate_BatchFetch);
                                 globalState.socket!.emitEvent(
                                     event: 'get-batch-details',
                                     data: selectedBatch.id);
-                                final batchDetails = await fetchDetailsFuture;
+                                final batchDetails = await fetchDetailsFuture as StateUpdate_BatchFetch;
                                 if (batchDetails
                                     .batch.multiContainerImages.isNotEmpty) {
                                   // ignore: use_build_context_synchronously

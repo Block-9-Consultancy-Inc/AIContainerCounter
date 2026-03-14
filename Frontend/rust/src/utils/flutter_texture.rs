@@ -6,9 +6,6 @@ use crate::models::images::RawImage;
 
 use log::error;
 
-use std::time::Instant;
-
-
 lazy_static::lazy_static! {
     pub static ref TEXTURE_RGBA_RENDERER_PLUGIN: Result<Library, LibError> = Library::open("libtexture_rgba_renderer_plugin.so");
 }
@@ -62,8 +59,6 @@ impl FlutterTexture {
         }
 
         if let Some(func) = &self.on_rgba_func {
-            println!("starting frame");
-            let now = Instant::now();
             unsafe {
                 func(
                     self.ptr as _,
@@ -74,8 +69,6 @@ impl FlutterTexture {
                     0,
                 )
             };
-            let time = now.elapsed();
-            println!("took {:#?} ms", time.as_millis());
         }
     }
 }

@@ -17,11 +17,12 @@ import numpy as np
 import traceback
 from supervision import Detections
 import counter as ctr
-from utils.sqlite_db import Batch, get_today_summary
+from utils.sqlite_db import Batch, get_day_summary, get_today_summary
 from playhouse.shortcuts import model_to_dict
 from datetime import datetime
 import json
 import uuid
+from utils.button_listener import ButtonListener
 
 class CustomJSONEncoder(json.JSONEncoder):
     """ Special json encoder """
@@ -61,6 +62,7 @@ class CounterApp:
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
             only_use_yolo_model: bool = False,
+            button_listener_serial_port: str = None
         ) -> None:
 
         self.force_transmit_video = force_transmit_video
@@ -78,6 +80,7 @@ class CounterApp:
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
             self.only_use_yolo_model = only_use_yolo_model
+            self.button_listener_serial_port = button_listener_serial_port
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -168,6 +171,14 @@ class CounterApp:
         def get_batch_details(sid, msg):
             sio.emit('batch_details_state', model_to_dict(Batch.get_by_id(msg), backrefs=True))
 
+        if self.button_listener_serial_port is not None:
+            def on_button_pressed(button_id: int):
+                print(f'{button_id} pressed!')
+                if button_id == 1:
+                    self.reset_counter = True
+                self.sio.emit('button_pressed_state', button_id)
+            self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
+
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
         height_from_env = environ.get('HEIGHT')
@@ -217,6 +228,8 @@ class CounterApp:
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
         self.only_use_yolo_model = environ.get('ONLY_USE_YOLO_MODEL') == 'true'
+
+        self.button_listener_serial_port = environ.get('BUTTON_LISTENER_SERIAL_PORT')
 
     def calculate_frame_time_data(
             self,

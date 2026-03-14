@@ -25,8 +25,46 @@ String? expectedCountValidator(value) {
   return null;
 }
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    context
+        .read<GlobalState>()
+        .stateUpdateEventStream
+        .stream
+        .where((e) => e is StateUpdate_ButtonPressed)
+        .listen((stateUpdate) async {
+      // ignore: use_build_context_synchronously
+      final globalState = context.read<GlobalState>();
+      final buttonPressedStateUpdate = stateUpdate as StateUpdate_ButtonPressed;
+      if (buttonPressedStateUpdate.buttonId == 2) {
+        if (globalState.viewingRealtimeVideoFeed) {
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
+          await setVideo(globalState.socket!, false);
+          globalState.viewingRealtimeVideoFeed = false;
+        } else {
+          await setVideo(globalState.socket!, true);
+          globalState.viewingRealtimeVideoFeed = true;
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (builderContext) => const RealTimeVideoStream(),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +280,9 @@ class MainScreen extends StatelessWidget {
           Builder(builder: (context) {
             return IconButton(
               onPressed: () async {
-                await setVideo(context.read<GlobalState>().socket!, true);
+                final globalState = context.read<GlobalState>();
+                await setVideo(globalState.socket!, true);
+                globalState.viewingRealtimeVideoFeed = true;
                 // ignore: use_build_context_synchronously
                 await Navigator.of(context).push(
                   MaterialPageRoute(
@@ -250,7 +290,8 @@ class MainScreen extends StatelessWidget {
                   ),
                 );
                 // ignore: use_build_context_synchronously
-                await setVideo(context.read<GlobalState>().socket!, false);
+                await setVideo(globalState.socket!, false);
+                globalState.viewingRealtimeVideoFeed = false;
               },
               iconSize: 80,
               color: Theme.of(context).colorScheme.primary,

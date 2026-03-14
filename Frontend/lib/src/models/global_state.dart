@@ -16,6 +16,8 @@ class GlobalState extends ChangeNotifier {
 
   final timeStarted = DateTime.now();
 
+  bool viewingRealtimeVideoFeed = false;
+
   Count? get expectedCount => _expectedCount;
   Count? _expectedCount;
   set expectedCount(Count? newExpectedCount) {

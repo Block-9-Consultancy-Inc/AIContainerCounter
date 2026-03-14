@@ -143,6 +143,9 @@ class TodaySummary:
 def get_today_summary():
     now = datetime.datetime.now()
     start = datetime.datetime(now.year, now.month, now.day)
+    return get_day_summary(start, now)
+
+def get_day_summary(start: datetime.datetime, end: datetime.datetime):
     res = list(Database.execute_sql(db,
         f'''select 
             count(id) as num_of_batches,
@@ -160,7 +163,7 @@ def get_today_summary():
             avg(1.0 - (abs((gabletop_count * 1.0) - (expected_gabletop_count * 1.0))/(expected_gabletop_count * 1.0)))*100.0 as gabletopaccuracy,
             avg(1.0 - (abs((pouch_count * 1.0) - (expected_pouch_count * 1.0))/(expected_pouch_count * 1.0)))*100.0 as pouchaccuracy 
             from Batch
-            where time_submitted is not null and unixepoch(time_started) > {int(start.timestamp())} and unixepoch(time_started) < {int(now.timestamp())}'''))[0]
+            where time_submitted is not null and unixepoch(time_started) > {int(start.timestamp())} and unixepoch(time_started) < {int(end.timestamp())}'''))[0]
 
     return TodaySummary(
         num_of_batches=res[0] if res[0] is not None else 0,

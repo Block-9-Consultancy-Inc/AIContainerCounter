@@ -338,6 +338,9 @@ pub enum StateUpdate {
     BatchGlobalState{
         batch_global_state: BatchGlobalState
     },
+    ButtonPressed {
+        button_id: i64
+    }
 }
 
 #[derive(Clone)]

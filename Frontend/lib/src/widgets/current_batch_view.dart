@@ -6,14 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 
-class CurrentBatchView extends StatefulWidget {
+class CurrentBatchView extends StatelessWidget {
   const CurrentBatchView({super.key});
 
-  @override
-  State<CurrentBatchView> createState() => _CurrentBatchViewState();
-}
-
-class _CurrentBatchViewState extends State<CurrentBatchView> {
   @override
   Widget build(BuildContext context) {
     return Column(

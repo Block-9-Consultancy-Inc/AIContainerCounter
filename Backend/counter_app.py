@@ -58,7 +58,6 @@ class CounterApp:
             category_model_path = 'resources/resnet_v1_18_unscaled.pth',
             model_imgsz = 1440,
             frame_encode_quality = 85,
-            print_debug_performance_metrics = True,
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
             only_use_yolo_model: bool = False,
@@ -76,7 +75,6 @@ class CounterApp:
             self.category_model_path = category_model_path
             self.model_imgsz = model_imgsz
             self.frame_encode_quality = frame_encode_quality
-            self.print_debug_performance_metrics = print_debug_performance_metrics
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
             self.only_use_yolo_model = only_use_yolo_model
@@ -221,8 +219,6 @@ class CounterApp:
         else:
             self.frame_encode_quality = max(min(int(frame_encode_quality_from_env), 100), 0)
 
-        self.print_debug_performance_metrics = environ.get('PRINT_DEBUG_PERFORMANCE_METRICS') == 'true'
-
         self.turbo_jpeg_library_path = environ.get('TURBO_JPEG_LIBRARY_PATH')
 
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
@@ -242,8 +238,6 @@ class CounterApp:
             jpeg_encode_time: int = None,
             base64_encode_time: int = None,
             undistortion_time: int = None,
-            print_data = False
-
     ):  
         self.avg_frame_time = ((self.avg_frame_time * self.num_of_frames) + frame_time) / (self.num_of_frames + 1)
         self.avg_total_frame_time = ((self.avg_total_frame_time * self.num_of_frames) + total_frame_time) / (self.num_of_frames + 1)
@@ -266,13 +260,27 @@ class CounterApp:
         self.avg_socket_emit_time = ((self.avg_socket_emit_time * self.num_of_frames) + socket_emit_time) / (self.num_of_frames + 1)
         self.num_of_frames += 1
 
-        if print_data:
+        if self.num_of_frames % 1000 == 0:
             print(f'''avg fps: {self.avg_fps:0.2f}, avg_frame_time: {self.avg_frame_time:0.2f} ms, avg_total_frame_time: {self.avg_total_frame_time:0.2f} ms
 avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_tracking_count_time: {self.avg_total_inferencing_tracking_count_time:0.2f} ms
 avg_frame_decode_time: {self.avg_frame_decode_time:0.2f} ms, avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
 avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time: {self.avg_undistortion_time:0.2f} ms
-showing_video: {self.showing_video}
 ''')
+            self.num_of_frames = 0
+            self.num_of_frames_with_jpeg_encode = 0
+            self.num_of_frames_with_base64_encode = 0
+
+            self.avg_frame_time = 0
+            self.avg_total_frame_time = 0
+            self.avg_fps = 0
+            self.avg_waiting_for_frame_time = 0
+            self.avg_total_inferencing_tracking_count_time = 0
+            self.avg_frame_decode_time = 0
+            self.avg_jpeg_encode_time = 0
+            self.avg_base64_encode_time = 0
+            self.avg_socket_emit_time = 0
+            self.avg_undistortion_time = 0
+            
         self.sio.emit('frame_time', {
             'num_of_frames': self.num_of_frames,
             'avg_frame_time': self.avg_frame_time,
@@ -301,9 +309,9 @@ showing_video: {self.showing_video}
         with Device.from_id(self.camera_id) as cam:
             cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)
             cam.set_format(BufferType.VIDEO_CAPTURE, self.width, self.height, "MJPG")
-            print(cam.get_format(BufferType.VIDEO_CAPTURE))
+            print(f'cam format: {cam.get_format(BufferType.VIDEO_CAPTURE)}')
             end_of_prev_frame = perf_counter_ns()
-            print(cam.get_fps(BufferType.VIDEO_CAPTURE))
+            print(f'cam fps: {cam.get_fps(BufferType.VIDEO_CAPTURE)}')
             for frame in cam:
                 start_of_current_frame = perf_counter_ns()
                 waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
@@ -317,8 +325,7 @@ showing_video: {self.showing_video}
                         undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
                     else:
                         undistortion_time = None
-                    print(decoded_frame.shape)
-                    results = model.predict(decoded_frame)[0]
+                    results = model.predict(decoded_frame, imgsz=self.model_imgsz, verbose=False)[0]
                     detections = Detections.from_ultralytics(results)
                     decoded_frame, payload = counter.trigger(decoded_frame, detections)
                     after_inference = perf_counter_ns()
@@ -354,7 +361,6 @@ showing_video: {self.showing_video}
                         batch = counter.reset_counter()
                         self.reset_counter = False
                         self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
-                    print(f'frame took {total_frame_time:0.2f} ms')
                     self.calculate_frame_time_data(
                         current_frame_time,
                         total_frame_time,
@@ -365,7 +371,6 @@ showing_video: {self.showing_video}
                         jpeg_encode_time,
                         base64_encode_time,
                         undistortion_time=undistortion_time,
-                        print_data=self.print_debug_performance_metrics
                     )
                     end_of_prev_frame = perf_counter_ns()
                 except Exception as e:

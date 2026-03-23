@@ -1,3 +1,7 @@
+import gi
+gi.require_version('Gst', '1.0')
+from gi.repository import Gst
+from utils.gstreamer_app import GStreamerApp, get_numpy_from_buffer, dummy_callback
 from flask import Flask, jsonify
 from flask.json.provider import DefaultJSONProvider
 from os import environ
@@ -17,7 +21,7 @@ import numpy as np
 import traceback
 from supervision import Detections
 import counter as ctr
-from utils.sqlite_db import Batch, get_day_summary, get_today_summary
+from utils.sqlite_db import Batch, get_today_summary
 from playhouse.shortcuts import model_to_dict
 from datetime import datetime
 import json
@@ -124,6 +128,16 @@ class CounterApp:
 
         self.showing_video = self.force_transmit_video
 
+        self.model = YOLO(self.model_path)
+        self.counter = ctr.Counter(
+            self.model.names,
+            self.width,
+            self.height,
+            self.model_path,
+            self.category_model_path,
+            only_use_yolo_model=self.only_use_yolo_model
+        )
+
         @sio.on('connect')
         def on_connect(sid, msg):
             print('Client connected')
@@ -176,6 +190,8 @@ class CounterApp:
                     self.reset_counter = True
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
+        
+        self.gstreamer_app = CounterGstreamerApp(f'/dev/video{self.camera_id}', self)
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -295,96 +311,99 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'avg_undistortion_time': self.avg_undistortion_time,
         }, namespace='/')
 
-    def detection_process(self):
-        model = YOLO(self.model_path)
-        counter = ctr.Counter(
-            model.names,
-            self.width,
-            self.height,
-            self.model_path,
-            self.category_model_path,
-            only_use_yolo_model=self.only_use_yolo_model
-        )
+    def detection_frame_process(self, frame: np.ndarray):
+        start_of_current_frame = perf_counter_ns()
+        waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
+        try:
+            decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
+            after_jpeg_decode = perf_counter_ns()
+            frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
+            if self.map1 is not None and self.map2 is not None:
+                decoded_frame = cv2.remap(decoded_frame, self.map1, None, None)
+                after_undistortion = perf_counter_ns()
+                undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
+            else:
+                undistortion_time = None
+            results = self.model.predict(decoded_frame, imgsz=self.model_imgsz, verbose=False)[0]
+            detections = Detections.from_ultralytics(results)
+            decoded_frame, payload = self.counter.trigger(decoded_frame, detections)
+            after_inference = perf_counter_ns()
+            total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
 
-        with Device.from_id(self.camera_id) as cam:
-            cam.set_fps(BufferType.VIDEO_CAPTURE, self.camera_fps)
-            cam.set_format(BufferType.VIDEO_CAPTURE, self.width, self.height, "MJPG")
-            print(f'cam format: {cam.get_format(BufferType.VIDEO_CAPTURE)}')
+            if self.showing_video:
+                buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
+                after_jpeg_encode = perf_counter_ns()
+
+                jpeg_encode_time = (after_jpeg_encode - after_inference) / 1_000_000
+
+                encoded_frame = base64.b64encode(buffer).decode('utf-8')
+                after_base64_encode = perf_counter_ns()
+                base64_encode_time = (after_base64_encode - after_jpeg_encode) / 1_000_000
+                payload['encoded_frame'] = encoded_frame
+            else:
+                jpeg_encode_time = None
+                base64_encode_time = None
+
+            self.sio.emit('detection_event', payload, namespace='/')
+
+            after_socketio_emit = perf_counter_ns()
+            socket_emit_time = (after_socketio_emit - (after_base64_encode if self.showing_video else after_inference)) / 1_000_000
+            
+            current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
+            total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
+            if self.set_expected_count:
+                self.counter.set_expected_count(self.new_expected_count)
+                self.new_expected_count = None
+                self.set_expected_count = False
+            if self.reset_counter:
+                today_summary = get_today_summary()
+                batch = self.counter.reset_counter()
+                self.reset_counter = False
+                self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+            self.calculate_frame_time_data(
+                current_frame_time,
+                total_frame_time,
+                waiting_for_frame_time,
+                total_inferencing_tracking_count_time,
+                frame_decode_time,
+                socket_emit_time,
+                jpeg_encode_time,
+                base64_encode_time,
+                undistortion_time=undistortion_time,
+            )
             end_of_prev_frame = perf_counter_ns()
-            print(f'cam fps: {cam.get_fps(BufferType.VIDEO_CAPTURE)}')
-            for frame in cam:
-                start_of_current_frame = perf_counter_ns()
-                waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
-                try:
-                    decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
-                    after_jpeg_decode = perf_counter_ns()
-                    frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
-                    if self.map1 is not None and self.map2 is not None:
-                        decoded_frame = cv2.remap(decoded_frame, self.map1, None, None)
-                        after_undistortion = perf_counter_ns()
-                        undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
-                    else:
-                        undistortion_time = None
-                    results = model.predict(decoded_frame, imgsz=self.model_imgsz, verbose=False)[0]
-                    detections = Detections.from_ultralytics(results)
-                    decoded_frame, payload = counter.trigger(decoded_frame, detections)
-                    after_inference = perf_counter_ns()
-                    total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
-
-                    if self.showing_video:
-                        buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
-                        after_jpeg_encode = perf_counter_ns()
-
-                        jpeg_encode_time = (after_jpeg_encode - after_inference) / 1_000_000
-
-                        encoded_frame = base64.b64encode(buffer).decode('utf-8')
-                        after_base64_encode = perf_counter_ns()
-                        base64_encode_time = (after_base64_encode - after_jpeg_encode) / 1_000_000
-                        payload['encoded_frame'] = encoded_frame
-                    else:
-                        jpeg_encode_time = None
-                        base64_encode_time = None
-
-                    self.sio.emit('detection_event', payload, namespace='/')
-
-                    after_socketio_emit = perf_counter_ns()
-                    socket_emit_time = (after_socketio_emit - (after_base64_encode if self.showing_video else after_inference)) / 1_000_000
-                    
-                    current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
-                    total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
-                    if self.set_expected_count:
-                        counter.set_expected_count(self.new_expected_count)
-                        self.new_expected_count = None
-                        self.set_expected_count = False
-                    if self.reset_counter:
-                        today_summary = get_today_summary()
-                        batch = counter.reset_counter()
-                        self.reset_counter = False
-                        self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
-                    self.calculate_frame_time_data(
-                        current_frame_time,
-                        total_frame_time,
-                        waiting_for_frame_time,
-                        total_inferencing_tracking_count_time,
-                        frame_decode_time,
-                        socket_emit_time,
-                        jpeg_encode_time,
-                        base64_encode_time,
-                        undistortion_time=undistortion_time,
-                    )
-                    end_of_prev_frame = perf_counter_ns()
-                except Exception as e:
-                    print(f'got error {e}')
-                    error_traceback = traceback.format_exc()
-                    print(error_traceback)
-        print('detection process has stopped')
+        except Exception as e:
+            print(f'got error {e}')
+            error_traceback = traceback.format_exc()
+            print(error_traceback)
 
     def run(self):
         with self.app.app_context():
-            self.detection_thread = Thread(target=self.detection_process)
+            self.detection_thread = Thread(target=self.gstreamer_app.run)
             self.detection_thread.daemon = True  # Daemonize thread
             self.detection_thread.start()
         self.app.run(threaded=True)
+
+def counter_callback(pad, info, counter_app: CounterApp):
+    buffer = info.get_buffer()
+    # Check if the buffer is valid
+    if buffer is None:
+        return Gst.PadProbeReturn.OK
+    
+    frame = get_numpy_from_buffer(buffer, 'RGB', 1920, 1080)
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    counter_app.detection_frame_process(frame)
+
+    return Gst.PadProbeReturn.OK
+
+    
+class CounterGstreamerApp(GStreamerApp):
+    def __init__(self, video_source, user_data):
+        super().__init__(video_source, user_data)
+        self.app_callback = dummy_callback
+        self.create_pipeline()
+
 
 if __name__ == '__main__':
     print('Is using CUDA: ' + str(torch.cuda.is_available()))

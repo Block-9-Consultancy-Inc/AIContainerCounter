@@ -143,7 +143,7 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
 class GStreamerApp:
-    def __init__(self, video_source: str, user_data: AppCallback):
+    def __init__(self, video_source: str, user_data):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
         self.video_source = video_source
@@ -151,12 +151,8 @@ class GStreamerApp:
         self.user_data = user_data
         self.pipeline = None
         self.loop = None
+        self.app_callback = None
 
-        self.app_callback = dummy_callback
-
-        self.sync = "false"
-        self.show_fps = "true"
-        self.create_pipeline()
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
         print(f"FPS: {fps:.2f}, Droprate: {droprate:.2f}, Avg FPS: {avgfps:.2f}")
@@ -195,15 +191,15 @@ class GStreamerApp:
 
 
     def on_eos(self):
-        if self.source_type == "file":
-             # Seek to the start (position 0) in nanoseconds
-            success = self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0)
-            if success:
-                print("Video rewound successfully. Restarting playback...")
-            else:
-                print("Error rewinding the video.")
-        else:
-            self.shutdown()
+        # if self.source_type == "file":
+        #      # Seek to the start (position 0) in nanoseconds
+        #     success = self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0)
+        #     if success:
+        #         print("Video rewound successfully. Restarting playback...")
+        #     else:
+        #         print("Error rewinding the video.")
+        # else:
+        self.shutdown()
 
 
     def shutdown(self, signum=None, frame=None):
@@ -260,8 +256,13 @@ class GStreamerApp:
         self.loop.run()
 
         # Clean up
-        self.user_data.running = False
         self.pipeline.set_state(Gst.State.NULL)
+    
+    def pause(self):
+        self.pipeline.set_state(Gst.State.PAUSED)
+
+    def play(self):
+        self.pipeline.set_state(Gst.State.PLAYING)
 
 # ---------------------------------------------------------
 # Functions used to get numpy arrays from GStreamer buffers
@@ -346,5 +347,7 @@ def disable_qos(pipeline):
 
 
 if __name__ == '__main__':
-    gstreamer_app = GStreamerApp('/dev/video1', AppCallback())
+    gstreamer_app = GStreamerApp('/dev/video2', AppCallback())
+    gstreamer_app.app_callback = dummy_callback
+    gstreamer_app.create_pipeline()
     gstreamer_app.run()

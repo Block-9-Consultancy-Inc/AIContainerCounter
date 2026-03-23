@@ -1,7 +1,7 @@
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
-from utils.gstreamer_app import GStreamerApp, get_numpy_from_buffer, dummy_callback
+from utils.gstreamer_app import GStreamerApp, get_numpy_from_buffer
 from flask import Flask, jsonify
 from flask.json.provider import DefaultJSONProvider
 from os import environ
@@ -192,6 +192,7 @@ class CounterApp:
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
         
         self.gstreamer_app = CounterGstreamerApp(f'/dev/video{self.camera_id}', self)
+        self.end_of_prev_frame = perf_counter_ns()
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
@@ -313,25 +314,24 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
 
     def detection_frame_process(self, frame: np.ndarray):
         start_of_current_frame = perf_counter_ns()
-        waiting_for_frame_time = (start_of_current_frame - end_of_prev_frame) / 1_000_000
+        waiting_for_frame_time = (start_of_current_frame - self.end_of_prev_frame) / 1_000_000
         try:
-            decoded_frame = self.jpeg.decode(frame.array, flags=TJFLAG_FASTUPSAMPLE|TJFLAG_FASTDCT)
             after_jpeg_decode = perf_counter_ns()
             frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
             if self.map1 is not None and self.map2 is not None:
-                decoded_frame = cv2.remap(decoded_frame, self.map1, None, None)
+                frame = cv2.remap(frame, self.map1, None, None)
                 after_undistortion = perf_counter_ns()
                 undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
             else:
                 undistortion_time = None
-            results = self.model.predict(decoded_frame, imgsz=self.model_imgsz, verbose=False)[0]
+            results = self.model.predict(frame, imgsz=self.model_imgsz, verbose=False)[0]
             detections = Detections.from_ultralytics(results)
-            decoded_frame, payload = self.counter.trigger(decoded_frame, detections)
+            frame, payload = self.counter.trigger(frame, detections)
             after_inference = perf_counter_ns()
             total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
 
             if self.showing_video:
-                buffer = self.jpeg.encode(decoded_frame, quality=self.frame_encode_quality)
+                buffer = self.jpeg.encode(frame, quality=self.frame_encode_quality)
                 after_jpeg_encode = perf_counter_ns()
 
                 jpeg_encode_time = (after_jpeg_encode - after_inference) / 1_000_000
@@ -350,7 +350,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             socket_emit_time = (after_socketio_emit - (after_base64_encode if self.showing_video else after_inference)) / 1_000_000
             
             current_frame_time = (after_socketio_emit - start_of_current_frame) / 1_000_000
-            total_frame_time = (after_socketio_emit - end_of_prev_frame) / 1_000_000
+            total_frame_time = (after_socketio_emit - self.end_of_prev_frame) / 1_000_000
             if self.set_expected_count:
                 self.counter.set_expected_count(self.new_expected_count)
                 self.new_expected_count = None
@@ -371,7 +371,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 base64_encode_time,
                 undistortion_time=undistortion_time,
             )
-            end_of_prev_frame = perf_counter_ns()
+            self.end_of_prev_frame = perf_counter_ns()
         except Exception as e:
             print(f'got error {e}')
             error_traceback = traceback.format_exc()
@@ -401,7 +401,7 @@ def counter_callback(pad, info, counter_app: CounterApp):
 class CounterGstreamerApp(GStreamerApp):
     def __init__(self, video_source, user_data):
         super().__init__(video_source, user_data)
-        self.app_callback = dummy_callback
+        self.app_callback = counter_callback
         self.create_pipeline()
 
 

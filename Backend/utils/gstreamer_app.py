@@ -185,8 +185,9 @@ class GStreamerApp:
         # QOS
         elif t == Gst.MessageType.QOS:
             # Handle QoS message here
-            qos_element = message.src.get_name()
-            print(f"QoS message received from {qos_element}")
+            # qos_element = message.src.get_name()
+            # print(f"QoS message received from {qos_element}")
+            pass
         return True
 
 

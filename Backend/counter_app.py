@@ -191,7 +191,7 @@ class CounterApp:
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
         
-        self.gstreamer_app = CounterGstreamerApp(f'/dev/video{self.camera_id}', self)
+        self.gstreamer_app = CounterGstreamerApp(f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
         self.end_of_prev_frame = perf_counter_ns()
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
@@ -391,6 +391,8 @@ def counter_callback(pad, info, counter_app: CounterApp):
         return Gst.PadProbeReturn.OK
     
     frame = get_numpy_from_buffer(buffer, 'RGB', 1920, 1080)
+
+    # TODO yolo possibly requires BGR while category models require RGB, look into and find solution
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     counter_app.detection_frame_process(frame)
@@ -399,8 +401,8 @@ def counter_callback(pad, info, counter_app: CounterApp):
 
     
 class CounterGstreamerApp(GStreamerApp):
-    def __init__(self, video_source, user_data):
-        super().__init__(video_source, user_data)
+    def __init__(self, video_source: str, width: int, height: int, fps: int, user_data):
+        super().__init__(video_source, width, height, fps, user_data)
         self.app_callback = counter_callback
         self.create_pipeline()
 

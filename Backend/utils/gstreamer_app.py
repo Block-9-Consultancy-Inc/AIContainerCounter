@@ -143,9 +143,12 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
 class GStreamerApp:
-    def __init__(self, video_source: str, user_data):
+    def __init__(self, video_source: str, width: int, height: int, fps: int, user_data):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
+        self.width = width
+        self.height = height
+        self.fps = fps
         self.video_source = video_source
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.user_data = user_data
@@ -217,7 +220,7 @@ class GStreamerApp:
 
 
     def get_pipeline_string(self):
-        source_pipeline = SOURCE_PIPELINE(self.video_source)
+        source_pipeline = SOURCE_PIPELINE(self.video_source, video_width=self.width, video_height=self.height, fps=self.fps)
         user_callback_pipeline = USER_CALLBACK_PIPELINE()
         display_pipeline = 'fakesink'
         pipeline_string = (
@@ -271,7 +274,7 @@ class GStreamerApp:
 
 def handle_rgb(map_info, width, height):
     # The copy() method is used to create a copy of the numpy array. This is necessary because the original numpy array is created from buffer data, and it does not own the data it represents. Instead, it's just a view of the buffer's data.
-    return np.ndarray(shape=(height, width, 3), dtype=np.uint8, buffer=map_info.data).copy()
+    return np.ndarray(shape=(height, width, 3), dtype=np.uint8, buffer=map_info.data)
 
 def handle_nv12(map_info, width, height):
     y_plane_size = width * height

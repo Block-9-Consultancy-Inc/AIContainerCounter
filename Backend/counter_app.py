@@ -120,7 +120,6 @@ class CounterApp:
         self.avg_fps = 0
         self.avg_waiting_for_frame_time = 0
         self.avg_total_inferencing_tracking_count_time = 0
-        self.avg_frame_decode_time = 0
         self.avg_jpeg_encode_time = 0
         self.avg_base64_encode_time = 0
         self.avg_socket_emit_time = 0
@@ -191,7 +190,8 @@ class CounterApp:
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
         
-        self.gstreamer_app = CounterGstreamerApp(f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+        self.gstreamer_app = CounterGstreamerApp(f'{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+        self.collect_raw_frame = True
         self.end_of_prev_frame = perf_counter_ns()
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
@@ -250,7 +250,6 @@ class CounterApp:
             total_frame_time: int,
             waiting_for_frame_time: int,
             total_inferencing_tracking_count_time: int,
-            frame_decode_time: int,
             socket_emit_time: int,
             jpeg_encode_time: int = None,
             base64_encode_time: int = None,
@@ -261,7 +260,6 @@ class CounterApp:
         self.avg_fps = 1000 / self.avg_total_frame_time
         self.avg_waiting_for_frame_time = ((self.avg_waiting_for_frame_time * self.num_of_frames) + waiting_for_frame_time) / (self.num_of_frames + 1)
         self.avg_total_inferencing_tracking_count_time = ((self.avg_total_inferencing_tracking_count_time * self.num_of_frames) + total_inferencing_tracking_count_time) / (self.num_of_frames + 1)
-        self.avg_frame_decode_time = ((self.avg_frame_decode_time * self.num_of_frames) + frame_decode_time) / (self.num_of_frames + 1)
 
         if undistortion_time is not None:
             self.avg_undistortion_time = ((self.avg_undistortion_time * self.num_of_frames) + undistortion_time) / (self.num_of_frames + 1)
@@ -280,7 +278,7 @@ class CounterApp:
         if self.num_of_frames % 1000 == 0:
             print(f'''avg fps: {self.avg_fps:0.2f}, avg_frame_time: {self.avg_frame_time:0.2f} ms, avg_total_frame_time: {self.avg_total_frame_time:0.2f} ms
 avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_tracking_count_time: {self.avg_total_inferencing_tracking_count_time:0.2f} ms
-avg_frame_decode_time: {self.avg_frame_decode_time:0.2f} ms, avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
+avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
 avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time: {self.avg_undistortion_time:0.2f} ms
 ''')
             self.num_of_frames = 0
@@ -292,7 +290,6 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             self.avg_fps = 0
             self.avg_waiting_for_frame_time = 0
             self.avg_total_inferencing_tracking_count_time = 0
-            self.avg_frame_decode_time = 0
             self.avg_jpeg_encode_time = 0
             self.avg_base64_encode_time = 0
             self.avg_socket_emit_time = 0
@@ -305,7 +302,6 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'avg_total_frame_time': self.avg_total_frame_time,
             'avg_waiting_for_frame_time': self.avg_waiting_for_frame_time,
             'avg_total_inferencing_tracking_count_time': self.avg_total_inferencing_tracking_count_time,
-            'avg_frame_decode_time': self.avg_frame_decode_time,
             'avg_jpeg_encode_time': self.avg_jpeg_encode_time,
             'avg_base64_encode_time': self.avg_base64_encode_time,
             'avg_socket_emit_time': self.avg_socket_emit_time,
@@ -316,19 +312,18 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
         start_of_current_frame = perf_counter_ns()
         waiting_for_frame_time = (start_of_current_frame - self.end_of_prev_frame) / 1_000_000
         try:
-            after_jpeg_decode = perf_counter_ns()
-            frame_decode_time = (after_jpeg_decode - start_of_current_frame) / 1_000_000
             if self.map1 is not None and self.map2 is not None:
                 frame = cv2.remap(frame, self.map1, None, None)
                 after_undistortion = perf_counter_ns()
-                undistortion_time = (after_undistortion - after_jpeg_decode) / 1_000_000
+                undistortion_time = (after_undistortion - start_of_current_frame) / 1_000_000
             else:
                 undistortion_time = None
             results = self.model.predict(frame, imgsz=self.model_imgsz, verbose=False)[0]
             detections = Detections.from_ultralytics(results)
+            self.collect_raw_frame = len(detections) > 0
             frame, payload = self.counter.trigger(frame, detections)
             after_inference = perf_counter_ns()
-            total_inferencing_tracking_count_time = (after_inference - after_jpeg_decode) / 1_000_000
+            total_inferencing_tracking_count_time = (after_inference - (undistortion_time if undistortion_time is not None else start_of_current_frame)) / 1_000_000
 
             if self.showing_video:
                 buffer = self.jpeg.encode(frame, quality=self.frame_encode_quality)
@@ -360,12 +355,12 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 batch = self.counter.reset_counter()
                 self.reset_counter = False
                 self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+                self.gstreamer_app.signal_new_file()
             self.calculate_frame_time_data(
                 current_frame_time,
                 total_frame_time,
                 waiting_for_frame_time,
                 total_inferencing_tracking_count_time,
-                frame_decode_time,
                 socket_emit_time,
                 jpeg_encode_time,
                 base64_encode_time,
@@ -399,11 +394,26 @@ def counter_callback(pad, info, counter_app: CounterApp):
 
     return Gst.PadProbeReturn.OK
 
+def data_collection_callback(pad, info, counter_app: CounterApp):
+    buffer = info.get_buffer()
+    # Check if the buffer is valid
+    if buffer is None:
+        return Gst.PadProbeReturn.OK
+        
+    if counter_app.collect_raw_frame:
+        return Gst.PadProbeReturn.OK
+    else:
+        return Gst.PadProbeReturn.HANDLED
+
+def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
+    return f'data/{str(counter_app.counter.current_batch_uuid)}.avi'
     
 class CounterGstreamerApp(GStreamerApp):
-    def __init__(self, video_source: str, width: int, height: int, fps: int, user_data):
-        super().__init__(video_source, width, height, fps, user_data)
+    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data):
+        super().__init__(first_file_name, video_source, width, height, fps, user_data)
         self.app_callback = counter_callback
+        self.data_collection_callback = data_collection_callback
+        self.new_location_callback = new_location_callback
         self.create_pipeline()
 
 

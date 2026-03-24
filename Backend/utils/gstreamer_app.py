@@ -24,7 +24,7 @@ prev_time = perf_counter()
 num_of_frames = 0
 avg_frame_time = 0
 
-def dummy_callback(pad, info, user_data):
+def dummy_app_callback(pad, info, user_data):
     global avg_frame_time, prev_time, num_of_frames
     """
     A minimal dummy callback function that returns immediately.
@@ -53,6 +53,9 @@ def dummy_callback(pad, info, user_data):
 
     print(f'avg fps: {(1 / avg_frame_time):.2f}')
 
+    return Gst.PadProbeReturn.OK
+
+def dummy_data_collection_callback(pad, info, user_data):
     return Gst.PadProbeReturn.OK
 
 # -----------------------------------------------------------------------------------------------
@@ -109,9 +112,8 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=1920, video_he
         str: A string representing the GStreamer pipeline for the video source.
     """
     source_element = (
-        f'v4l2src device={video_source} name={name} ! '
-        f'image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! '
-        f'avdec_mjpeg ! '
+        f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! tee name=t '
+        f't. ! {QUEUE(name=f"display_tee_q")} ! avdec_mjpeg ! '
     )
     source_pipeline = (
         f'{source_element} '
@@ -143,9 +145,10 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
 class GStreamerApp:
-    def __init__(self, video_source: str, width: int, height: int, fps: int, user_data):
+    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
+        self.first_file_name = first_file_name
         self.width = width
         self.height = height
         self.fps = fps
@@ -155,6 +158,8 @@ class GStreamerApp:
         self.pipeline = None
         self.loop = None
         self.app_callback = None
+        self.data_collection_callback = None
+        self.new_location_callback = None
 
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
@@ -226,7 +231,8 @@ class GStreamerApp:
         pipeline_string = (
             f'{source_pipeline} '
             f'{user_callback_pipeline} ! '
-            f'{display_pipeline}'
+            f'{display_pipeline} '
+            f't. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location=data/{self.first_file_name} '
         )
         print(pipeline_string)
         return pipeline_string
@@ -235,12 +241,19 @@ class GStreamerApp:
         print("Dumping dot file...")
         Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, "pipeline")
         return False
+    
+    def signal_new_file(self):
+        splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
+        splitmuxsink.emit('split-now')
 
     def run(self):
         # Add a watch for messages on the pipeline's bus
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message", self.bus_call, self.loop)
+
+        splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
+        splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
 
         # Connect pad probe to the identity element
         identity = self.pipeline.get_by_name("identity_callback")
@@ -249,6 +262,14 @@ class GStreamerApp:
         else:
             identity_pad = identity.get_static_pad("src")
             identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
+
+        # Connect pad probe to the identity element
+        identity = self.pipeline.get_by_name("data_collection_callback")
+        if identity is None:
+            print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
+        else:
+            identity_pad = identity.get_static_pad("src")
+            identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
 
         # Disable QoS to prevent frame drops
         disable_qos(self.pipeline)
@@ -352,6 +373,7 @@ def disable_qos(pipeline):
 
 if __name__ == '__main__':
     gstreamer_app = GStreamerApp('/dev/video2', AppCallback())
-    gstreamer_app.app_callback = dummy_callback
+    gstreamer_app.app_callback = dummy_app_callback
+    gstreamer_app.data_collection_callback = dummy_data_collection_callback
     gstreamer_app.create_pipeline()
     gstreamer_app.run()

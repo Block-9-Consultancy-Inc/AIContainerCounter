@@ -106,7 +106,7 @@ class Counter:
             'expected_pouch_count': self.expected_category_counts.get('pouch') if self.expected_category_counts is not None else None,
         }
 
-    def trigger(self, decoded_frame: np.ndarray, detections: Detections):
+    def trigger(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
 
         send_data_to_save = False
 
@@ -218,7 +218,7 @@ class Counter:
             
             def crop_bbox_from_frame(xyxy: np.ndarray):
                 x1, y1, x2, y2 = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])
-                bbox = decoded_frame[y1:y2, x1:x2]
+                bbox = rgb_frame[y1:y2, x1:x2]
                 return bbox
             center_crossed_in_bboxes = list(map(crop_bbox_from_frame, center_crossed_in_detections.xyxy))
             categories = self.category_classifier.run_inference(center_crossed_in_bboxes)

@@ -27,6 +27,7 @@ from datetime import datetime
 import json
 import uuid
 from utils.button_listener import ButtonListener
+import os
 
 class CustomJSONEncoder(json.JSONEncoder):
     """ Special json encoder """
@@ -425,6 +426,8 @@ if __name__ == '__main__':
     force_transmit_video = False
     if len(sys.argv) > 2:
         force_transmit_video = sys.argv[2] == 'force-transmit-video'
+    os.makedirs('data', exist_ok=True)
+    os.makedirs('images', exist_ok=True)
     counter_app = CounterApp(
         load_params_from_dotenv=True,
         dotenv_path=dotenv_path,

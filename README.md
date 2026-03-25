@@ -18,3 +18,11 @@ ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -framerate 60 -video_size 1920
 ```
 ffprobe -v 0 -of csv=p=0 -select_streams V:0 -show_entries stream=r_frame_rate speed-5-1.mp4
 ```
+
+### Convert MJPEG avi to H.264 mp4
+
+gst-launch-1.0 filesrc location=processed-counting-machine-test-videos/speed-5-1/speed-5-1-1920x1080.avi ! decodebin ! x264enc quantizer=18 speed-preset=9 ! mp4mux ! filesink location=test.mp4
+
+### Convert H.264 mp4 to MJPEG avi
+
+gst-launch-1.0 filesrc location=test.mp4 ! decodebin ! jpegenc ! avimux ! filesink location=test.avi

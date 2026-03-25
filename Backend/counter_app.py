@@ -308,25 +308,26 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'avg_undistortion_time': self.avg_undistortion_time,
         }, namespace='/')
 
-    def detection_frame_process(self, frame: np.ndarray):
+    def detection_frame_process(self, rgb_frame: np.ndarray):
         start_of_current_frame = perf_counter_ns()
         waiting_for_frame_time = (start_of_current_frame - self.end_of_prev_frame) / 1_000_000
         try:
             if self.map1 is not None and self.map2 is not None:
-                frame = cv2.remap(frame, self.map1, None, None)
+                rgb_frame = cv2.remap(rgb_frame, self.map1, None, None)
                 after_undistortion = perf_counter_ns()
                 undistortion_time = (after_undistortion - start_of_current_frame) / 1_000_000
             else:
                 undistortion_time = None
-            results = self.model.predict(frame, imgsz=self.model_imgsz, verbose=False)[0]
+            bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+            results = self.model.predict(bgr_frame, imgsz=self.model_imgsz, verbose=False)[0]
             detections = Detections.from_ultralytics(results)
             self.collect_raw_frame = len(detections) > 0
-            frame, payload = self.counter.trigger(frame, detections)
+            bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
             after_inference = perf_counter_ns()
             total_inferencing_tracking_count_time = (after_inference - (undistortion_time if undistortion_time is not None else start_of_current_frame)) / 1_000_000
 
             if self.showing_video:
-                buffer = self.jpeg.encode(frame, quality=self.frame_encode_quality)
+                buffer = self.jpeg.encode(bgr_frame, quality=self.frame_encode_quality)
                 after_jpeg_encode = perf_counter_ns()
 
                 jpeg_encode_time = (after_jpeg_encode - after_inference) / 1_000_000
@@ -388,7 +389,6 @@ def counter_callback(pad, info, counter_app: CounterApp):
     frame = get_numpy_from_buffer(buffer, 'RGB', 1920, 1080)
 
     # TODO yolo possibly requires BGR while category models require RGB, look into and find solution
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     counter_app.detection_frame_process(frame)
 

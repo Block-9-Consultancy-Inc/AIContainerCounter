@@ -35,7 +35,7 @@ def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str):
 
 
 def start_detection_process(dotenv_path: str):
-    process = Popen(['python', 'counter_app.py', dotenv_path, 'force-transmit-video'], stdout=DEVNULL, stderr=DEVNULL)
+    process = Popen(['python', 'counter_app.py', dotenv_path, 'test'], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 def sleep_with_progress(duration: float, description: str):
@@ -51,7 +51,6 @@ def sleep_with_progress(duration: float, description: str):
 
 def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     test_starting_time = perf_counter()
-    expected_count = 30
     jpeg = TurboJPEG()
     client = socketio.Client()
 
@@ -60,99 +59,115 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     current_test_iteration_frames = []
     @client.on('detection_event')
     def on_detection_event(message):
-        current_test_iteration_counting_result['total_in'] = message.get('total_in')
-        current_test_iteration_counting_result['total_out'] = message.get('total_out')
-        current_test_iteration_counting_result['class_wise_count'] = message.get('class_wise_count')
+        current_test_iteration_counting_result['count'] = message.get('count')
+        current_test_iteration_counting_result['can_count'] = message.get('can_count')
+        current_test_iteration_counting_result['plastic_count'] = message.get('plastic_count')
+        current_test_iteration_counting_result['drinkbox_count'] = message.get('drinkbox_count')
+        current_test_iteration_counting_result['gabletop_count'] = message.get('gabletop_count')
+        current_test_iteration_counting_result['pouch_count'] = message.get('pouch_count')
         current_test_iteration_frames.append(message.get('encoded_frame'))
     @client.on('frame_time')
     def on_frame_time(message):
         nonlocal current_test_iteration_frame_time_metrics
         current_test_iteration_frame_time_metrics = message
 
-    video_files = os.listdir(src_folder)
-    video_files.sort()
-    num_of_video_files = len(video_files)
+    for batch in os.listdir(src_folder):
+        with open(f'{src_folder}/{batch}/breakdown.json') as f:
+            expected_counts = json.load(f)
+        video_files = os.listdir(f'{src_folder}/{batch}')
+        video_files.sort()
+        num_of_video_files = len(video_files)
 
-    dotenv_files = os.listdir(env_folder)
-    dotenv_files.sort()
-    num_of_dotenv_files = len(dotenv_files)
+        dotenv_files = os.listdir(env_folder)
+        dotenv_files.sort()
+        num_of_dotenv_files = len(dotenv_files)
 
-    overall_results = []
+        overall_results = []
 
-    for env_index, env in enumerate(dotenv_files):
-        current_env_start = perf_counter()
-        current_env_overall_results = {
-            'env': env,
-            'overall_accuracy': 0,
-            'overall_fps': 0,
-        }
-        overall_results.append(current_env_overall_results)
-        current_env_results = []
-        current_env_path = f'{env_folder}/{env}'
-        current_env_values = dotenv_values(current_env_path)
-        current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
-        current_env_name = env.split('.')[0]
-        current_dest_folder = f'{dest_folder}/{current_env_name}'
-        os.makedirs(current_dest_folder, exist_ok=True)
-        for test_video_index, test_video_file_name in enumerate(video_files):
-            file = f'{src_folder}/{test_video_file_name}/{test_video_file_name}-{current_env_width}x{current_env_height}.avi'
-            video_duration = get_file_duration(Path(file))
-            for test_video_iteration in range(ITERATIONS_PER_TEST):
-                current_iteration_start = perf_counter()
-                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
-                Thread(target=sleep_with_progress, args=[video_duration, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}']).start()
-                counter_app_process = start_detection_process(current_env_path)
-                client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
-                video_playback_process.wait()
-                print('Disconnecting socketio client...')
-                client.disconnect()
-                counter_app_process.terminate()
-                print('waiting for counter app process to terminate')
-                counter_app_process.wait()
+        for env_index, env in enumerate(dotenv_files):
+            current_env_start = perf_counter()
+            current_env_overall_results = {
+                'env': env,
+                'overall_accuracy': 0,
+                'overall_fps': 0,
+            }
+            overall_results.append(current_env_overall_results)
+            current_env_results = []
+            current_env_path = f'{env_folder}/{env}'
+            current_env_values = dotenv_values(current_env_path)
+            current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
+            current_env_name = env.split('.')[0]
+            current_dest_folder = f'{dest_folder}/{current_env_name}/{batch}'
+            os.makedirs(current_dest_folder, exist_ok=True)
+            for test_video_index, test_video_file_name in enumerate(video_files):
+                file = f'{src_folder}/{test_video_file_name}/{test_video_file_name}'
+                video_duration = get_file_duration(Path(file))
+                for test_video_iteration in range(ITERATIONS_PER_TEST):
+                    current_iteration_start = perf_counter()
+                    video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
+                    Thread(target=sleep_with_progress, args=[video_duration, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} in {batch} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}']).start()
+                    counter_app_process = start_detection_process(current_env_path)
+                    client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
+                    video_playback_process.wait()
+                    print('Disconnecting socketio client...')
+                    client.disconnect()
+                    counter_app_process.terminate()
+                    print('waiting for counter app process to terminate')
+                    counter_app_process.wait()
 
-                print(current_test_iteration_counting_result)
-                current_test_iteration_counting_result['file'] = test_video_file_name
-                current_test_iteration_counting_result['iteration'] = test_video_iteration + 1
-                current_test_iteration_counting_result['accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('total_out') - expected_count)) / expected_count), 0) * 100
-                current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
+                    print(current_test_iteration_counting_result)
+                    current_test_iteration_counting_result['file'] = test_video_file_name
+                    current_test_iteration_counting_result['iteration'] = test_video_iteration + 1
+                    current_test_iteration_counting_result['accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('count') - expected_counts['total'])) / expected_counts['total']), 0) * 100
+                    current_test_iteration_counting_result['can_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('can_count') - expected_counts['can'])) / expected_counts['can']), 0) * 100
+                    current_test_iteration_counting_result['plastic_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('plastic_count') - expected_counts['plastic'])) / expected_counts['plastic']), 0) * 100
+                    current_test_iteration_counting_result['drinkbox_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('drinkbox_count') - expected_counts['drinkbox'])) / expected_counts['drinkbox']), 0) * 100
+                    current_test_iteration_counting_result['gabletop_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('gabletop_count') - expected_counts['gabletop'])) / expected_counts['gabletop']), 0) * 100
+                    current_test_iteration_counting_result['pouch_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('pouch_count') - expected_counts['pouch'])) / expected_counts['pouch']), 0) * 100
+                    current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
 
-                other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_env_results))
-                other_iteration_results.append(current_test_iteration_counting_result)
-                for iteration_result in other_iteration_results:
-                    iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('total_out') - iteration_result.get('total_out')), other_iteration_results)))
+                    other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_env_results))
+                    other_iteration_results.append(current_test_iteration_counting_result)
+                    for iteration_result in other_iteration_results:
+                        iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('count') - iteration_result.get('count')), other_iteration_results)))
 
-                current_env_results.append(current_test_iteration_counting_result)
-                current_test_video_file_name = test_video_file_name.split('.')[0]
-                with sv.VideoSink(f'{current_dest_folder}/{current_test_video_file_name}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
-                    with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
-                        for encoded_frame in current_test_iteration_frames:
-                            base64_decoded = base64.b64decode(encoded_frame)
-                            decoded_frame = jpeg.decode(base64_decoded)
-                            video_sink.write_frame(decoded_frame)
-                            pbar.update()
+                    current_env_results.append(current_test_iteration_counting_result)
+                    current_test_video_file_name = test_video_file_name.split('.')[0]
+                    with sv.VideoSink(f'{current_dest_folder}/{current_env_name}/{batch}/{current_test_video_file_name}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                        with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
+                            for encoded_frame in current_test_iteration_frames:
+                                base64_decoded = base64.b64decode(encoded_frame)
+                                decoded_frame = jpeg.decode(base64_decoded)
+                                video_sink.write_frame(decoded_frame)
+                                pbar.update()
 
-                current_iteration_end = perf_counter()
-                iteration_result['time_s'] = current_iteration_end - current_iteration_start
+                    current_iteration_end = perf_counter()
+                    iteration_result['time_s'] = current_iteration_end - current_iteration_start
 
-                current_env_overall_results = {
-                    'env': env,
-                    'avg_accuracy': sum(list(map(lambda e: e.get('accuracy'), current_env_results))) / len(current_env_results),
-                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
-                    'avg_iteration_diff': sum(list(map(lambda e: e.get('iteration_diff'), current_env_results))) / len(current_env_results),
-                    'time_s': current_iteration_end - current_env_start
-                }
+                    current_env_overall_results = {
+                        'env': env,
+                        'avg_accuracy': sum(list(map(lambda e: e.get('accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_can_accuracy': sum(list(map(lambda e: e.get('can_accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_plastic_accuracy': sum(list(map(lambda e: e.get('plastic_accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_drinkbox_accuracy': sum(list(map(lambda e: e.get('drinkbox_accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_gabletop_accuracy': sum(list(map(lambda e: e.get('gabletop_accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_pouch_accuracy': sum(list(map(lambda e: e.get('pouch_accuracy'), current_env_results))) / len(current_env_results),
+                        'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
+                        'avg_iteration_diff': sum(list(map(lambda e: e.get('iteration_diff'), current_env_results))) / len(current_env_results),
+                        'time_s': current_iteration_end - current_env_start
+                    }
 
-                with open(f'{current_dest_folder}/results.json', 'w') as f:
-                    json.dump({**current_env_overall_results, 'results': current_env_results}, f, indent=4)
+                    with open(f'{current_dest_folder}/{current_env_name}/{batch}/results.json', 'w') as f:
+                        json.dump({**current_env_overall_results, 'results': current_env_results}, f, indent=4)
 
-                overall_results[len(overall_results) - 1] = current_env_overall_results
+                    overall_results[len(overall_results) - 1] = current_env_overall_results
 
-                with open(f'{dest_folder}/overall_results.json', 'w') as f:
-                    json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_results': overall_results }, f, indent=4)
+                    with open(f'{dest_folder}/overall_results.json', 'w') as f:
+                        json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_results': overall_results }, f, indent=4)
 
-                current_test_iteration_frame_time_metrics = {}
-                current_test_iteration_counting_result = {}
-                current_test_iteration_frames = []
+                    current_test_iteration_frame_time_metrics = {}
+                    current_test_iteration_counting_result = {}
+                    current_test_iteration_frames = []
 
 if __name__ == '__main__':
     src_folder = sys.argv[1]

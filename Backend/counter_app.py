@@ -54,7 +54,6 @@ class CounterApp:
     def __init__(self,
             load_params_from_dotenv = True,
             dotenv_path = './.env',
-            force_transmit_video = False,
             height = 1080,
             width = 1920,
             camera_id = 0,
@@ -66,11 +65,11 @@ class CounterApp:
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
             only_use_yolo_model: bool = False,
-            button_listener_serial_port: str = None
+            button_listener_serial_port: str = None,
+            is_test: bool = False
         ) -> None:
 
-        self.force_transmit_video = force_transmit_video
-
+        self.is_test = is_test
         if not load_params_from_dotenv:
             self.height = height
             self.width = width
@@ -84,6 +83,7 @@ class CounterApp:
             self.camera_calibration_params_path = camera_calibration_params_path
             self.only_use_yolo_model = only_use_yolo_model
             self.button_listener_serial_port = button_listener_serial_port
+            self.is_test = is_test
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -126,7 +126,7 @@ class CounterApp:
         self.avg_socket_emit_time = 0
         self.avg_undistortion_time = 0
 
-        self.showing_video = self.force_transmit_video
+        self.showing_video = self.is_test
 
         self.model = YOLO(self.model_path)
         self.counter = ctr.Counter(
@@ -135,7 +135,8 @@ class CounterApp:
             self.height,
             self.model_path,
             self.category_model_path,
-            only_use_yolo_model=self.only_use_yolo_model
+            only_use_yolo_model=self.only_use_yolo_model,
+            is_test=self.is_test,
         )
 
         @sio.on('connect')
@@ -176,7 +177,7 @@ class CounterApp:
         @sio.on('set-video')
         def set_video(sid, msg):
             print(f'set video {msg}')
-            if not self.force_transmit_video:
+            if not self.is_test:
                 self.showing_video = bool(msg)
 
         @sio.on('get-batch-details')
@@ -400,6 +401,9 @@ def data_collection_callback(pad, info, counter_app: CounterApp):
     # Check if the buffer is valid
     if buffer is None:
         return Gst.PadProbeReturn.OK
+    
+    if counter_app.is_test:
+        return Gst.PadProbeReturn.HANDLED
         
     if counter_app.collect_raw_frame:
         return Gst.PadProbeReturn.OK
@@ -423,14 +427,14 @@ if __name__ == '__main__':
     dotenv_path = './.env'
     if len(sys.argv) > 1:
         dotenv_path = sys.argv[1]
-    force_transmit_video = False
+    is_test = False
     if len(sys.argv) > 2:
-        force_transmit_video = sys.argv[2] == 'force-transmit-video'
+        is_test = sys.argv[2] == 'test'
     os.makedirs('data', exist_ok=True)
     os.makedirs('images', exist_ok=True)
     counter_app = CounterApp(
         load_params_from_dotenv=True,
         dotenv_path=dotenv_path,
-        force_transmit_video=force_transmit_video
+        is_test=is_test
     )
     counter_app.run()

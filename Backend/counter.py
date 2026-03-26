@@ -39,7 +39,9 @@ class Counter:
             yolo_model_path: str,
             category_model_path: str,
             only_use_yolo_model = False,
+            is_test = False,
         ):
+        self.is_test = is_test
         self.only_use_yolo_model = only_use_yolo_model
         self.width = width
         self.height = height
@@ -125,7 +127,7 @@ class Counter:
 
         self.capture_counts()
 
-        if self.should_capture_image():
+        if self.should_capture_image() and not self.is_test:
             self.signal_image_captured()
             id = uuid.uuid4()
             shm = shared_memory.SharedMemory(name=str(id), create=True, size=decoded_frame.nbytes)
@@ -161,7 +163,7 @@ class Counter:
                 detections=detections,
                 labels=labels)
             
-            if send_data_to_save:
+            if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
@@ -187,7 +189,7 @@ class Counter:
                 detections=detections,
                 labels=labels)
             
-            if send_data_to_save:
+            if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
@@ -264,7 +266,7 @@ class Counter:
             
             send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= IMAGE_BUFFER_SIZE * 10
 
-            if send_data_to_save:
+            if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
@@ -312,11 +314,13 @@ class Counter:
     def reset_counter(self):
         batch = counter_to_batch(self)
         self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
-        self.data_to_save_queue.put(self.data_to_save)
+        if not self.is_test:
+            self.data_to_save_queue.put(self.data_to_save)
         self.prev_data_to_save = self.data_to_save
-        for shm in self.prev_data_to_save_shms:
-                    shm.close()
-                    shm.unlink()
+        if not self.is_test:
+            for shm in self.prev_data_to_save_shms:
+                        shm.close()
+                        shm.unlink()
         self.prev_data_to_save_shms = self.data_to_save_shms
         self.data_to_save_shms = []
         self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])

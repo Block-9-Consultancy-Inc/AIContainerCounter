@@ -160,6 +160,7 @@ class GStreamerApp:
         self.app_callback = None
         self.data_collection_callback = None
         self.new_location_callback = None
+        self.collect_raw_frames = True
 
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
@@ -231,9 +232,11 @@ class GStreamerApp:
         pipeline_string = (
             f'{source_pipeline} '
             f'{user_callback_pipeline} ! '
-            f'{display_pipeline} '
-            f't. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location=data/{self.first_file_name} '
+            f'{display_pipeline}'
         )
+        if self.collect_raw_frames:
+            pipeline_string += f' t. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location=data/{self.first_file_name} '
+
         print(pipeline_string)
         return pipeline_string
 
@@ -243,6 +246,8 @@ class GStreamerApp:
         return False
     
     def signal_new_file(self):
+        if not self.collect_raw_frames:
+            return
         splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
         splitmuxsink.emit('split-now')
 
@@ -252,8 +257,9 @@ class GStreamerApp:
         bus.add_signal_watch()
         bus.connect("message", self.bus_call, self.loop)
 
-        splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
-        splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
+        if self.collect_raw_frames:
+            splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
+            splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
 
         # Connect pad probe to the identity element
         identity = self.pipeline.get_by_name("identity_callback")
@@ -264,12 +270,13 @@ class GStreamerApp:
             identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
 
         # Connect pad probe to the identity element
-        identity = self.pipeline.get_by_name("data_collection_callback")
-        if identity is None:
-            print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
-        else:
-            identity_pad = identity.get_static_pad("src")
-            identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
+        if self.collect_raw_frames:
+            identity = self.pipeline.get_by_name("data_collection_callback")
+            if identity is None:
+                print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
+            else:
+                identity_pad = identity.get_static_pad("src")
+                identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
 
         # Disable QoS to prevent frame drops
         disable_qos(self.pipeline)

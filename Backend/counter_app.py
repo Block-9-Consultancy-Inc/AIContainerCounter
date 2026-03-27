@@ -2,17 +2,16 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
 from utils.gstreamer_app import GStreamerApp, get_numpy_from_buffer
-from flask import Flask, jsonify
+from flask import Flask
 from flask.json.provider import DefaultJSONProvider
 from os import environ
 import socketio
 import base64
 from threading import Thread
 from ultralytics import YOLO
-from turbojpeg import TurboJPEG, TJFLAG_FASTUPSAMPLE, TJFLAG_FASTDCT
+from turbojpeg import TurboJPEG
 from flask_cors import CORS
 import torch
-from linuxpy.video.device import Device, BufferType
 from time import perf_counter_ns
 from dotenv import load_dotenv
 import sys
@@ -277,7 +276,7 @@ class CounterApp:
         self.avg_socket_emit_time = ((self.avg_socket_emit_time * self.num_of_frames) + socket_emit_time) / (self.num_of_frames + 1)
         self.num_of_frames += 1
 
-        if self.num_of_frames % 1000 == 0:
+        if self.num_of_frames % 1000 == 0 and not self.is_test:
             print(f'''avg fps: {self.avg_fps:0.2f}, avg_frame_time: {self.avg_frame_time:0.2f} ms, avg_total_frame_time: {self.avg_total_frame_time:0.2f} ms
 avg_waiting_for_frame_time: {self.avg_waiting_for_frame_time:0.2f} ms, avg_total_inferencing_tracking_count_time: {self.avg_total_inferencing_tracking_count_time:0.2f} ms
 avg_jpeg_encode_time: {self.avg_jpeg_encode_time:0.2f} ms, avg_base64_encode_time: {self.avg_base64_encode_time:0.2f} ms
@@ -359,6 +358,19 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 self.reset_counter = False
                 self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
                 self.gstreamer_app.signal_new_file()
+                if self.is_test:
+                    self.num_of_frames = 0
+                    self.num_of_frames_with_jpeg_encode = 0
+                    self.num_of_frames_with_base64_encode = 0
+                    self.avg_frame_time = 0
+                    self.avg_total_frame_time = 0
+                    self.avg_fps = 0
+                    self.avg_waiting_for_frame_time = 0
+                    self.avg_total_inferencing_tracking_count_time = 0
+                    self.avg_jpeg_encode_time = 0
+                    self.avg_base64_encode_time = 0
+                    self.avg_socket_emit_time = 0
+                    self.avg_undistortion_time = 0
             self.calculate_frame_time_data(
                 current_frame_time,
                 total_frame_time,

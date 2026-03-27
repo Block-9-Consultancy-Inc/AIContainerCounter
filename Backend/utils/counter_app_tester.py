@@ -71,6 +71,19 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         nonlocal current_test_iteration_frame_time_metrics
         current_test_iteration_frame_time_metrics = message
 
+    print('initializing counter app with empty frames')
+    file = f'{src_folder}/intro.avi'
+    video_duration = get_file_duration(Path(file))
+    video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
+    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Waiting for intro video to finish to initialize counter app'])
+    waiting_thread.start()
+    counter_app_process = start_detection_process(current_env_path)
+    client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
+    video_playback_process.wait()
+    waiting_thread.join()
+
+
+
     for batch in os.listdir(src_folder):
         with open(f'{src_folder}/{batch}/breakdown.json') as f:
             expected_counts = json.load(f)
@@ -105,18 +118,12 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 video_duration = get_file_duration(Path(file))
                 for test_video_iteration in range(ITERATIONS_PER_TEST):
                     current_iteration_start = perf_counter()
+                    client.emit('reset-count', 'reset-count')
                     video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
-                    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} in {batch} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}'])
+                    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 2, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} in {batch} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}'])
                     waiting_thread.start()
-                    counter_app_process = start_detection_process(current_env_path)
-                    client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
                     video_playback_process.wait()
                     waiting_thread.join()
-                    print('Disconnecting socketio client...')
-                    client.disconnect()
-                    counter_app_process.terminate()
-                    print('waiting for counter app process to terminate')
-                    counter_app_process.wait()
 
                     print(current_test_iteration_counting_result)
                     current_test_iteration_counting_result['file'] = test_video_file_name
@@ -171,6 +178,12 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     current_test_iteration_frame_time_metrics = {}
                     current_test_iteration_counting_result = {}
                     current_test_iteration_frames = []
+
+    print('Disconnecting socketio client...')
+    client.disconnect()
+    counter_app_process.terminate()
+    print('waiting for counter app process to terminate')
+    counter_app_process.wait()
 
 if __name__ == '__main__':
     src_folder = sys.argv[1]

@@ -319,13 +319,14 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 undistortion_time = (after_undistortion - start_of_current_frame) / 1_000_000
             else:
                 undistortion_time = None
+                after_undistortion = None
             bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
             results = self.model.predict(bgr_frame, imgsz=self.model_imgsz, verbose=False)[0]
             detections = Detections.from_ultralytics(results)
             self.collect_raw_frame = len(detections) > 0
             bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
             after_inference = perf_counter_ns()
-            total_inferencing_tracking_count_time = (after_inference - (undistortion_time if undistortion_time is not None else start_of_current_frame)) / 1_000_000
+            total_inferencing_tracking_count_time = (after_inference - (after_undistortion if after_undistortion is not None else start_of_current_frame)) / 1_000_000
 
             if self.showing_video:
                 buffer = self.jpeg.encode(bgr_frame, quality=self.frame_encode_quality)

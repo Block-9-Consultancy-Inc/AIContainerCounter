@@ -401,9 +401,6 @@ def data_collection_callback(pad, info, counter_app: CounterApp):
     # Check if the buffer is valid
     if buffer is None:
         return Gst.PadProbeReturn.OK
-    
-    if counter_app.is_test:
-        return Gst.PadProbeReturn.HANDLED
         
     if counter_app.collect_raw_frame:
         return Gst.PadProbeReturn.OK
@@ -414,8 +411,9 @@ def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
     return f'data/{str(counter_app.counter.current_batch_uuid)}.avi'
     
 class CounterGstreamerApp(GStreamerApp):
-    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data):
+    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
         super().__init__(first_file_name, video_source, width, height, fps, user_data)
+        self.collect_raw_frames = not user_data.is_test
         self.app_callback = counter_callback
         self.data_collection_callback = data_collection_callback
         self.new_location_callback = new_location_callback

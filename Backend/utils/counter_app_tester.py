@@ -135,6 +135,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
             current_dest_folder = f'{dest_folder}/{current_env_name}/{batch}'
             os.makedirs(current_dest_folder, exist_ok=True)
             for test_video_index, test_video_file_name in enumerate(video_files):
+                if test_video_file_name.endswith('.json'):
+                    continue
                 file = f'{src_folder}/{batch}/{test_video_file_name}'
                 print(f'file: {file}')
                 video_duration = get_file_duration(Path(file))

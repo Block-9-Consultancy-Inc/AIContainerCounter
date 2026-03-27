@@ -83,7 +83,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     @client.on('frame_time')
     def on_frame_time(message):
         nonlocal current_test_iteration_frame_time_metrics
-        current_test_iteration_frame_time_metrics = message
+        if message.get('num_of_frames', 0) >= current_test_iteration_frame_time_metrics.get('num_of_frames', 0):
+            current_test_iteration_frame_time_metrics = message
     
     @client.on('batches_state')
     def on_batches_state(message):

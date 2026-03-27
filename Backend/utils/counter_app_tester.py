@@ -29,8 +29,11 @@ def get_file_duration(file: Path) -> float:
     
     return duration_in_seconds
 
-def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str):
-    process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
+def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str, loop = False):
+    if loop:
+        process = Popen(['ffmpeg', '-stream_loop', '-1', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
+    else:
+        process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 
@@ -55,61 +58,79 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     client = socketio.Client()
 
     current_test_iteration_frame_time_metrics = {}
-    current_test_iteration_counting_result = {}
+    current_test_iteration_counting_result = {
+        'count': 0,
+        'can_count': 0,
+        'plastic_count': 0,
+        'drinkbox_count': 0,
+        'gabletop_count': 0,
+        'pouch_count': 0
+    }
     current_test_iteration_frames = []
+
+    client_initializing = True
+    batch_done = False
     @client.on('detection_event')
     def on_detection_event(message):
-        current_test_iteration_counting_result['count'] = message.get('count')
-        current_test_iteration_counting_result['can_count'] = message.get('can_count')
-        current_test_iteration_counting_result['plastic_count'] = message.get('plastic_count')
-        current_test_iteration_counting_result['drinkbox_count'] = message.get('drinkbox_count')
-        current_test_iteration_counting_result['gabletop_count'] = message.get('gabletop_count')
-        current_test_iteration_counting_result['pouch_count'] = message.get('pouch_count')
+        # print(f'detection event with count: {message.get('count')}')
+        current_test_iteration_counting_result['count'] = max(message.get('count'), current_test_iteration_counting_result['count'])
+        current_test_iteration_counting_result['can_count'] = max(message.get('can_count'), current_test_iteration_counting_result['can_count'])
+        current_test_iteration_counting_result['plastic_count'] = max(message.get('plastic_count'), current_test_iteration_counting_result['plastic_count'])
+        current_test_iteration_counting_result['drinkbox_count'] = max(message.get('drinkbox_count'), current_test_iteration_counting_result['drinkbox_count'])
+        current_test_iteration_counting_result['gabletop_count'] = max(message.get('gabletop_count'), current_test_iteration_counting_result['gabletop_count'])
+        current_test_iteration_counting_result['pouch_count'] = max(message.get('pouch_count'), current_test_iteration_counting_result['pouch_count'])
         current_test_iteration_frames.append(message.get('encoded_frame'))
     @client.on('frame_time')
     def on_frame_time(message):
         nonlocal current_test_iteration_frame_time_metrics
         current_test_iteration_frame_time_metrics = message
-
-    print('initializing counter app with empty frames')
-    file = f'{src_folder}/intro.avi'
-    video_duration = get_file_duration(Path(file))
-    video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
-    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Waiting for intro video to finish to initialize counter app'])
-    waiting_thread.start()
-    counter_app_process = start_detection_process(current_env_path)
-    client.connect(url='http://localhost:5000', transports=['websocket'], namespaces=['/'], retry=True)
-    video_playback_process.wait()
-    waiting_thread.join()
+    
+    @client.on('batches_state')
+    def on_batches_state(message):
+        nonlocal batch_done
+        if not client_initializing:
+            batch_done = True
 
 
+    dotenv_files = os.listdir(env_folder)
+    dotenv_files.sort()
+    num_of_dotenv_files = len(dotenv_files)
 
-    for batch in os.listdir(src_folder):
-        with open(f'{src_folder}/{batch}/breakdown.json') as f:
-            expected_counts = json.load(f)
-        video_files = os.listdir(f'{src_folder}/{batch}')
-        video_files.sort()
-        num_of_video_files = len(video_files)
+    overall_results = []
 
-        dotenv_files = os.listdir(env_folder)
-        dotenv_files.sort()
-        num_of_dotenv_files = len(dotenv_files)
+    for env_index, env in enumerate(dotenv_files):
+        current_env_start = perf_counter()
+        current_env_overall_results = {
+            'env': env,
+            'overall_accuracy': 0,
+            'overall_fps': 0,
+        }
+        overall_results.append(current_env_overall_results)
+        current_env_results = []
+        current_env_path = f'{env_folder}/{env}'
+        current_env_values = dotenv_values(current_env_path)
+        current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
+        current_env_name = env.split('.')[0]
 
-        overall_results = []
+        print('initializing counter app with empty frames')
+        intro_file = f'{src_folder}/intro.avi'
+        video_duration = get_file_duration(Path(intro_file))
+        video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True)
+        waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Waiting for intro video to finish to initialize counter app'])
+        counter_app_process = start_detection_process(current_env_path)
+        waiting_thread.start()
+        client.connect(url='http://localhost:5000', transports=['polling'], namespaces=['/'], retry=True)
+        waiting_thread.join()
+        video_playback_process.terminate()
+        video_playback_process.wait()
+        client_initializing = False
 
-        for env_index, env in enumerate(dotenv_files):
-            current_env_start = perf_counter()
-            current_env_overall_results = {
-                'env': env,
-                'overall_accuracy': 0,
-                'overall_fps': 0,
-            }
-            overall_results.append(current_env_overall_results)
-            current_env_results = []
-            current_env_path = f'{env_folder}/{env}'
-            current_env_values = dotenv_values(current_env_path)
-            current_env_height, current_env_width = current_env_values.get('HEIGHT', '1080'), current_env_values.get('WIDTH', '1920')
-            current_env_name = env.split('.')[0]
+        for batch in os.listdir(src_folder):
+            with open(f'{src_folder}/{batch}/breakdown.json') as f:
+                expected_counts = json.load(f)
+            video_files = os.listdir(f'{src_folder}/{batch}')
+            video_files.sort()
+            num_of_video_files = len(video_files)
             current_dest_folder = f'{dest_folder}/{current_env_name}/{batch}'
             os.makedirs(current_dest_folder, exist_ok=True)
             for test_video_index, test_video_file_name in enumerate(video_files):
@@ -118,12 +139,19 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 video_duration = get_file_duration(Path(file))
                 for test_video_iteration in range(ITERATIONS_PER_TEST):
                     current_iteration_start = perf_counter()
-                    client.emit('reset-count', 'reset-count')
                     video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
                     waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 2, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} in {batch} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}'])
                     waiting_thread.start()
-                    video_playback_process.wait()
                     waiting_thread.join()
+                    
+                    video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True)
+                    client.emit('reset-count', 'reset-count')
+                    while not batch_done:
+                        print('batch not done yet')
+                        sleep(0.25)
+                    batch_done = False
+                    video_playback_process.terminate()
+                    video_playback_process.wait()
 
                     print(current_test_iteration_counting_result)
                     current_test_iteration_counting_result['file'] = test_video_file_name
@@ -176,14 +204,21 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                         json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_results': overall_results }, f, indent=4)
 
                     current_test_iteration_frame_time_metrics = {}
-                    current_test_iteration_counting_result = {}
+                    current_test_iteration_counting_result = {
+                        'count': 0,
+                        'can_count': 0,
+                        'plastic_count': 0,
+                        'drinkbox_count': 0,
+                        'gabletop_count': 0,
+                        'pouch_count': 0
+                    }
                     current_test_iteration_frames = []
 
-    print('Disconnecting socketio client...')
-    client.disconnect()
-    counter_app_process.terminate()
-    print('waiting for counter app process to terminate')
-    counter_app_process.wait()
+        print('Disconnecting socketio client...')
+        client.disconnect()
+        counter_app_process.terminate()
+        print('waiting for counter app process to terminate')
+        counter_app_process.wait()
 
 if __name__ == '__main__':
     src_folder = sys.argv[1]

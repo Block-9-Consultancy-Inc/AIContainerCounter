@@ -243,7 +243,8 @@ class Counter:
                 )
 
             now = datetime.now()
-            self.data_to_save.single_container_images.extend(list(map(single_container_image_save, enumerate(categories))))
+            if not self.is_test:
+                self.data_to_save.single_container_images.extend(list(map(single_container_image_save, enumerate(categories))))
 
 
             for index, category in enumerate(categories):

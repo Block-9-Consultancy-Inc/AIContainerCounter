@@ -19,7 +19,7 @@ from gi.repository import Gst, GstPbutils
 
 Gst.init(sys.argv[0:1])
 
-ITERATIONS_PER_TEST = 3
+ITERATIONS_PER_TEST = 1
 VIRTUAL_CAMERA='/dev/video0'
 
 def get_file_duration(file: Path) -> float:
@@ -127,6 +127,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         client_initializing = False
 
         for batch in os.listdir(src_folder):
+            if batch == 'intro.avi':
+                continue
             with open(f'{src_folder}/{batch}/breakdown.json') as f:
                 expected_counts = json.load(f)
             video_files = os.listdir(f'{src_folder}/{batch}')

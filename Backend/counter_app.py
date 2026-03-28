@@ -65,7 +65,9 @@ class CounterApp:
             camera_calibration_params_path: str = None,
             only_use_yolo_model: bool = False,
             button_listener_serial_port: str = None,
-            is_test: bool = False
+            is_test: bool = False,
+            raw_video_footage_dir = './data',
+            collected_images_dir = './images',
         ) -> None:
 
         self.is_test = is_test
@@ -83,13 +85,18 @@ class CounterApp:
             self.only_use_yolo_model = only_use_yolo_model
             self.button_listener_serial_port = button_listener_serial_port
             self.is_test = is_test
+            self.raw_video_footage_dir = raw_video_footage_dir
+            self.collected_images_dir = collected_images_dir
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
-
+        os.makedirs(self.raw_video_footage_dir, exist_ok=True)
+        os.makedirs(self.collected_images_dir, exist_ok=True)
         self.jpeg = TurboJPEG(self.turbo_jpeg_library_path)
+
         self.app = Flask(__name__, 
-                    static_folder='images',
+                    static_folder=self.collected_images_dir,
+                    static_url_path='/images',
                     template_folder='templates')
         self.app.json = ISODateTimeJSONProvider(self.app)
         sio = socketio.Server(async_mode='threading', json=self.app.json)
@@ -134,6 +141,7 @@ class CounterApp:
             self.height,
             self.model_path,
             self.category_model_path,
+            self.collected_images_dir,
             only_use_yolo_model=self.only_use_yolo_model,
             is_test=self.is_test,
         )
@@ -191,7 +199,7 @@ class CounterApp:
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
         
-        self.gstreamer_app = CounterGstreamerApp(f'{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+        self.gstreamer_app = CounterGstreamerApp(f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
         self.collect_raw_frame = True
         self.end_of_prev_frame = perf_counter_ns()
 
@@ -244,6 +252,9 @@ class CounterApp:
         self.only_use_yolo_model = environ.get('ONLY_USE_YOLO_MODEL') == 'true'
 
         self.button_listener_serial_port = environ.get('BUTTON_LISTENER_SERIAL_PORT')
+
+        self.raw_video_footage_dir = environ.get('RAW_VIDEO_FOOTAGE_DIR', './data')
+        self.collected_images_dir = environ.get('COLLECTED_IMAGES_DIR', './images')
 
     def calculate_frame_time_data(
             self,
@@ -421,7 +432,7 @@ def data_collection_callback(pad, info, counter_app: CounterApp):
         return Gst.PadProbeReturn.HANDLED
 
 def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
-    return f'data/{str(counter_app.counter.current_batch_uuid)}.avi'
+    return f'{counter_app.raw_video_footage_dir}/{str(counter_app.counter.current_batch_uuid)}.avi'
     
 class CounterGstreamerApp(GStreamerApp):
     def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
@@ -441,8 +452,6 @@ if __name__ == '__main__':
     is_test = False
     if len(sys.argv) > 2:
         is_test = sys.argv[2] == 'test'
-    os.makedirs('data', exist_ok=True)
-    os.makedirs('images', exist_ok=True)
     counter_app = CounterApp(
         load_params_from_dotenv=True,
         dotenv_path=dotenv_path,

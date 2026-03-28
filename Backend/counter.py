@@ -18,12 +18,12 @@ category_classes = [
 
 IMAGE_BUFFER_SIZE = 30
 
-def save_state_process(data_to_save_queue: Queue):
+def save_state_process(data_to_save_queue: Queue, collected_images_dir: str):
     sqlite_db.init_db()
     while True:
         try:
             data_to_save = data_to_save_queue.get()
-            sqlite_db.save_state(data_to_save)
+            sqlite_db.save_state(data_to_save, collected_images_dir)
             with open('resources/save_state_success.json', 'w') as f:
                 json.dump({ 'message': f'successfully saved {len(data_to_save.multi_container_images)} multi container images and {len(data_to_save.single_container_images)} single container images' }, f, indent=4)
         except Exception as e:
@@ -38,6 +38,7 @@ class Counter:
             height: int,
             yolo_model_path: str,
             category_model_path: str,
+            collected_images_dir: str,
             only_use_yolo_model = False,
             is_test = False,
         ):
@@ -87,7 +88,7 @@ class Counter:
         self.prev_data_to_save: sqlite_db.DataToSave = None
         self.prev_data_to_save_shms: list[shared_memory.SharedMemory] = []
 
-        self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue])
+        self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue, collected_images_dir])
         self.save_state_process.start()
 
     def set_expected_count(self, expected_category_counts: dict[str, int]):

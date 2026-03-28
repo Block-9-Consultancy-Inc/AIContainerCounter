@@ -182,7 +182,7 @@ def get_day_summary(start: datetime.datetime, end: datetime.datetime):
         pouch_accuracy=res[13]
     )
 
-def save_state(data_to_save: DataToSave):
+def save_state(data_to_save: DataToSave, collected_images_dir: str):
     batch_dirs_created = set()
 
     shms: list[shared_memory.SharedMemory]= []
@@ -190,23 +190,23 @@ def save_state(data_to_save: DataToSave):
     try:
         for image in data_to_save.multi_container_images:
             if str(image.batch_id) not in batch_dirs_created:
-                os.makedirs(f'images/{image.batch_id}/multi_container_images', exist_ok=True)
-                os.makedirs(f'images/{image.batch_id}/single_container_images', exist_ok=True)
+                os.makedirs(f'{collected_images_dir}/{image.batch_id}/multi_container_images', exist_ok=True)
+                os.makedirs(f'{collected_images_dir}/{image.batch_id}/single_container_images', exist_ok=True)
                 batch_dirs_created.add(str(image.batch_id))
             shm = shared_memory.SharedMemory(name=str(image.id), track=False)
             shms.append(shm)
             decoded_frame = np.ndarray(image.frame_shape, np.uint8, buffer=shm.buf)
-            cv2.imwrite(f'images/{image.batch_id}/multi_container_images/{image.id}.{image.index}.jpg', decoded_frame)
+            cv2.imwrite(f'{collected_images_dir}/{image.batch_id}/multi_container_images/{image.id}.{image.index}.jpg', decoded_frame)
 
         for image in data_to_save.single_container_images:
             if str(image.batch_id) not in batch_dirs_created:
-                os.makedirs(f'images/{image.batch_id}/multi_container_images', exist_ok=True)
-                os.makedirs(f'images/{image.batch_id}/single_container_images', exist_ok=True)
+                os.makedirs(f'{collected_images_dir}/{image.batch_id}/multi_container_images', exist_ok=True)
+                os.makedirs(f'{collected_images_dir}/{image.batch_id}/single_container_images', exist_ok=True)
                 batch_dirs_created.add(str(image.batch_id))
             shm = shared_memory.SharedMemory(name=str(image.id), track=False)
             shms.append(shm)
             decoded_frame = np.ndarray(image.frame_shape, np.uint8, buffer=shm.buf)
-            cv2.imwrite(f'images/{image.batch_id}/single_container_images/{image.id}.{image.detected_class}.jpg', decoded_frame)
+            cv2.imwrite(f'{collected_images_dir}/{image.batch_id}/single_container_images/{image.id}.{image.detected_class}.jpg', decoded_frame)
 
         with db.atomic():
             if data_to_save.batch is not None:

@@ -148,7 +148,7 @@ class GStreamerApp:
     def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
-        self.first_file_name = first_file_name
+        self.first_file_path = first_file_name
         self.width = width
         self.height = height
         self.fps = fps
@@ -235,7 +235,7 @@ class GStreamerApp:
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location=data/{self.first_file_name} '
+            pipeline_string += f' t. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location={self.first_file_path} '
 
         print(pipeline_string)
         return pipeline_string

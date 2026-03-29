@@ -9,3 +9,4 @@ test-predictions
 **/*.db
 archived-test-results
 resources
+**/*.log

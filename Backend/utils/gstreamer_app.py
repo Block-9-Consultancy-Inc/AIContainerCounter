@@ -113,7 +113,7 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=1920, video_he
     """
     source_element = (
         f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! tee name=t '
-        f't. ! {QUEUE(name=f"display_tee_q")} ! avdec_mjpeg ! '
+        f't. ! {QUEUE(name=f"display_tee_q")} ! jpegdec ! '
     )
     source_pipeline = (
         f'{source_element} '
@@ -235,7 +235,7 @@ class GStreamerApp:
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"multifilesink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink muxer=avimux location={self.first_file_path} '
+            pipeline_string += f' t. ! {QUEUE(name=f"splitmuxsink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={self.first_file_path} '
 
         print(pipeline_string)
         return pipeline_string

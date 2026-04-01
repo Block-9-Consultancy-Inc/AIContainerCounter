@@ -429,7 +429,7 @@ def data_collection_callback(pad, info, counter_app: CounterApp):
     if counter_app.collect_raw_frame:
         return Gst.PadProbeReturn.OK
     else:
-        return Gst.PadProbeReturn.HANDLED
+        return Gst.PadProbeReturn.DROP
 
 def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
     return f'{counter_app.raw_video_footage_dir}/{str(counter_app.counter.current_batch_uuid)}.avi'

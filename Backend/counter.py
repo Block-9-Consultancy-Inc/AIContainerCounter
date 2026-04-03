@@ -30,6 +30,52 @@ def save_state_process(data_to_save_queue: Queue, collected_images_dir: str):
             with open('resources/save_state_error.json', 'w') as f:
                 json.dump({ 'error': str(e), 'traceback': traceback.format_exc()}, f, indent=4)
 
+class TrackerIdHistory:
+    tracker_id: int
+    current_majority: int
+    history = np.array([0, 0, 0, 0, 0])
+
+    def __init__(self, tracker_id: int):
+        self.tracker_id = tracker_id
+        self.current_majority = 0
+
+    def increment(self, class_index):
+        if class_index > 4:
+            return
+        self.history[class_index] += 1
+        self.current_majority = self._get_majority()
+
+    def _get_majority(self):
+        return int(np.argmax(self.history))
+    
+class TrackerIdPredictionHistogram:
+    histogram: dict[int, TrackerIdHistory] = {}
+
+    def get_category_count(self):
+        categories = list(map(lambda e: e.current_majority, self.histogram.values()))
+        unique, category_counts = np.unique(categories, return_counts=True)
+        category_counts = dict(zip(unique, category_counts))
+        return { category: category_counts[i] for i, category in enumerate(category_classes) }
+
+    def update_from_detections(self, detections: Detections):
+        for tracker_id, class_id in zip(detections.tracker_id, detections.class_id):
+            current_history = self.histogram.get(tracker_id)
+            if current_history is None:
+                current_history = TrackerIdHistory(tracker_id)
+                self.histogram[tracker_id] = current_history
+            current_history.increment(class_id)
+
+        return self.get_category_count()
+    
+    def get_class_for_tracker_id(self, tracker_id: int):
+        return self.histogram.get(tracker_id).tracker_id
+    
+    def reset(self):
+        self.histogram.clear()
+
+
+
+
 class Counter:
     def __init__(
             self,
@@ -59,7 +105,7 @@ class Counter:
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
         self.category_classifier = CategoryClassifier(category_model_path)
-        self.tracker_id_to_category = {}
+        self.tracker_id_prediction_histogram = TrackerIdPredictionHistogram()
         self.category_counts = {
             'can': 0,
             'plastic': 0,
@@ -110,153 +156,53 @@ class Counter:
         }
 
     def trigger(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
-
-        send_data_to_save = False
-
-        detections = self.byte_tracker.update_with_detections(detections)
-
-        annotated_frame = self.trace_annotator.annotate(
-            scene=decoded_frame.copy(),
-            detections=detections)
-        annotated_frame = self.box_annotator.annotate(
-            scene=annotated_frame,
-            detections=detections)
-        
-        self.first_line_zone.trigger(detections)
-        center_crossed_in, _ = self.center_line_zone.trigger(detections)
-        self.last_line_zone.trigger(detections)
-
-        self.capture_counts()
-
-        if self.should_capture_image() and not self.is_test:
-            self.signal_image_captured()
-            id = uuid.uuid4()
-            shm = shared_memory.SharedMemory(name=str(id), create=True, size=decoded_frame.nbytes)
-            shared_arr = np.ndarray(decoded_frame.shape, decoded_frame.dtype, shm.buf)
-            np.copyto(shared_arr, decoded_frame)
-            self.data_to_save_shms.append(shm)
-            self.data_to_save.multi_container_images.append(
-                sqlite_db.MultiContainerImageToSave(
-                    index=self.current_batch_multi_container_image_index - 1,
-                    time=self.last_time_image_collected,
-                    detections=detections,
-                    frame_shape=decoded_frame.shape,
-                    id=id,
-                    batch_id=self.current_batch_uuid,
-                )
-            )
-
-        send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
-
-        annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
-
-        if self.only_use_yolo_model:
-            self.category_counts = {category_classes[class_id]: class_count for class_id, class_count in self.center_line_zone.in_count_per_class.items()}
-
-            labels = [
-                f"#{tracker_id} {self.names[class_id]} {confidence:0.2f}"
-                for confidence, class_id, tracker_id
-                in zip(detections.confidence, detections.class_id, detections.tracker_id)
-            ]
-
-            annotated_frame = self.label_annotator.annotate(
-                scene=annotated_frame,
-                detections=detections,
-                labels=labels)
-            
-            if send_data_to_save and not self.is_test:
-                self.data_to_save.batch = counter_to_batch_to_save(self)
-                self.data_to_save_queue.put(self.data_to_save)
-                self.prev_data_to_save = self.data_to_save
-                for shm in self.prev_data_to_save_shms:
-                    shm.close()
-                    shm.unlink()
-                self.prev_data_to_save_shms = self.data_to_save_shms
-                self.data_to_save_shms = []
-                self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
-            
-            return annotated_frame, self._current_count()
-
-        center_crossed_in_coords = np.argwhere(center_crossed_in == True)
-        if center_crossed_in_coords.shape[0] == 0:
-            labels = [
-                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
-                for confidence, class_id, tracker_id
-                in zip(detections.confidence, detections.class_id, detections.tracker_id)
-            ]
-
-            annotated_frame = self.label_annotator.annotate(
-                scene=annotated_frame,
-                detections=detections,
-                labels=labels)
-            
-            if send_data_to_save and not self.is_test:
-                self.data_to_save.batch = counter_to_batch_to_save(self)
-                self.data_to_save_queue.put(self.data_to_save)
-                self.prev_data_to_save = self.data_to_save
-                for shm in self.prev_data_to_save_shms:
-                    shm.close()
-                    shm.unlink()
-                self.prev_data_to_save_shms = self.data_to_save_shms
-                self.data_to_save_shms = []
-                self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
-
-            return annotated_frame, self._current_count()
-
         try:
-            squeeze_axis = 0
-            if center_crossed_in_coords.shape[0] > 1:
-                squeeze_axis = 1
+            send_data_to_save = False
 
-            xyxy = detections.xyxy[center_crossed_in]
-            confidence = np.squeeze(detections.confidence[center_crossed_in_coords], axis=squeeze_axis)
-            class_id = np.squeeze(detections.class_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
-            tracker_id = np.squeeze(detections.tracker_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
-            center_crossed_in_detections = Detections(
-                    xyxy=xyxy, 
-                    confidence=confidence, 
-                    class_id=class_id,
-                    tracker_id=tracker_id
-                )
+            class_ids = detections.class_id
+            detections.class_id = np.full(class_ids.shape, 0)
+            detections = self.byte_tracker.update_with_detections(detections)
+            detections.class_id = class_ids
+            self.category_counts = self.tracker_id_prediction_histogram.update_from_detections(detections)
+
+
+            annotated_frame = self.trace_annotator.annotate(
+                scene=decoded_frame.copy(),
+                detections=detections)
+            annotated_frame = self.box_annotator.annotate(
+                scene=annotated_frame,
+                detections=detections)
             
-            def crop_bbox_from_frame(xyxy: np.ndarray):
-                x1, y1, x2, y2 = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])
-                bbox = rgb_frame[y1:y2, x1:x2]
-                return bbox
-            center_crossed_in_bboxes = list(map(crop_bbox_from_frame, center_crossed_in_detections.xyxy))
-            categories = self.category_classifier.run_inference(center_crossed_in_bboxes)
+            self.first_line_zone.trigger(detections)
+            self.center_line_zone.trigger(detections)
+            self.last_line_zone.trigger(detections)
 
-            def single_container_image_save(e):
-                index, category_index = e
+            self.capture_counts()
+
+            if self.should_capture_image() and not self.is_test:
+                self.signal_image_captured()
                 id = uuid.uuid4()
-                frame = center_crossed_in_bboxes[index]
-                shm = shared_memory.SharedMemory(name=str(id), create=True, size=frame.nbytes)
-                shared_arr = np.ndarray(frame.shape, frame.dtype, shm.buf)
-                np.copyto(shared_arr, frame)
+                shm = shared_memory.SharedMemory(name=str(id), create=True, size=decoded_frame.nbytes)
+                shared_arr = np.ndarray(decoded_frame.shape, decoded_frame.dtype, shm.buf)
+                np.copyto(shared_arr, decoded_frame)
                 self.data_to_save_shms.append(shm)
-                return sqlite_db.SingleContainerImageToSave(
-                    id=id,
-                    time=now,
-                    detected_class=category_classes[category_index],
-                    frame_shape=frame.shape,
-                    tracker_id=tracker_id[index],
-                    batch_id=self.current_batch_uuid
+                self.data_to_save.multi_container_images.append(
+                    sqlite_db.MultiContainerImageToSave(
+                        index=self.current_batch_multi_container_image_index - 1,
+                        time=self.last_time_image_collected,
+                        detections=detections,
+                        frame_shape=decoded_frame.shape,
+                        id=id,
+                        batch_id=self.current_batch_uuid,
+                    )
                 )
 
-            now = datetime.now()
-            if not self.is_test:
-                self.data_to_save.single_container_images.extend(list(map(single_container_image_save, enumerate(categories))))
+            send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
 
+            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 
-            for index, category in enumerate(categories):
-                self.tracker_id_to_category[center_crossed_in_detections.tracker_id[index]] = category
-            unique, category_counts = np.unique(categories, return_counts=True)
-            category_counts = dict(zip(unique, category_counts))
-            for class_index, count in category_counts.items():
-                self.category_counts[category_classes[class_index]] += int(count)
-            
             labels = [
-                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
+                f"#{tracker_id} {category_classes[self.tracker_id_prediction_histogram.get_class_for_tracker_id(tracker_id)]} {confidence:0.2f}"
                 for confidence, class_id, tracker_id
                 in zip(detections.confidence, detections.class_id, detections.tracker_id)
             ]
@@ -266,8 +212,6 @@ class Counter:
                 detections=detections,
                 labels=labels)
             
-            send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= IMAGE_BUFFER_SIZE * 10
-
             if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)
@@ -337,7 +281,7 @@ class Counter:
             'gabletop': 0,
             'pouch': 0
         }
-        self.tracker_id_to_category = {}
+        self.tracker_id_prediction_histogram.reset()
 
         self.current_batch_multi_container_image_index = 0
         self.time_batch_started = datetime.now()

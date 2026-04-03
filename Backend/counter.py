@@ -39,13 +39,13 @@ class TrackerIdHistory:
     def __init__(self, tracker_id: int):
         self.tracker_id = tracker_id
         self.current_majority = 0
-        self.history = np.array([0, 0, 0, 0, 0])
+        self.history = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         self.crossed_center = False
 
-    def increment(self, class_index):
+    def increment(self, class_index, confidence):
         if class_index > 4:
             return
-        self.history[class_index] += 1
+        self.history[class_index] += confidence
         self.current_majority = self._get_majority()
 
     def _get_majority(self):
@@ -68,7 +68,7 @@ class TrackerIdPredictionHistogram:
         return { category: int(category_counts.get(i, 0)) for i, category in enumerate(category_classes) }
 
     def update_from_detections(self, detections: Detections):
-        for tracker_id, class_id, xyxy in zip(detections.tracker_id, detections.class_id, detections.xyxy):
+        for tracker_id, class_id, confidence, xyxy in zip(detections.tracker_id, detections.class_id, detections.confidence, detections.xyxy):
             current_history = self.histogram.get(tracker_id)
             if current_history is None:
                 current_history = TrackerIdHistory(tracker_id)
@@ -78,7 +78,7 @@ class TrackerIdPredictionHistogram:
             if bbox_x_center < self.frame_width / 3:
                 current_history.current_majority = class_id
             elif bbox_x_center < self.frame_width * 2 / 3:
-                current_history.increment(class_id)
+                current_history.increment(class_id, confidence)
 
         return self.get_category_count()
     

@@ -52,7 +52,14 @@ class TrackerIdHistory:
         return int(np.argmax(self.history))
     
 class TrackerIdPredictionHistogram:
-    histogram: dict[int, TrackerIdHistory] = {}
+    frame_width: int
+    frame_height: int
+    histogram: dict[int, TrackerIdHistory]
+
+    def __init__(self, width: int, height: int):
+        self.histogram = {}
+        self.frame_width = width
+        self.frame_height = height
 
     def get_category_count(self):
         categories = list(map(lambda e: e.current_majority, filter(lambda e: e.crossed_center, self.histogram.values())))
@@ -61,12 +68,17 @@ class TrackerIdPredictionHistogram:
         return { category: int(category_counts.get(i, 0)) for i, category in enumerate(category_classes) }
 
     def update_from_detections(self, detections: Detections):
-        for tracker_id, class_id in zip(detections.tracker_id, detections.class_id):
+        for tracker_id, class_id, xyxy in zip(detections.tracker_id, detections.class_id, detections.xyxy):
             current_history = self.histogram.get(tracker_id)
             if current_history is None:
                 current_history = TrackerIdHistory(tracker_id)
                 self.histogram[tracker_id] = current_history
-            current_history.increment(class_id)
+            bbox_width = xyxy[2] - xyxy[0]
+            bbox_x_center = xyxy[0] + round(bbox_width / 2)
+            if bbox_x_center < self.frame_width / 3:
+                current_history.current_majority = class_id
+            elif bbox_x_center < self.frame_width * 2 / 3:
+                current_history.increment(class_id)
 
         return self.get_category_count()
     
@@ -116,7 +128,7 @@ class Counter:
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
         self.category_classifier = CategoryClassifier(category_model_path)
-        self.tracker_id_prediction_histogram = TrackerIdPredictionHistogram()
+        self.tracker_id_prediction_histogram = TrackerIdPredictionHistogram(self.width, self.height)
         self.category_counts = {
             'can': 0,
             'plastic': 0,

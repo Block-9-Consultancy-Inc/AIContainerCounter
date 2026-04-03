@@ -34,6 +34,7 @@ class TrackerIdHistory:
     tracker_id: int
     current_majority: int
     history = np.array([0, 0, 0, 0, 0])
+    crossed_center = False
 
     def __init__(self, tracker_id: int):
         self.tracker_id = tracker_id
@@ -52,10 +53,10 @@ class TrackerIdPredictionHistogram:
     histogram: dict[int, TrackerIdHistory] = {}
 
     def get_category_count(self):
-        categories = list(map(lambda e: e.current_majority, self.histogram.values()))
+        categories = list(map(lambda e: e.current_majority, filter(lambda e: e.crossed_center, self.histogram.values())))
         unique, category_counts = np.unique(categories, return_counts=True)
         category_counts = dict(zip(unique, category_counts))
-        return { category: category_counts[i] for i, category in enumerate(category_classes) }
+        return { category: int(category_counts.get(i, 0)) for i, category in enumerate(category_classes) }
 
     def update_from_detections(self, detections: Detections):
         for tracker_id, class_id in zip(detections.tracker_id, detections.class_id):
@@ -67,8 +68,16 @@ class TrackerIdPredictionHistogram:
 
         return self.get_category_count()
     
+    def set_tracker_id_crossed_center(self, tracker_ids: np.ndarray):
+        for tracker_id in tracker_ids:
+            current_history = self.histogram.get(tracker_id)
+            if current_history is None:
+                current_history = TrackerIdHistory(tracker_id)
+                self.histogram[tracker_id] = current_history
+            current_history.crossed_center = True
+    
     def get_class_for_tracker_id(self, tracker_id: int):
-        return self.histogram.get(tracker_id).tracker_id
+        return self.histogram.get(tracker_id).current_majority
     
     def reset(self):
         self.histogram.clear()
@@ -159,12 +168,9 @@ class Counter:
         try:
             send_data_to_save = False
 
-            class_ids = detections.class_id
-            detections.class_id = np.full(class_ids.shape, 0)
+            original_class_ids = detections.class_id
+            detections.class_id = np.full(original_class_ids.shape, 0)
             detections = self.byte_tracker.update_with_detections(detections)
-            detections.class_id = class_ids
-            self.category_counts = self.tracker_id_prediction_histogram.update_from_detections(detections)
-
 
             annotated_frame = self.trace_annotator.annotate(
                 scene=decoded_frame.copy(),
@@ -174,8 +180,20 @@ class Counter:
                 detections=detections)
             
             self.first_line_zone.trigger(detections)
-            self.center_line_zone.trigger(detections)
+            center_crossed_in, _ =  self.center_line_zone.trigger(detections)
             self.last_line_zone.trigger(detections)
+
+            center_crossed_in_coords = np.argwhere(center_crossed_in == True)
+            if center_crossed_in_coords.shape[0] != 0:
+                squeeze_axis = 0
+                if center_crossed_in_coords.shape[0] > 1:
+                    squeeze_axis = 1
+
+                tracker_ids = np.squeeze(detections.tracker_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
+                self.tracker_id_prediction_histogram.set_tracker_id_crossed_center(tracker_ids)
+
+            detections.class_id = original_class_ids
+            self.category_counts = self.tracker_id_prediction_histogram.update_from_detections(detections)
 
             self.capture_counts()
 
@@ -197,7 +215,6 @@ class Counter:
                     )
                 )
 
-            send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
 
             annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 
@@ -212,6 +229,9 @@ class Counter:
                 detections=detections,
                 labels=labels)
             
+
+            send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
+
             if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
                 self.data_to_save_queue.put(self.data_to_save)

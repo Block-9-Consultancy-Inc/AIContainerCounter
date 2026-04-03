@@ -20,7 +20,7 @@ from gi.repository import Gst, GstPbutils
 Gst.init(sys.argv[0:1])
 
 ITERATIONS_PER_TEST = 1
-VIRTUAL_CAMERA='/dev/video0'
+VIRTUAL_CAMERA='/dev/video2'
 
 def get_file_duration(file: Path) -> float:
     discoverer = GstPbutils.Discoverer()
@@ -97,16 +97,19 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     dotenv_files.sort()
     num_of_dotenv_files = len(dotenv_files)
 
-    overall_results = []
+    overall_env_results = []
+    overall_batch_results = {}
 
     for env_index, env in enumerate(dotenv_files):
         current_env_start = perf_counter()
+        overall_batch_results[env] = []
         current_env_overall_results = {
             'env': env,
             'overall_accuracy': 0,
             'overall_fps': 0,
+            'batch_results': []
         }
-        overall_results.append(current_env_overall_results)
+        overall_env_results.append(current_env_overall_results)
         current_env_results = []
         current_env_path = f'{env_folder}/{env}'
         current_env_values = dotenv_values(current_env_path)
@@ -126,16 +129,28 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         video_playback_process.wait()
         client_initializing = False
 
-        for batch in os.listdir(src_folder):
+        current_env_dest_folder = f'{dest_folder}/{current_env_name}'
+        for batch_index, batch in enumerate(os.listdir(src_folder)):
             if batch == 'intro.avi':
                 continue
+            num_of_batch_files = len(os.listdir(f'{src_folder}/{batch}'))
+            current_batch_start = perf_counter()
+            current_batch_overall_results = {
+                'batch': batch,
+                'overall_accuracy': 0,
+                'overall_fps': 0,
+                'results': [],
+            }
+            overall_batch_results[env].append(current_batch_overall_results)
+            current_batch_results = []
+            
             with open(f'{src_folder}/{batch}/breakdown.json') as f:
                 expected_counts = json.load(f)
             video_files = os.listdir(f'{src_folder}/{batch}')
             video_files.sort()
             num_of_video_files = len(video_files)
-            current_dest_folder = f'{dest_folder}/{current_env_name}/{batch}'
-            os.makedirs(current_dest_folder, exist_ok=True)
+            current_batch_dest_folder = f'{current_env_dest_folder}/{batch}'
+            os.makedirs(current_batch_dest_folder, exist_ok=True)
             for test_video_index, test_video_file_name in enumerate(video_files):
                 if test_video_file_name.endswith('.json'):
                     continue
@@ -145,7 +160,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 for test_video_iteration in range(ITERATIONS_PER_TEST):
                     current_iteration_start = perf_counter()
                     video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
-                    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 2, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} in {batch} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}'])
+                    waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 2, f'Running test iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batch_files} for env {env} {env_index+1}/{num_of_dotenv_files}'])
                     waiting_thread.start()
                     waiting_thread.join()
                     
@@ -169,15 +184,16 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     current_test_iteration_counting_result['pouch_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('pouch_count') - expected_counts['pouch'])) / expected_counts['pouch']), 0) * 100
                     current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
 
-                    other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_env_results))
+                    other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_batch_results))
                     other_iteration_results.append(current_test_iteration_counting_result)
                     for iteration_result in other_iteration_results:
                         iteration_result['iteration_diff'] = sum(list(map(lambda e: abs(e.get('count') - iteration_result.get('count')), other_iteration_results)))
 
+                    current_batch_results.append(current_test_iteration_counting_result)
                     current_env_results.append(current_test_iteration_counting_result)
                     current_test_video_file_name = test_video_file_name.split('.')[0]
-                    with sv.VideoSink(f'{current_dest_folder}/{current_test_video_file_name}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
-                        with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
+                    with sv.VideoSink(f'{current_batch_dest_folder}/{current_test_video_file_name}-{test_video_iteration+1}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=round(current_test_iteration_frame_time_metrics.get('avg_fps')), total_frames=len(current_test_iteration_frames))) as video_sink:
+                        with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for iteration #{test_video_iteration+1}/{ITERATIONS_PER_TEST} of {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batch_files} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
                             for encoded_frame in current_test_iteration_frames:
                                 base64_decoded = base64.b64decode(encoded_frame)
                                 decoded_frame = jpeg.decode(base64_decoded)
@@ -186,6 +202,22 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
 
                     current_iteration_end = perf_counter()
                     iteration_result['time_s'] = current_iteration_end - current_iteration_start
+
+                    current_batch_overall_results = {
+                        'batch': batch,
+                        'avg_accuracy': sum(list(map(lambda e: e.get('accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_can_accuracy': sum(list(map(lambda e: e.get('can_accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_plastic_accuracy': sum(list(map(lambda e: e.get('plastic_accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_drinkbox_accuracy': sum(list(map(lambda e: e.get('drinkbox_accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_gabletop_accuracy': sum(list(map(lambda e: e.get('gabletop_accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_pouch_accuracy': sum(list(map(lambda e: e.get('pouch_accuracy'), current_batch_results))) / len(current_batch_results),
+                        'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_batch_results))) / len(current_batch_results),
+                        'avg_iteration_diff': sum(list(map(lambda e: e.get('iteration_diff'), current_batch_results))) / len(current_batch_results),
+                        'time_s': current_iteration_end - current_batch_start
+                    }
+
+                    with open(f'{current_batch_dest_folder}/results.json', 'w') as f:
+                        json.dump({**current_batch_overall_results, 'results': current_batch_results}, f, indent=4)
 
                     current_env_overall_results = {
                         'env': env,
@@ -200,13 +232,15 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                         'time_s': current_iteration_end - current_env_start
                     }
 
-                    with open(f'{current_dest_folder}/results.json', 'w') as f:
+                    with open(f'{current_env_dest_folder}/results.json', 'w') as f:
                         json.dump({**current_env_overall_results, 'results': current_env_results}, f, indent=4)
 
-                    overall_results[len(overall_results) - 1] = current_env_overall_results
+                    overall_batch_results[env][len(overall_batch_results[env]) - 1] = current_batch_overall_results
+
+                    overall_env_results[len(overall_env_results) - 1] = current_env_overall_results
 
                     with open(f'{dest_folder}/overall_results.json', 'w') as f:
-                        json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_results': overall_results }, f, indent=4)
+                        json.dump({ 'time_s': current_iteration_end - test_starting_time, 'overall_env_results': overall_env_results, 'overall_batch_results': overall_batch_results }, f, indent=4)
 
                     current_test_iteration_frame_time_metrics = {}
                     current_test_iteration_counting_result = {

@@ -33,12 +33,14 @@ def save_state_process(data_to_save_queue: Queue, collected_images_dir: str):
 class TrackerIdHistory:
     tracker_id: int
     current_majority: int
-    history = np.array([0, 0, 0, 0, 0])
-    crossed_center = False
+    history: np.ndarray
+    crossed_center: bool
 
     def __init__(self, tracker_id: int):
         self.tracker_id = tracker_id
         self.current_majority = 0
+        self.history = np.array([0, 0, 0, 0, 0])
+        self.crossed_center = False
 
     def increment(self, class_index):
         if class_index > 4:
@@ -80,7 +82,7 @@ class TrackerIdPredictionHistogram:
         return self.histogram.get(tracker_id).current_majority
     
     def reset(self):
-        self.histogram.clear()
+        self.histogram = {}
 
 
 
@@ -171,13 +173,6 @@ class Counter:
             original_class_ids = detections.class_id
             detections.class_id = np.full(original_class_ids.shape, 0)
             detections = self.byte_tracker.update_with_detections(detections)
-
-            annotated_frame = self.trace_annotator.annotate(
-                scene=decoded_frame.copy(),
-                detections=detections)
-            annotated_frame = self.box_annotator.annotate(
-                scene=annotated_frame,
-                detections=detections)
             
             self.first_line_zone.trigger(detections)
             center_crossed_in, _ =  self.center_line_zone.trigger(detections)
@@ -215,6 +210,12 @@ class Counter:
                     )
                 )
 
+            annotated_frame = self.trace_annotator.annotate(
+                scene=decoded_frame.copy(),
+                detections=detections)
+            annotated_frame = self.box_annotator.annotate(
+                scene=annotated_frame,
+                detections=detections)
 
             annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 

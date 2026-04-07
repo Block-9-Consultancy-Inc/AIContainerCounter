@@ -46,7 +46,9 @@ class _MainScreenState extends State<MainScreen> {
       // ignore: use_build_context_synchronously
       final globalState = context.read<GlobalState>();
       final buttonPressedStateUpdate = stateUpdate as StateUpdate_ButtonPressed;
-      if (buttonPressedStateUpdate.buttonId == 2) {
+      if (buttonPressedStateUpdate.buttonId == 1) {
+        globalState.stopWatchTimer.onResetTimer();
+      } else if (buttonPressedStateUpdate.buttonId == 2) {
         if (globalState.viewingRealtimeVideoFeed) {
           // ignore: use_build_context_synchronously
           Navigator.of(context).pop();

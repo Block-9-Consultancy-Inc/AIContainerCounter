@@ -1,3 +1,4 @@
+import 'package:ai_container_counter/main.dart';
 import 'package:ai_container_counter/src/rust/models/count.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,7 @@ class CategoryCountDisplayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!showCategories) return const SizedBox.shrink();
     return Row(
       children: [
         Expanded(

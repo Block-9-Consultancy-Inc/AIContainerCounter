@@ -8,9 +8,14 @@ import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/frb_generated.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+late final bool showCategories;
 
 Future<void> main() async {
   await RustLib.init();
+  await dotenv.load();
+  showCategories = dotenv.env['SHOW_CATEGORIES'] == 'true';
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());

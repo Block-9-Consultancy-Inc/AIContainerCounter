@@ -63,7 +63,7 @@ class CounterApp:
             frame_encode_quality = 85,
             turbo_jpeg_library_path: str = None,
             camera_calibration_params_path: str = None,
-            only_use_yolo_model: bool = False,
+            counting_algorithm: str = 'yolo_consensus',
             button_listener_serial_port: str = None,
             is_test: bool = False,
             raw_video_footage_dir = './data',
@@ -82,7 +82,7 @@ class CounterApp:
             self.frame_encode_quality = frame_encode_quality
             self.turbo_jpeg_library_path = turbo_jpeg_library_path
             self.camera_calibration_params_path = camera_calibration_params_path
-            self.only_use_yolo_model = only_use_yolo_model
+            self.counting_algorithm = counting_algorithm
             self.button_listener_serial_port = button_listener_serial_port
             self.is_test = is_test
             self.raw_video_footage_dir = raw_video_footage_dir
@@ -142,7 +142,7 @@ class CounterApp:
             self.model_path,
             self.category_model_path,
             self.collected_images_dir,
-            only_use_yolo_model=self.only_use_yolo_model,
+            counting_algorithm=self.counting_algorithm,
             is_test=self.is_test,
         )
 
@@ -249,7 +249,7 @@ class CounterApp:
 
         self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
-        self.only_use_yolo_model = environ.get('ONLY_USE_YOLO_MODEL') == 'true'
+        self.counting_algorithm = environ.get('COUNTING_ALGORITHM', 'YOLO_CONSENSUS').lower()
 
         self.button_listener_serial_port = environ.get('BUTTON_LISTENER_SERIAL_PORT')
 

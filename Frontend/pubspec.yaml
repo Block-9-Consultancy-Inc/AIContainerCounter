@@ -48,6 +48,7 @@ dependencies:
   equatable: ^2.0.7
   freezed_annotation: ^3.0.0
   cached_network_image: ^3.4.1
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
+    - .env
     - lib/res/recyclorobo-logo.png
     - lib/res/recyclorobo-logo-dark.png
 

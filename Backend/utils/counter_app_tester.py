@@ -50,7 +50,11 @@ def sleep_with_progress(duration: float, description: str):
             remaining_duration -= time_to_sleep
             pbar.update(time_to_sleep)
 
-
+def calculate_accuracy(expected: int, actual: int) -> float:
+    if expected == 0:
+        expected += 1
+        actual += 1
+    return max(1 - ((abs(actual - expected)) / expected), 0) * 100
 
 def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
     test_starting_time = perf_counter()
@@ -123,7 +127,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Waiting for intro video to finish to initialize counter app'])
         counter_app_process = start_detection_process(current_env_path)
         waiting_thread.start()
-        client.connect(url='http://localhost:5000', transports=['polling'], namespaces=['/'], retry=True)
+        client.connect(url='http://0.0.0.0:5000', transports=['polling'], namespaces=['/'], retry=True)
         waiting_thread.join()
         video_playback_process.terminate()
         video_playback_process.wait()
@@ -176,12 +180,12 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     print(current_test_iteration_counting_result)
                     current_test_iteration_counting_result['file'] = test_video_file_name
                     current_test_iteration_counting_result['iteration'] = test_video_iteration + 1
-                    current_test_iteration_counting_result['accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('count') - expected_counts['total'])) / expected_counts['total']), 0) * 100
-                    current_test_iteration_counting_result['can_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('can_count') - expected_counts['can'])) / expected_counts['can']), 0) * 100
-                    current_test_iteration_counting_result['plastic_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('plastic_count') - expected_counts['plastic'])) / expected_counts['plastic']), 0) * 100
-                    current_test_iteration_counting_result['drinkbox_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('drinkbox_count') - expected_counts['drinkbox'])) / expected_counts['drinkbox']), 0) * 100
-                    current_test_iteration_counting_result['gabletop_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('gabletop_count') - expected_counts['gabletop'])) / expected_counts['gabletop']), 0) * 100
-                    current_test_iteration_counting_result['pouch_accuracy'] = max(1 - ((abs(current_test_iteration_counting_result.get('pouch_count') - expected_counts['pouch'])) / expected_counts['pouch']), 0) * 100
+                    current_test_iteration_counting_result['accuracy'] = calculate_accuracy(expected_counts['total'], current_test_iteration_counting_result.get('count'))
+                    current_test_iteration_counting_result['can_accuracy'] = calculate_accuracy(expected_counts['can'], current_test_iteration_counting_result.get('can_count'))
+                    current_test_iteration_counting_result['plastic_accuracy'] = calculate_accuracy(expected_counts['plastic'], current_test_iteration_counting_result.get('plastic_count'))
+                    current_test_iteration_counting_result['drinkbox_accuracy'] = calculate_accuracy(expected_counts['drinkbox'], current_test_iteration_counting_result.get('drinkbox_count'))
+                    current_test_iteration_counting_result['gabletop_accuracy'] = calculate_accuracy(expected_counts['gabletop'], current_test_iteration_counting_result.get('gabletop_count'))
+                    current_test_iteration_counting_result['pouch_accuracy'] = calculate_accuracy(expected_counts['pouch'], current_test_iteration_counting_result.get('pouch_count'))
                     current_test_iteration_counting_result['frame_time_metrics'] = current_test_iteration_frame_time_metrics
 
                     other_iteration_results = list(filter(lambda e: e.get('file') == test_video_file_name, current_batch_results))

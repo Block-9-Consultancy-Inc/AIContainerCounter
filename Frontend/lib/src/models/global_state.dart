@@ -56,10 +56,11 @@ class GlobalState extends ChangeNotifier {
     socket = newSocket();
 
     bool didConnect = await socket!
-        .connectToSocketServer(serverAddress: 'http://localhost:5000');
+        .connectToSocketServer(serverAddress: 'http://0.0.0.0:5000');
 
     if (didConnect) {
       print('DART: socket has connected to server successfully');
+      socket!.emitEvent(event: 'init-prev-batches', data: 'init-prev-batches');
     } else {
       print(
           'DART: socket unable to connect to server trying again every 2 seconds');
@@ -67,9 +68,10 @@ class GlobalState extends ChangeNotifier {
       while (!connected) {
         await Future.delayed(const Duration(seconds: 2));
         connected = await socket!
-            .connectToSocketServer(serverAddress: 'http://localhost:5000');
+            .connectToSocketServer(serverAddress: 'http://0.0.0.0:5000');
         if (connected) {
           print('DART: socket has connected to server successfully');
+          socket!.emitEvent(event: 'init-prev-batches', data: 'init-prev-batches');
         } else {
           print(
               'DART: socket unable to connect to server trying again every 2 seconds');

@@ -127,8 +127,12 @@ impl Count {
         if expected.is_none() {
             return None;
         }
+        let mut offset: u64 = 0;
+        if expected.unwrap() == 0 {
+            offset += 1
+        }
         Some(
-            (1.0 - ((actual.abs_diff(expected.unwrap()) as f64) / (expected.unwrap() as f64)))
+            (1.0 - (((actual + offset).abs_diff(expected.unwrap() + offset) as f64) / ((expected.unwrap() + offset) as f64))).max(0.0)
                 * 100.0,
         )
     }

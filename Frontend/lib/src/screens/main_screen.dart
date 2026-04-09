@@ -48,6 +48,7 @@ class _MainScreenState extends State<MainScreen> {
       final buttonPressedStateUpdate = stateUpdate as StateUpdate_ButtonPressed;
       if (buttonPressedStateUpdate.buttonId == 1) {
         globalState.stopWatchTimer.onResetTimer();
+        globalState.stopWatchTimer.onStartTimer();
       } else if (buttonPressedStateUpdate.buttonId == 2) {
         if (globalState.viewingRealtimeVideoFeed) {
           // ignore: use_build_context_synchronously

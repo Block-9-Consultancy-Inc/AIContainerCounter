@@ -132,6 +132,7 @@ class CounterApp:
         self.avg_socket_emit_time = 0
         self.avg_undistortion_time = 0
 
+        self.current_test_case = None
         self.showing_video = self.is_test
 
         self.model = YOLO(self.model_path)
@@ -161,6 +162,10 @@ class CounterApp:
             batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
             today_summary = get_today_summary().__dict__
             self.sio.emit('batches_state', {'summary': today_summary, 'batches': batches, 'update_summary': False})
+
+        @sio.on('new-test-case')
+        def new_test_case(sid, msg):
+            self.current_test_case = msg
 
         @sio.on('reset-count')
         def reset_counter(sid, msg):
@@ -317,6 +322,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'avg_base64_encode_time': self.avg_base64_encode_time,
             'avg_socket_emit_time': self.avg_socket_emit_time,
             'avg_undistortion_time': self.avg_undistortion_time,
+            'current_test_case': self.current_test_case
         }, namespace='/')
 
     def detection_frame_process(self, rgb_frame: np.ndarray):
@@ -335,6 +341,8 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             detections = Detections.from_ultralytics(results)
             self.collect_raw_frame = len(detections) > 0
             bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+            if self.is_test and self.current_test_case is not None:
+                payload['current_test_case'] = self.current_test_case
             after_inference = perf_counter_ns()
             total_inferencing_tracking_count_time = (after_inference - (after_undistortion if after_undistortion is not None else start_of_current_frame)) / 1_000_000
 

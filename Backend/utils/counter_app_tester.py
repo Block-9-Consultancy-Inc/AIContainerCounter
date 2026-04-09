@@ -71,12 +71,14 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         'pouch_count': 0
     }
     current_test_iteration_frames = []
-
+    current_test_case = None
     client_initializing = True
     batch_done = False
     @client.on('detection_event')
     def on_detection_event(message):
         # print(f'detection event with count: {message.get('count')}')
+        if message.get('current_test_case') != current_test_case:
+            return
         current_test_iteration_counting_result['count'] = max(message.get('count'), current_test_iteration_counting_result['count'])
         current_test_iteration_counting_result['can_count'] = max(message.get('can_count'), current_test_iteration_counting_result['can_count'])
         current_test_iteration_counting_result['plastic_count'] = max(message.get('plastic_count'), current_test_iteration_counting_result['plastic_count'])
@@ -86,6 +88,8 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_test_iteration_frames.append(message.get('encoded_frame'))
     @client.on('frame_time')
     def on_frame_time(message):
+        if message.get('current_test_case') != current_test_case:
+            return
         nonlocal current_test_iteration_frame_time_metrics
         if message.get('num_of_frames', 0) >= current_test_iteration_frame_time_metrics.get('num_of_frames', 0):
             current_test_iteration_frame_time_metrics = message
@@ -169,11 +173,14 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     waiting_thread.join()
                     
                     video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True)
+                    current_test_case = f'{current_env_name}/{batch}/{test_video_file_name}'
+                    client.emit('new-test-case', current_test_case)
                     client.emit('reset-count', 'reset-count')
                     while not batch_done:
                         print('batch not done yet')
                         sleep(0.25)
                     batch_done = False
+                    sleep(3)
                     video_playback_process.terminate()
                     video_playback_process.wait()
 

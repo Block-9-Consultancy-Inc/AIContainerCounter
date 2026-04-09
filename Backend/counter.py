@@ -113,6 +113,10 @@ class Counter:
         ):
         self.is_test = is_test
         self.counting_algorithm = counting_algorithm
+        if counting_algorithm.lower() == 'yolo_consensus':
+            self.selected_trigger_algorithm = self.yolo_consensus
+        else:
+            self.selected_trigger_algorithm = self.dual_model_snapshot
         self.width = width
         self.height = height
         self.names = names
@@ -128,6 +132,7 @@ class Counter:
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
         self.category_classifier = CategoryClassifier(category_model_path)
+        self.tracker_id_to_category: dict[int, str] = {}
         self.tracker_id_prediction_histogram = TrackerIdPredictionHistogram(self.width, self.height)
         self.category_counts = {
             'can': 0,
@@ -179,10 +184,7 @@ class Counter:
         }
 
     def trigger(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
-        if self.counting_algorithm == 'yolo_consensus':
-            return self.yolo_consensus(decoded_frame, detections)
-        else:
-            return self.dual_model_snapshot(decoded_frame, rgb_frame, detections)
+        return self.selected_trigger_algorithm(decoded_frame, rgb_frame, detections)
         
     def dual_model_snapshot(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
 
@@ -334,7 +336,7 @@ class Counter:
             print(error_traceback)
             return decoded_frame, self._current_count()
 
-    def yolo_consensus(self, decoded_frame: np.ndarray, detections: Detections):
+    def yolo_consensus(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
         try:
             send_data_to_save = False
 
@@ -472,6 +474,7 @@ class Counter:
             'pouch': 0
         }
         self.tracker_id_prediction_histogram.reset()
+        self.tracker_id_to_category = {}
 
         self.current_batch_multi_container_image_index = 0
         self.time_batch_started = datetime.now()

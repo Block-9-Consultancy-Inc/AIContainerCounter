@@ -149,19 +149,18 @@ class CounterApp:
         @sio.on('connect')
         def on_connect(sid, msg):
             print('Client connected')
-            now = datetime.now()
-            batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
-            today_summary = get_today_summary().__dict__
-            self.sio.emit('batches_state', {'summary': today_summary, 'batches': batches, 'update_summary': False})
 
 
         @sio.on('disconnect')
         def on_disconnect(sid):
             print('Client disconnected')
 
-        @sio.on('test')
+        @sio.on('init-prev-batches')
         def on_test(sid, msg):
-            print(f'Test {msg}')
+            now = datetime.now()
+            batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
+            today_summary = get_today_summary().__dict__
+            self.sio.emit('batches_state', {'summary': today_summary, 'batches': batches, 'update_summary': False})
 
         @sio.on('reset-count')
         def reset_counter(sid, msg):
@@ -404,7 +403,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             self.detection_thread = Thread(target=self.gstreamer_app.run)
             self.detection_thread.daemon = True  # Daemonize thread
             self.detection_thread.start()
-        self.app.run(threaded=True)
+        self.app.run(host='0.0.0.0', port=5000, threaded=True)
 
 def counter_callback(pad, info, counter_app: CounterApp):
     buffer = info.get_buffer()

@@ -141,7 +141,7 @@ class _MultiContainerImageViewerState extends State<MultiContainerImageViewer>
     return CachedNetworkImage(
       key: Key(params.multiContainerImage.id),
       imageUrl:
-          'http://localhost:5000/images/${widget.batchId}/multi_container_images/${params.multiContainerImage.id}.${params.multiContainerImage.index}.jpg',
+          'http://0.0.0.0:5000/images/${widget.batchId}/multi_container_images/${params.multiContainerImage.id}.${params.multiContainerImage.index}.jpg',
       imageBuilder: (context, imageProvider) => Stack(
         alignment: Alignment.center,
         clipBehavior: Clip.none,

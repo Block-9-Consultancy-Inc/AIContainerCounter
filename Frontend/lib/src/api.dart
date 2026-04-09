@@ -9,7 +9,7 @@ Future<void> printReceipt(
     Batch submittedBatch) async {
 
   final response = await http.post(
-    Uri.parse('http://localhost:3000/print-receipt'),
+    Uri.parse('http://0.0.0.0:3000/print-receipt'),
     headers: {'Content-Type': 'application/json'},
     body: json.encode({
       'transactionNumber': transactionNumber,

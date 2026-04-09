@@ -3,7 +3,7 @@
 
 ### How to mock MJPEG camera stream
 ```
-ffmpeg -stream_loop -1 -re -i processed-counting-machine-test-videos/speed-5-1/speed-5-1-1920x1080.avi -c:v copy -f v4l2 /dev/video0
+ffmpeg -stream_loop -1 -re -i file.avi -c:v copy -f v4l2 /dev/video0
 ```
 
 

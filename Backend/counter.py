@@ -93,6 +93,10 @@ class TrackerIdPredictionHistogram:
     def get_class_for_tracker_id(self, tracker_id: int):
         return self.histogram.get(tracker_id).current_majority
     
+    def get_class_conf_for_tracker_id(self, tracker_id: int):
+        tracker_id_history = self.histogram.get(tracker_id)
+        return tracker_id_history.history[tracker_id_history.current_majority]
+    
     def reset(self):
         self.histogram = {}
 
@@ -390,7 +394,7 @@ class Counter:
             annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
 
             labels = [
-                f"#{tracker_id} {category_classes[self.tracker_id_prediction_histogram.get_class_for_tracker_id(tracker_id)]} {confidence:0.2f}"
+                f"#{tracker_id} {category_classes[self.tracker_id_prediction_histogram.get_class_for_tracker_id(tracker_id)]} {self.tracker_id_prediction_histogram.get_class_conf_for_tracker_id(tracker_id):0.2f}"
                 for confidence, class_id, tracker_id
                 in zip(detections.confidence, detections.class_id, detections.tracker_id)
             ]

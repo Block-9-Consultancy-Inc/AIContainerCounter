@@ -234,8 +234,6 @@ class Counter:
 
         send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
 
-        annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
-
         center_crossed_in_coords = np.argwhere(center_crossed_in == True)
         if center_crossed_in_coords.shape[0] == 0:
             labels = [
@@ -248,6 +246,8 @@ class Counter:
                 scene=annotated_frame,
                 detections=detections,
                 labels=labels)
+
+            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
             
             if send_data_to_save and not self.is_test:
                 self.data_to_save.batch = counter_to_batch_to_save(self)
@@ -324,6 +324,8 @@ class Counter:
                 scene=annotated_frame,
                 detections=detections,
                 labels=labels)
+
+            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
             
             send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= IMAGE_BUFFER_SIZE * 10
 
@@ -396,8 +398,6 @@ class Counter:
                 scene=annotated_frame,
                 detections=detections)
 
-            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
-
             labels = [
                 f"#{tracker_id} {category_classes[self.tracker_id_prediction_histogram.get_class_for_tracker_id(tracker_id)]} {self.tracker_id_prediction_histogram.get_class_conf_for_tracker_id(tracker_id, confidence):0.2f}"
                 for confidence, class_id, tracker_id
@@ -408,8 +408,9 @@ class Counter:
                 scene=annotated_frame,
                 detections=detections,
                 labels=labels)
-            
 
+            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
+            
             send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
 
             if send_data_to_save and not self.is_test:

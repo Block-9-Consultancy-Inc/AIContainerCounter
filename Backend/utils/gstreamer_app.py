@@ -7,6 +7,7 @@ import numpy as np
 import signal
 from time import perf_counter
 import cv2
+from collections.abc import Callable
 
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
@@ -145,7 +146,18 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
 class GStreamerApp:
-    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data, socket_path = 'test.socket'):
+    def __init__(
+            self,
+            on_state_changed: Callable,
+            on_stopped: Callable,
+            first_file_name: str,
+            video_source: str,
+            width: int,
+            height: int,
+            fps: int,
+            user_data,
+            socket_path = 'test.socket'
+        ):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
         self.first_file_path = first_file_name
@@ -162,6 +174,10 @@ class GStreamerApp:
         self.new_location_callback = None
         self.collect_raw_frames = True
         self.socket_path = socket_path
+        self.status = 'stopped'
+        self.on_state_changed = on_state_changed
+        self.on_state_changed(self.status)
+        self.on_stopped = on_stopped
 
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
@@ -181,7 +197,7 @@ class GStreamerApp:
             sys.exit(1)
 
         if self.collect_raw_frames:
-            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string()
+            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_file_path)
             try:
                 self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
             except Exception as e:
@@ -220,16 +236,36 @@ class GStreamerApp:
         self.shutdown()
 
 
-    def shutdown(self, signum=None, frame=None):
-        print("Shutting down... Hit Ctrl-C again to force quit.")
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
+    def shutdown(self, signum=None, frame=None, on_request = False, error = None, debug = None):
+        if signum is not None:
+            print(f'got signum {signum}')
+        if not on_request:
+            print("Shutting down... Hit Ctrl-C again to force quit.")
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+        self.on_stopped()
+        GLib.usleep(500000)  # 0.1 second delay
         self.pipeline.set_state(Gst.State.PAUSED)
+        self.data_collection_pipeline.set_state(Gst.State.PAUSED)
         GLib.usleep(100000)  # 0.1 second delay
 
         self.pipeline.set_state(Gst.State.READY)
+        self.data_collection_pipeline.set_state(Gst.State.READY)
         GLib.usleep(100000)  # 0.1 second delay
 
         self.pipeline.set_state(Gst.State.NULL)
+        self.data_collection_pipeline.set_state(Gst.State.NULL)
+        self.status = 'stopped'
+        self.on_state_changed(self.status, error=error, debug=debug)
+        print('Pipeline now stopped fully')
+        GLib.usleep(100000)  # 0.1 second delay
+        if self.collect_raw_frames:
+            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_file_path)
+            try:
+                self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
+            except Exception as e:
+                print(f'error with data collection pipeline: {e}')
+                print(data_collection_pipeline_string)
+                sys.exit(1)
 
 
     def get_pipeline_string(self):
@@ -247,14 +283,14 @@ class GStreamerApp:
         print(f'main pipeline: {pipeline_string}')
         return pipeline_string
     
-    def get_raw_feed_collection_pipeline_string(self):
+    def get_raw_feed_collection_pipeline_string(self, first_file_path):
         pipeline_string = (
             f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
             f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
             f'{QUEUE(name=f"data_collection_callback_q")} ! '
             'identity name=data_collection_callback ! '
             f'{QUEUE(name=f"splitmuxsink_q")} ! '
-            f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={self.first_file_path}'
+            f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
         )
 
         print(f'raw feed collection pipeline: {pipeline_string}')
@@ -271,32 +307,48 @@ class GStreamerApp:
         splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
         splitmuxsink.emit('split-now')
 
-    def run(self):
-        # Add a watch for messages on the pipeline's bus
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect("message", self.bus_call)
+    def update_file_location_directly(self):
+        if not self.collect_raw_frames:
+            return
+        splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
+        splitmuxsink.set_property('location', self.first_file_path)
+
+    def run(self, from_request=False):
+        if self.status != 'stopped':
+            print(f'Current pipeline status is {self.status}, cannot run from scratch')
+            return
+        
+        if not from_request:
+            # Add a watch for messages on the pipeline's bus
+            bus = self.pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect("message", self.bus_call)
 
 
-        # Connect pad probe to the identity element
-        identity = self.pipeline.get_by_name("identity_callback")
-        if identity is None:
-            print("Warning: identity_callback element not found, add <identity name=identity_callback> in your pipeline where you want the callback to be called.")
-        else:
-            identity_pad = identity.get_static_pad("src")
-            identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
+            # Connect pad probe to the identity element
+            identity = self.pipeline.get_by_name("identity_callback")
+            if identity is None:
+                print("Warning: identity_callback element not found, add <identity name=identity_callback> in your pipeline where you want the callback to be called.")
+            else:
+                identity_pad = identity.get_static_pad("src")
+                identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
 
-        # Disable QoS to prevent frame drops
-        disable_qos(self.pipeline)
+            # Disable QoS to prevent frame drops
+            disable_qos(self.pipeline)
 
         # Set pipeline to PLAYING state
         self.pipeline.set_state(Gst.State.PLAYING)
 
+        self.status = 'playing'
+        self.on_state_changed(self.status)
+        print('Pipeline now running')
 
-                # Connect pad probe to the identity element
+
         if self.collect_raw_frames:
             splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
             splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
+
+            # Connect pad probe to the identity element
             identity = self.data_collection_pipeline.get_by_name("data_collection_callback")
             if identity is None:
                 print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
@@ -310,12 +362,32 @@ class GStreamerApp:
             self.data_collection_pipeline.set_state(Gst.State.PLAYING)
 
 
+
+
+    def stop(self):
+        # TODO need to handle new batch when process stops
+        if self.status == 'stopped':
+            print(f'Current pipeline status is already {self.status}, cannot stop again')
+            return
+        self.shutdown(on_request=True)
     
     def pause(self):
         self.pipeline.set_state(Gst.State.PAUSED)
 
     def play(self):
+        if self.status =='stopped':
+            print('Pipeline stopped, attempting to run')
+            self.run(from_request=True)
+
+        if self.status != 'paused':
+            print(f'Current pipeline status is {self.status}, cannot play')
+            return
+        
         self.pipeline.set_state(Gst.State.PLAYING)
+        self.data_collection_pipeline.set_state(Gst.State.PLAYING)
+        self.status = 'playing'
+        self.on_state_changed(self.status)
+        print('Pipeline now playing')
 
 # ---------------------------------------------------------
 # Functions used to get numpy arrays from GStreamer buffers

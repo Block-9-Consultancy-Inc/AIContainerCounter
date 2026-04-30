@@ -147,8 +147,34 @@ class CounterApp:
             is_test=self.is_test,
         )
 
+        def on_state_changed(new_state, error=None, debug=None):
+            self.sio.emit('pipeline_state', { 'new_state': new_state, 'error': str(error) if error is not None else None, 'debug': str(debug) if debug is not None else None })
+
+        def on_stopped():
+            today_summary = get_today_summary()
+            batch = self.counter.reset_counter()
+            self.gstreamer_app.first_file_path = f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi'
+            if batch is not None:
+                self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+            self.num_of_frames = 0
+            self.num_of_frames_with_jpeg_encode = 0
+            self.num_of_frames_with_base64_encode = 0
+
+            self.avg_frame_time = 0
+            self.avg_total_frame_time = 0
+            self.avg_fps = 0
+            self.avg_waiting_for_frame_time = 0
+            self.avg_total_inferencing_tracking_count_time = 0
+            self.avg_jpeg_encode_time = 0
+            self.avg_base64_encode_time = 0
+            self.avg_socket_emit_time = 0
+            self.avg_undistortion_time = 0
+
+        self.gstreamer_app = CounterGstreamerApp(on_state_changed, on_stopped, f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+
         @sio.on('connect')
         def on_connect(sid, msg):
+            self.sio.emit('pipeline_state', { 'new_state': self.gstreamer_app.status, 'error': None, 'debug': None })
             print('Client connected')
 
 
@@ -195,6 +221,23 @@ class CounterApp:
         def get_batch_details(sid, msg):
             sio.emit('batch_details_state', model_to_dict(Batch.get_by_id(msg), backrefs=True))
 
+        @sio.on('pause')
+        def pause_pipeline(sid, msg):
+            print(f'pausing')
+            self.gstreamer_app.pause()
+
+        @sio.on('stop')
+        def stop_pipeline(sid, msg):
+            print(f'stopping')
+            self.gstreamer_app.stop()
+
+        @sio.on('play')
+        def play_pipeline(sid, msg):
+            print(f'playing')
+            self.gstreamer_app.play()
+            self.end_of_prev_frame = perf_counter_ns()
+
+
         if self.button_listener_serial_port is not None:
             def on_button_pressed(button_id: int):
                 print(f'{button_id} pressed!')
@@ -202,8 +245,7 @@ class CounterApp:
                     self.reset_counter = True
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
-        
-        self.gstreamer_app = CounterGstreamerApp(f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+
         self.collect_raw_frame = True
         self.end_of_prev_frame = perf_counter_ns()
 
@@ -375,7 +417,8 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 today_summary = get_today_summary()
                 batch = self.counter.reset_counter()
                 self.reset_counter = False
-                self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+                if batch is not None:
+                    self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
                 self.gstreamer_app.signal_new_file()
                 if self.is_test:
                     self.num_of_frames = 0
@@ -439,8 +482,8 @@ def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
     return f'{counter_app.raw_video_footage_dir}/{str(counter_app.counter.current_batch_uuid)}.avi'
     
 class CounterGstreamerApp(GStreamerApp):
-    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
-        super().__init__(first_file_name, video_source, width, height, fps, user_data)
+    def __init__(self, on_state_changed, on_stopped, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
+        super().__init__(on_state_changed, on_stopped, first_file_name, video_source, width, height, fps, user_data)
         self.collect_raw_frames = not user_data.is_test
         self.app_callback = counter_callback
         self.data_collection_callback = data_collection_callback

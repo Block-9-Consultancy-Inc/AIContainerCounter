@@ -1,6 +1,6 @@
 import 'package:ai_container_counter/src/models/last_cached_stream.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
-import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:flutter/material.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
@@ -17,6 +17,20 @@ class GlobalState extends ChangeNotifier {
   final timeStarted = DateTime.now();
 
   bool viewingRealtimeVideoFeed = false;
+
+  PipelineState get currentPipelineState => _currentPipelineState;
+
+  PipelineState _currentPipelineState = PipelineState.running;
+
+  void updateCurrentPipelineState() {
+    stateUpdateEventStream.stream
+        .where((e) => e is StateUpdate_PipelineStateUpdate)
+        .map((e) => e as StateUpdate_PipelineStateUpdate)
+        .listen((pipelineStateUpdate) {
+      _currentPipelineState = pipelineStateUpdate.newState;
+      notifyListeners();
+    });
+  }
 
   Count? get expectedCount => _expectedCount;
   Count? _expectedCount;
@@ -71,7 +85,8 @@ class GlobalState extends ChangeNotifier {
             .connectToSocketServer(serverAddress: 'http://0.0.0.0:5000');
         if (connected) {
           print('DART: socket has connected to server successfully');
-          socket!.emitEvent(event: 'init-prev-batches', data: 'init-prev-batches');
+          socket!
+              .emitEvent(event: 'init-prev-batches', data: 'init-prev-batches');
         } else {
           print(
               'DART: socket unable to connect to server trying again every 2 seconds');

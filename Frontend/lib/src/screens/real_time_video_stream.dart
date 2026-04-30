@@ -1,4 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,6 +23,42 @@ class RealTimeVideoStream extends StatelessWidget {
             ElevatedButton(
                 onPressed: context.read<GlobalState>().submitBatch,
                 child: const Text('Submit Batch')),
+            const SizedBox(width: 10),
+            Selector<GlobalState, PipelineState>(
+              selector: (context, e) => e.currentPipelineState,
+              builder: (context, value, child) => value == PipelineState.stopped
+                  ? ElevatedButton(
+                      onPressed: () => context
+                          .read<GlobalState>()
+                          .socket
+                          ?.emitEvent(event: 'play', data: 'play'),
+                      child: const Text('Start'))
+                  : Row(
+                      children: [
+                        if (value == PipelineState.paused)
+                          ElevatedButton(
+                              onPressed: () => context
+                                  .read<GlobalState>()
+                                  .socket
+                                  ?.emitEvent(event: 'play', data: 'play'),
+                              child: const Text('Play')),
+                        if (value == PipelineState.running)
+                          ElevatedButton(
+                              onPressed: () => context
+                                  .read<GlobalState>()
+                                  .socket
+                                  ?.emitEvent(event: 'pause', data: 'pause'),
+                              child: const Text('Pause')),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                            onPressed: () => context
+                                .read<GlobalState>()
+                                .socket
+                                ?.emitEvent(event: 'stop', data: 'stop'),
+                            child: const Text('Stop')),
+                      ],
+                    ),
+            ),
           ],
         ),
       ),

@@ -145,7 +145,7 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
 class GStreamerApp:
-    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data):
+    def __init__(self, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data, socket_path = 'test.socket'):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
         self.first_file_path = first_file_name
@@ -156,11 +156,12 @@ class GStreamerApp:
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.user_data = user_data
         self.pipeline = None
-        self.loop = None
+        self.data_collection_pipeline = None
         self.app_callback = None
         self.data_collection_callback = None
         self.new_location_callback = None
         self.collect_raw_frames = True
+        self.socket_path = socket_path
 
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
@@ -175,12 +176,19 @@ class GStreamerApp:
         try:
             self.pipeline = Gst.parse_launch(pipeline_string)
         except Exception as e:
-            print(e)
+            print(f'error with main pipeline: {e}')
             print(pipeline_string)
             sys.exit(1)
 
-        # Create a GLib Main Loop
-        self.loop = GLib.MainLoop()
+        if self.collect_raw_frames:
+            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string()
+            try:
+                self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
+            except Exception as e:
+                print(f'error with data collection pipeline: {e}')
+                print(data_collection_pipeline_string)
+                sys.exit(1)
+
 
     def bus_call(self, bus, message, loop):
         t = message.type
@@ -222,7 +230,6 @@ class GStreamerApp:
         GLib.usleep(100000)  # 0.1 second delay
 
         self.pipeline.set_state(Gst.State.NULL)
-        GLib.idle_add(self.loop.quit)
 
 
     def get_pipeline_string(self):
@@ -235,9 +242,22 @@ class GStreamerApp:
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"splitmuxsink_q")} ! identity name=data_collection_callback ! splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={self.first_file_path} '
+            pipeline_string += f' t. ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
 
-        print(pipeline_string)
+        print(f'main pipeline: {pipeline_string}')
+        return pipeline_string
+    
+    def get_raw_feed_collection_pipeline_string(self):
+        pipeline_string = (
+            f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
+            f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
+            f'{QUEUE(name=f"data_collection_callback_q")} ! '
+            'identity name=data_collection_callback ! '
+            f'{QUEUE(name=f"splitmuxsink_q")} ! '
+            f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={self.first_file_path}'
+        )
+
+        print(f'raw feed collection pipeline: {pipeline_string}')
         return pipeline_string
 
     def dump_dot_file(self):
@@ -248,18 +268,15 @@ class GStreamerApp:
     def signal_new_file(self):
         if not self.collect_raw_frames:
             return
-        splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
+        splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
         splitmuxsink.emit('split-now')
 
     def run(self):
         # Add a watch for messages on the pipeline's bus
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
-        bus.connect("message", self.bus_call, self.loop)
+        bus.connect("message", self.bus_call)
 
-        if self.collect_raw_frames:
-            splitmuxsink = self.pipeline.get_by_name('splitmuxsink')
-            splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
 
         # Connect pad probe to the identity element
         identity = self.pipeline.get_by_name("identity_callback")
@@ -269,26 +286,30 @@ class GStreamerApp:
             identity_pad = identity.get_static_pad("src")
             identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
 
-        # Connect pad probe to the identity element
-        if self.collect_raw_frames:
-            identity = self.pipeline.get_by_name("data_collection_callback")
-            if identity is None:
-                print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
-            else:
-                identity_pad = identity.get_static_pad("src")
-                identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
-
         # Disable QoS to prevent frame drops
         disable_qos(self.pipeline)
 
         # Set pipeline to PLAYING state
         self.pipeline.set_state(Gst.State.PLAYING)
 
-        # Run the GLib event loop
-        self.loop.run()
 
-        # Clean up
-        self.pipeline.set_state(Gst.State.NULL)
+                # Connect pad probe to the identity element
+        if self.collect_raw_frames:
+            splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
+            splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
+            identity = self.data_collection_pipeline.get_by_name("data_collection_callback")
+            if identity is None:
+                print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
+            else:
+                identity_pad = identity.get_static_pad("src")
+                identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
+
+            disable_qos(self.data_collection_pipeline)
+
+            GLib.usleep(2000000)  # 2 second delay
+            self.data_collection_pipeline.set_state(Gst.State.PLAYING)
+
+
     
     def pause(self):
         self.pipeline.set_state(Gst.State.PAUSED)

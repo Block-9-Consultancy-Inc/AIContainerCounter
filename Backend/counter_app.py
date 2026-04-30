@@ -407,10 +407,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             print(error_traceback)
 
     def run(self):
-        with self.app.app_context():
-            self.detection_thread = Thread(target=self.gstreamer_app.run)
-            self.detection_thread.daemon = True  # Daemonize thread
-            self.detection_thread.start()
+        self.gstreamer_app.run()
         self.app.run(host='0.0.0.0', port=5000, threaded=True)
 
 def counter_callback(pad, info, counter_app: CounterApp):

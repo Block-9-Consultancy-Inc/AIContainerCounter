@@ -81,7 +81,7 @@ def get_caps_from_pad(pad: Gst.Pad):
 # Pipeline helper functions
 #---------------------------------------------------------
 
-def QUEUE(name, max_size_buffers=3, max_size_bytes=0, max_size_time=0, leaky='no'):
+def QUEUE(name, max_size_buffers=6, max_size_bytes=0, max_size_time=0, leaky='no'):
     """
     Creates a GStreamer queue element string with the specified parameters.
 
@@ -113,8 +113,10 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=1920, video_he
         str: A string representing the GStreamer pipeline for the video source.
     """
     source_element = (
-        f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! tee name=t '
-        f't. ! {QUEUE(name=f"display_tee_q")} ! jpegdec ! '
+        f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! '
+        f'{QUEUE(name=f"tee_q")} ! '
+        'tee name=t '
+        f't. ! {QUEUE(name=f"jpegdec_q")} ! jpegdec ! '
     )
     source_pipeline = (
         f'{source_element} '
@@ -142,6 +144,7 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
     )
 
     return user_callback_pipeline
+    
 # -----------------------------------------------------------------------------------------------
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
@@ -287,8 +290,6 @@ class GStreamerApp:
         pipeline_string = (
             f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
             f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
-            f'{QUEUE(name=f"data_collection_callback_q")} ! '
-            'identity name=data_collection_callback ! '
             f'{QUEUE(name=f"splitmuxsink_q")} ! '
             f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
         )
@@ -324,7 +325,6 @@ class GStreamerApp:
             bus.add_signal_watch()
             bus.connect("message", self.bus_call)
 
-
             # Connect pad probe to the identity element
             identity = self.pipeline.get_by_name("identity_callback")
             if identity is None:
@@ -348,14 +348,6 @@ class GStreamerApp:
             splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
             splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
 
-            # Connect pad probe to the identity element
-            identity = self.data_collection_pipeline.get_by_name("data_collection_callback")
-            if identity is None:
-                print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
-            else:
-                identity_pad = identity.get_static_pad("src")
-                identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.data_collection_callback, self.user_data)
-
             disable_qos(self.data_collection_pipeline)
 
             GLib.usleep(2000000)  # 2 second delay
@@ -372,7 +364,13 @@ class GStreamerApp:
         self.shutdown(on_request=True)
     
     def pause(self):
-        self.pipeline.set_state(Gst.State.PAUSED)
+        if self.status != 'playing':
+            print(f'Current pipeline status is already {self.status}, cannot pause')
+            return  
+        self.status = 'paused'
+        self.on_state_changed(self.status)
+        print('Pipeline now paused')
+
 
     def play(self):
         if self.status =='stopped':

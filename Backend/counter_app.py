@@ -70,6 +70,10 @@ class CounterApp:
             collected_images_dir = './images',
         ) -> None:
 
+        try:
+            os.remove('test.socket')
+        except:
+            pass
         self.is_test = is_test
         if not load_params_from_dotenv:
             self.height = height
@@ -246,7 +250,6 @@ class CounterApp:
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
 
-        self.collect_raw_frame = True
         self.end_of_prev_frame = perf_counter_ns()
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
@@ -381,7 +384,6 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
             results = self.model.predict(bgr_frame, imgsz=self.model_imgsz, verbose=False)[0]
             detections = Detections.from_ultralytics(results)
-            self.collect_raw_frame = len(detections) > 0
             bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
             if self.is_test and self.current_test_case is not None:
                 payload['current_test_case'] = self.current_test_case
@@ -463,20 +465,12 @@ def counter_callback(pad, info, counter_app: CounterApp):
 
     # TODO yolo possibly requires BGR while category models require RGB, look into and find solution
 
+    if counter_app.gstreamer_app.status == 'paused':
+        return Gst.PadProbeReturn.DROP
+
     counter_app.detection_frame_process(frame)
 
     return Gst.PadProbeReturn.OK
-
-def data_collection_callback(pad, info, counter_app: CounterApp):
-    buffer = info.get_buffer()
-    # Check if the buffer is valid
-    if buffer is None:
-        return Gst.PadProbeReturn.OK
-        
-    if counter_app.collect_raw_frame:
-        return Gst.PadProbeReturn.OK
-    else:
-        return Gst.PadProbeReturn.DROP
 
 def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
     return f'{counter_app.raw_video_footage_dir}/{str(counter_app.counter.current_batch_uuid)}.avi'
@@ -486,7 +480,6 @@ class CounterGstreamerApp(GStreamerApp):
         super().__init__(on_state_changed, on_stopped, first_file_name, video_source, width, height, fps, user_data)
         self.collect_raw_frames = not user_data.is_test
         self.app_callback = counter_callback
-        self.data_collection_callback = data_collection_callback
         self.new_location_callback = new_location_callback
         self.create_pipeline()
 

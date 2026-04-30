@@ -1,4 +1,4 @@
-import 'package:ai_container_counter/src/rust/models/multi_container_image.dart';
+import 'package:ai_container_counter/src/rust/api/models/multi_container_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 

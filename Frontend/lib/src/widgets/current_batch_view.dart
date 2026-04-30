@@ -1,5 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
-import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';

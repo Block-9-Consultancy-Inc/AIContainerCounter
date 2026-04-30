@@ -3,11 +3,15 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import '../frb_generated.dart';
+import '../../frb_generated.dart';
 import 'multi_container_image.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'count.freezed.dart';
+
+// These functions are ignored because they are not marked as `pub`: `compute_accuracy`, `updated_accuracy`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `for_today_summary`, `from_json`, `from_json`, `from_json`, `merge`, `update_with_batch`
 
 class Batch {
   final String id;
@@ -109,7 +113,7 @@ class Count {
   final double? gabletopAccuracy;
   final double? pouchAccuracy;
 
-  const Count({
+  const Count.raw({
     required this.count,
     required this.canCount,
     required this.plasticCount,
@@ -129,6 +133,31 @@ class Count {
     this.gabletopAccuracy,
     this.pouchAccuracy,
   });
+
+  factory Count(
+          {required BigInt count,
+          required BigInt canCount,
+          required BigInt plasticCount,
+          required BigInt drinkboxCount,
+          required BigInt gabletopCount,
+          required BigInt pouchCount,
+          BigInt? expectedCanCount,
+          BigInt? expectedPlasticCount,
+          BigInt? expectedDrinkboxCount,
+          BigInt? expectedGabletopCount,
+          BigInt? expectedPouchCount}) =>
+      RustLib.instance.api.crateApiModelsCountCountNew(
+          count: count,
+          canCount: canCount,
+          plasticCount: plasticCount,
+          drinkboxCount: drinkboxCount,
+          gabletopCount: gabletopCount,
+          pouchCount: pouchCount,
+          expectedCanCount: expectedCanCount,
+          expectedPlasticCount: expectedPlasticCount,
+          expectedDrinkboxCount: expectedDrinkboxCount,
+          expectedGabletopCount: expectedGabletopCount,
+          expectedPouchCount: expectedPouchCount);
 
   @override
   int get hashCode =>
@@ -176,6 +205,13 @@ class Count {
           pouchAccuracy == other.pouchAccuracy;
 }
 
+enum PipelineState {
+  stopped,
+  paused,
+  running,
+  ;
+}
+
 @freezed
 sealed class StateUpdate with _$StateUpdate {
   const StateUpdate._();
@@ -189,6 +225,11 @@ sealed class StateUpdate with _$StateUpdate {
   const factory StateUpdate.buttonPressed({
     required PlatformInt64 buttonId,
   }) = StateUpdate_ButtonPressed;
+  const factory StateUpdate.pipelineStateUpdate({
+    required PipelineState newState,
+    String? error,
+    String? debug,
+  }) = StateUpdate_PipelineStateUpdate;
 }
 
 class TodaySummary {

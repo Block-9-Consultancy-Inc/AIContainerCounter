@@ -226,4 +226,86 @@ class _$StateUpdate_ButtonPressedCopyWithImpl<$Res>
   }
 }
 
+/// @nodoc
+
+class StateUpdate_PipelineStateUpdate extends StateUpdate {
+  const StateUpdate_PipelineStateUpdate(
+      {required this.newState, this.error, this.debug})
+      : super._();
+
+  final PipelineState newState;
+  final String? error;
+  final String? debug;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_PipelineStateUpdateCopyWith<StateUpdate_PipelineStateUpdate>
+      get copyWith => _$StateUpdate_PipelineStateUpdateCopyWithImpl<
+          StateUpdate_PipelineStateUpdate>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_PipelineStateUpdate &&
+            (identical(other.newState, newState) ||
+                other.newState == newState) &&
+            (identical(other.error, error) || other.error == error) &&
+            (identical(other.debug, debug) || other.debug == debug));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, newState, error, debug);
+
+  @override
+  String toString() {
+    return 'StateUpdate.pipelineStateUpdate(newState: $newState, error: $error, debug: $debug)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_PipelineStateUpdateCopyWith<$Res> {
+  factory $StateUpdate_PipelineStateUpdateCopyWith(
+          StateUpdate_PipelineStateUpdate value,
+          $Res Function(StateUpdate_PipelineStateUpdate) _then) =
+      _$StateUpdate_PipelineStateUpdateCopyWithImpl;
+  @useResult
+  $Res call({PipelineState newState, String? error, String? debug});
+}
+
+/// @nodoc
+class _$StateUpdate_PipelineStateUpdateCopyWithImpl<$Res>
+    implements $StateUpdate_PipelineStateUpdateCopyWith<$Res> {
+  _$StateUpdate_PipelineStateUpdateCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_PipelineStateUpdate _self;
+  final $Res Function(StateUpdate_PipelineStateUpdate) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? newState = null,
+    Object? error = freezed,
+    Object? debug = freezed,
+  }) {
+    return _then(StateUpdate_PipelineStateUpdate(
+      newState: null == newState
+          ? _self.newState
+          : newState // ignore: cast_nullable_to_non_nullable
+              as PipelineState,
+      error: freezed == error
+          ? _self.error
+          : error // ignore: cast_nullable_to_non_nullable
+              as String?,
+      debug: freezed == debug
+          ? _self.debug
+          : debug // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
 // dart format on

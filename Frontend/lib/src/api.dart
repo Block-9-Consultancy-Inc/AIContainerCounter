@@ -1,13 +1,10 @@
 import 'dart:io';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
-import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show json;
 
-Future<void> printReceipt(
-    int transactionNumber,
-    Batch submittedBatch) async {
-
+Future<void> printReceipt(int transactionNumber, Batch submittedBatch) async {
   final response = await http.post(
     Uri.parse('http://0.0.0.0:3000/print-receipt'),
     headers: {'Content-Type': 'application/json'},

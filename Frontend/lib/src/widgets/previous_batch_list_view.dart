@@ -1,5 +1,5 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
-import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/screens/batch_details_viewer.dart';
 import 'package:ai_container_counter/src/utils/datetime_utils.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
@@ -65,7 +65,8 @@ class PreviousBatchListView extends StatelessWidget {
                                 globalState.socket!.emitEvent(
                                     event: 'get-batch-details',
                                     data: selectedBatch.id);
-                                final batchDetails = await fetchDetailsFuture as StateUpdate_BatchFetch;
+                                final batchDetails = await fetchDetailsFuture
+                                    as StateUpdate_BatchFetch;
                                 if (batchDetails
                                     .batch.multiContainerImages.isNotEmpty) {
                                   // ignore: use_build_context_synchronously

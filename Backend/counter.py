@@ -461,17 +461,7 @@ class Counter:
 
     def reset_counter(self):
         batch = counter_to_batch(self)
-        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
-        if not self.is_test:
-            self.data_to_save_queue.put(self.data_to_save)
-        self.prev_data_to_save = self.data_to_save
-        if not self.is_test:
-            for shm in self.prev_data_to_save_shms:
-                        shm.close()
-                        shm.unlink()
-        self.prev_data_to_save_shms = self.data_to_save_shms
-        self.data_to_save_shms = []
-        self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+        save_to_db = self.center_line_zone.in_count > 3
         self.byte_tracker.reset()
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
         self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
@@ -498,7 +488,19 @@ class Counter:
         self.last_image_first_line_zone_in_count = 0
         self.last_image_center_line_zone_in_count = 0
         self.last_image_last_line_zone_in_count = 0
-        return batch
+
+        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
+        if not self.is_test and save_to_db:
+            self.data_to_save_queue.put(self.data_to_save)
+        self.prev_data_to_save = self.data_to_save
+        if not self.is_test:
+            for shm in self.prev_data_to_save_shms:
+                        shm.close()
+                        shm.unlink()
+        self.prev_data_to_save_shms = self.data_to_save_shms
+        self.data_to_save_shms = []
+        self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+        return batch if save_to_db else None
 
 
 def counter_to_batch_to_save(counter: Counter, submitted = False):

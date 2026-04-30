@@ -2,7 +2,7 @@ use std::ffi::{c_int, c_void};
 
 use dlopen::{symbor::{Library, Symbol}, Error as LibError};
 
-use crate::models::images::RawImage;
+use crate::api::models::images::RawImage;
 
 use log::error;
 

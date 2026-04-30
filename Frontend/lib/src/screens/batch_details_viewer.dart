@@ -2,7 +2,7 @@
 
 import 'dart:math' as math;
 
-import 'package:ai_container_counter/src/rust/models/count.dart';
+import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/widgets/multi_container_image_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

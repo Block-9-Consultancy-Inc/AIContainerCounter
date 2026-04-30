@@ -1,5 +1,5 @@
 use crate::{
-    frb_generated::StreamSink, models::count::{Batch, StateUpdate}, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
+    frb_generated::StreamSink, api::models::count::{Batch, PipelineState, StateUpdate}, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use flutter_rust_bridge::frb;
@@ -9,7 +9,8 @@ use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Event, Payload};
 use serde_json::json;
 use std::collections::HashMap;
-use crate::models::count::{Count, BatchGlobalState};
+use crate::api::models::count::{Count, BatchGlobalState};
+
 
 #[frb(opaque)]
 pub struct Socket {
@@ -233,7 +234,18 @@ impl Socket {
                         "button_pressed_state" => {
                             let button_id = payload_json.unwrap().as_i64().unwrap();
                             let _ = sink.add(StateUpdate::ButtonPressed { button_id });
-                        }
+                        },
+                        "pipeline_state" => {
+                            let new_state_str = payload_json.as_ref().unwrap().get("new_state").unwrap().as_str().unwrap();
+                            let error_str = payload_json.as_ref().unwrap().get("error").unwrap().as_str();
+                            let debug_str = payload_json.as_ref().unwrap().get("debug").unwrap().as_str();
+                            let new_state = match new_state_str {
+                                "playing" => PipelineState::Running,
+                                "paused" => PipelineState::Paused,
+                                _ => PipelineState::Stopped
+                            };
+                            let _ = sink.add(StateUpdate::PipelineStateUpdate { new_state, error: error_str.map(|e|  e.to_string()), debug: debug_str.map(|e|  e.to_string()) });
+                        },
                         _ => {
                             let batch = Batch::from_json(&payload_json.unwrap());
                             let _ = sink.add(StateUpdate::BatchFetch { batch });

@@ -335,6 +335,13 @@ impl Batch {
 }
 
 #[derive(Clone)]
+pub enum PipelineState {
+    Stopped,
+    Paused,
+    Running
+}
+
+#[derive(Clone)]
 pub enum StateUpdate {
     BatchFetch {
         batch: Batch
@@ -344,6 +351,11 @@ pub enum StateUpdate {
     },
     ButtonPressed {
         button_id: i64
+    },
+    PipelineStateUpdate {
+        new_state: PipelineState,
+        error: Option<String>,
+        debug: Option<String>
     }
 }
 

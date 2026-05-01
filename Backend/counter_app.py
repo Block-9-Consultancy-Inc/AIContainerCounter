@@ -248,7 +248,7 @@ class CounterApp:
                 if button_id == 1:
                     self.reset_counter = True
                 elif button_id == 3:
-                    if self.gstreamer_app.status != 'running':
+                    if self.gstreamer_app.status != 'playing':
                         self.gstreamer_app.play()
                     else:
                         self.gstreamer_app.pause()

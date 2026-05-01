@@ -36,6 +36,7 @@ class CurrentBatchView extends StatelessWidget {
           flex: 20,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'Total Daily Count',
@@ -107,37 +108,83 @@ class CurrentBatchView extends StatelessWidget {
         ),
         Expanded(
           flex: 10,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Current Batch Elapsed Time',
-                style: TextStyle(
-                  fontSize: 25,
-                  height: 0.75,
-                  color: Theme.of(context).colorScheme.inversePrimary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Current Batch Elapsed Time',
+                    style: TextStyle(
+                      fontSize: 25,
+                      height: 0.75,
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  StreamBuilder(
+                      stream:
+                          context.read<GlobalState>().stopWatchTimer.rawTime,
+                      builder: (context, snapshot) {
+                        return Text(
+                          StopWatchTimer.getDisplayTime(
+                            snapshot.data ?? 0,
+                            hours: false,
+                          ),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 40,
+                            height: 0.75,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withAlpha((0.7 * 255).toInt()),
+                          ),
+                        );
+                      }),
+                ],
               ),
-              const SizedBox(height: 10),
-              StreamBuilder(
-                  stream: context.read<GlobalState>().stopWatchTimer.rawTime,
-                  builder: (context, snapshot) {
-                    return Text(
-                      StopWatchTimer.getDisplayTime(
-                        snapshot.data ?? 0,
-                        hours: false,
+              const SizedBox(width: 50),
+              Selector<GlobalState, PipelineState>(
+                selector: (context, e) => e.currentPipelineState,
+                builder: (context, value, child) => value ==
+                        PipelineState.stopped
+                    ? FloatingActionButton(
+                        onPressed: () => context
+                            .read<GlobalState>()
+                            .socket
+                            ?.emitEvent(event: 'play', data: 'play'),
+                        child: const Icon(Icons.play_arrow))
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (value == PipelineState.paused)
+                            FloatingActionButton(
+                                onPressed: () => context
+                                    .read<GlobalState>()
+                                    .socket
+                                    ?.emitEvent(event: 'play', data: 'play'),
+                                child: const Icon(Icons.play_arrow)),
+                          if (value == PipelineState.running)
+                            FloatingActionButton(
+                                onPressed: () => context
+                                    .read<GlobalState>()
+                                    .socket
+                                    ?.emitEvent(event: 'pause', data: 'pause'),
+                                child: const Icon(Icons.pause)),
+                          const SizedBox(width: 20),
+                          FloatingActionButton(
+                              onPressed: () => context
+                                  .read<GlobalState>()
+                                  .socket
+                                  ?.emitEvent(event: 'stop', data: 'stop'),
+                              child: const Icon(Icons.stop)),
+                        ],
                       ),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 40,
-                        height: 0.75,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withAlpha((0.7 * 255).toInt()),
-                      ),
-                    );
-                  }),
+              ),
             ],
           ),
         ),
@@ -145,6 +192,7 @@ class CurrentBatchView extends StatelessWidget {
           flex: 20,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               AutoSizeText(
                 'Current Count',

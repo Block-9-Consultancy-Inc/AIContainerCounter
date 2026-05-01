@@ -247,6 +247,13 @@ class CounterApp:
                 print(f'{button_id} pressed!')
                 if button_id == 1:
                     self.reset_counter = True
+                elif button_id == 3:
+                    if self.gstreamer_app.status != 'running':
+                        self.gstreamer_app.play()
+                    else:
+                        self.gstreamer_app.pause()
+                elif button_id == 4:
+                    self.gstreamer_app.stop()
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
 
@@ -452,7 +459,8 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             print(error_traceback)
 
     def run(self):
-        self.gstreamer_app.run()
+        gstreamer_app_thread = Thread(target=self.gstreamer_app.run, daemon=True)
+        gstreamer_app_thread.start()
         self.app.run(host='0.0.0.0', port=5000, threaded=True)
 
 def counter_callback(pad, info, counter_app: CounterApp):

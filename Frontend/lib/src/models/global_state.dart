@@ -27,6 +27,18 @@ class GlobalState extends ChangeNotifier {
         .where((e) => e is StateUpdate_PipelineStateUpdate)
         .map((e) => e as StateUpdate_PipelineStateUpdate)
         .listen((pipelineStateUpdate) {
+      if (_currentPipelineState != PipelineState.running &&
+          pipelineStateUpdate.newState == PipelineState.running) {
+        stopWatchTimer.onStartTimer();
+      } else if (_currentPipelineState == PipelineState.running &&
+          pipelineStateUpdate.newState == PipelineState.paused) {
+        stopWatchTimer.onStopTimer();
+      } else if (_currentPipelineState == PipelineState.running &&
+          pipelineStateUpdate.newState == PipelineState.stopped) {
+        stopWatchTimer.onResetTimer();
+      }
+
+
       _currentPipelineState = pipelineStateUpdate.newState;
       notifyListeners();
     });

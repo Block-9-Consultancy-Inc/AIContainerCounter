@@ -368,7 +368,7 @@ class GStreamerApp:
             print(f'Current pipeline status is already {self.status}, cannot pause')
             return
         self.status = 'paused'
-        self.data_collection_pipeline.set_state(Gst.State.PAUSE)
+        self.data_collection_pipeline.set_state(Gst.State.PAUSED)
         self.on_state_changed(self.status)
         print('Pipeline now paused')
 

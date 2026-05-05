@@ -1,12 +1,29 @@
-FROM debian:trixie-slim
+FROM mcr.microsoft.com/devcontainers/python:3.13-bookworm
 
-RUN apt-get update && apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
- libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good \ 
- gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
-  gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 \
-  gstreamer1.0-pulseaudio vulkan-tools
+ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install libgirepository-2.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-4.0 \
-  python3-pip python-is-python3 python3.13-venv cmake libturbojpeg0
+COPY "./.devcontainer/build-gst-126-from-source.sh" "/build-gst-126-from-source.sh" 
+
+RUN apt-get update && apt-get remove -y python3 && apt-get install -y ffmpeg libsm6 libxext6 vulkan-tools cmake ninja-build gcc libturbojpeg0 flex bison
+
+RUN bash /build-gst-126-from-source.sh
+
+RUN usermod -a -G dialout vscode
+
+USER vscode
+
+ENV PATH="$PATH:/home/vscode/.local/bin"
+
+COPY Backend/requirements.txt /tmp/pip-tmp/
+RUN --mount=type=cache,target=/root/.cache/pip pip3 --disable-pip-version-check install -r /tmp/pip-tmp/requirements.txt \
+   && sudo rm -rf /tmp/pip-tmp
+
+COPY CDCServer/requirements.txt /tmp/pip-tmp/
+RUN --mount=type=cache,target=/root/.cache/pip pip3 --disable-pip-version-check install -r /tmp/pip-tmp/requirements.txt \
+   && pip3 --disable-pip-version-check install 'uvicorn[standard]' && sudo rm -rf /tmp/pip-tmp
+
+RUN export DEBIAN_FRONTEND=noninteractive && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - \
+    && echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list \
+    && sudo apt update && sudo apt -y install libgl1 postgresql-client-16
 
 CMD ["sleep", "infinity"]

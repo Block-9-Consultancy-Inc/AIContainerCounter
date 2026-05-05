@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/postgres
 {
-	"name": "Python 3 & PostgreSQL",
+	"name": "Python 3 & GStreamer 1.26",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
     "shutdownAction": "stopCompose",
@@ -16,9 +16,8 @@
 		}
 	},
 
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// This can be used to network with other containers or the host.
-	"forwardPorts": [8080, 5432],
+	"forwardPorts": [5000, 5432, 8000],
+
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip install --user -r requirements.txt",
@@ -26,11 +25,7 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"mtxr.sqltools",
-				"mtxr.sqltools-driver-pg",
-				"eamodio.gitlens",
-				"rangav.vscode-thunder-client",
-				"Prisma.prisma"
+				"eamodio.gitlens"
 			  ]
 		}
 	}

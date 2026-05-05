@@ -246,6 +246,9 @@ impl Socket {
                             };
                             let _ = sink.add(StateUpdate::PipelineStateUpdate { new_state, error: error_str.map(|e|  e.to_string()), debug: debug_str.map(|e|  e.to_string()) });
                         },
+                        "stop_confirmation_state" => {
+                            let _  = sink.add(StateUpdate::StopConfirmationUpdate);
+                        },
                         _ => {
                             let batch = Batch::from_json(&payload_json.unwrap());
                             let _ = sink.add(StateUpdate::BatchFetch { batch });

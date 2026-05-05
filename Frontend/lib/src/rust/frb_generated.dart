@@ -854,6 +854,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           error: dco_decode_opt_String(raw[2]),
           debug: dco_decode_opt_String(raw[3]),
         );
+      case 4:
+        return const StateUpdate_StopConfirmationUpdate();
       default:
         throw Exception("unreachable");
     }
@@ -1333,6 +1335,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_debug = sse_decode_opt_String(deserializer);
         return StateUpdate_PipelineStateUpdate(
             newState: var_newState, error: var_error, debug: var_debug);
+      case 4:
+        return const StateUpdate_StopConfirmationUpdate();
       default:
         throw UnimplementedError('');
     }
@@ -1750,6 +1754,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_pipeline_state(newState, serializer);
         sse_encode_opt_String(error, serializer);
         sse_encode_opt_String(debug, serializer);
+      case StateUpdate_StopConfirmationUpdate():
+        sse_encode_i_32(4, serializer);
     }
   }
 

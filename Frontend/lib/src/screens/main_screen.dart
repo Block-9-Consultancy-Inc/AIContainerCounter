@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
 
-    context.read<GlobalState>().updateCurrentPipelineState();
+    context.read<GlobalState>().updateCurrentPipelineState(context);
     context
         .read<GlobalState>()
         .stateUpdateEventStream

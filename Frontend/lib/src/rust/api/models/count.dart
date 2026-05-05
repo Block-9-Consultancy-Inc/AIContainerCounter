@@ -230,6 +230,8 @@ sealed class StateUpdate with _$StateUpdate {
     String? error,
     String? debug,
   }) = StateUpdate_PipelineStateUpdate;
+  const factory StateUpdate.stopConfirmationUpdate() =
+      StateUpdate_StopConfirmationUpdate;
 }
 
 class TodaySummary {

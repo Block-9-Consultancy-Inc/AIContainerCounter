@@ -22,24 +22,33 @@ class GlobalState extends ChangeNotifier {
 
   PipelineState _currentPipelineState = PipelineState.running;
 
-  void updateCurrentPipelineState() {
+  void updateCurrentPipelineState(BuildContext context) {
     stateUpdateEventStream.stream
-        .where((e) => e is StateUpdate_PipelineStateUpdate)
-        .map((e) => e as StateUpdate_PipelineStateUpdate)
-        .listen((pipelineStateUpdate) {
+        .where((e) =>
+            e is StateUpdate_PipelineStateUpdate ||
+            e is StateUpdate_StopConfirmationUpdate)
+        .listen((stateUpdate) {
+      if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Are you sure you want to stop? Press the stop button again to confirm')));
+        return;
+      }
+
+      stateUpdate = stateUpdate as StateUpdate_PipelineStateUpdate;
       if (_currentPipelineState != PipelineState.running &&
-          pipelineStateUpdate.newState == PipelineState.running) {
+          stateUpdate.newState == PipelineState.running) {
         stopWatchTimer.onStartTimer();
       } else if (_currentPipelineState == PipelineState.running &&
-          pipelineStateUpdate.newState == PipelineState.paused) {
+          stateUpdate.newState == PipelineState.paused) {
         stopWatchTimer.onStopTimer();
       } else if (_currentPipelineState == PipelineState.running &&
-          pipelineStateUpdate.newState == PipelineState.stopped) {
+          stateUpdate.newState == PipelineState.stopped) {
         stopWatchTimer.onResetTimer();
       }
 
-
-      _currentPipelineState = pipelineStateUpdate.newState;
+      _currentPipelineState = stateUpdate.newState;
       notifyListeners();
     });
   }

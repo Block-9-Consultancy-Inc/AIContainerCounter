@@ -308,4 +308,25 @@ class _$StateUpdate_PipelineStateUpdateCopyWithImpl<$Res>
   }
 }
 
+/// @nodoc
+
+class StateUpdate_StopConfirmationUpdate extends StateUpdate {
+  const StateUpdate_StopConfirmationUpdate() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_StopConfirmationUpdate);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate.stopConfirmationUpdate()';
+  }
+}
+
 // dart format on

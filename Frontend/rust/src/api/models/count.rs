@@ -356,7 +356,8 @@ pub enum StateUpdate {
         new_state: PipelineState,
         error: Option<String>,
         debug: Option<String>
-    }
+    },
+    StopConfirmationUpdate
 }
 
 #[derive(Clone)]

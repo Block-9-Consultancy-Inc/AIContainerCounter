@@ -8,30 +8,134 @@ generator client {
     recursive_type_depth = 5
 }
 
-model Batch {
-    id                      Int             @id @default(autoincrement())
-    description             String?
-    added                   DateTime        @default(now())
-    edited                  DateTime        @updatedAt
-    multiContainerImages    MultiContainerImage[]
+enum DatasetSplit {
+    TRAIN
+    VALID
+    TEST
 }
 
-model MultiContainerImage {
-    fileName            String              @id
-    height              Int
-    width               Int
-    batch               Batch      @relation(fields: [batchId], references: [id])
-    batchId             Int
-    bboxAnnotations     BBoxAnnotation[]
+enum CountingStrategy {
+    DUAL_MODEL_SNAPSHOT
+    YOLO_CONSENSUS
+    SIMPLE_COUNT
 }
 
-model BBoxAnnotation {
-    id                          String                  @id @default(uuid()) @db.Uuid
-    multiContainerImage         MultiContainerImage     @relation(fields: [multiContainerImageFile], references: [fileName])
-    multiContainerImageFile     String       
-    containerClassId            String                  @db.Uuid
-    centerX                     Int
-    centerY                     Int
+enum CountiUnitStatus {
+    RUNNING
+    INITIALIZING
+    UPLOADING
+    IDLE
+    ERROR
+}
+
+model CountiUnit {
+    id                          String              @id
+    location                    String
+    registered                  DateTime            @default(now())
+    updated                     DateTime            @updatedAt
+    status                      CountiUnitStatus
+    batches Batch[]
+}
+
+enum ModelType {
+    YOLO_CONTAINER
+    YOLO_CATEGORY
+    RESNET_CATEGORY
+}
+
+model TrainedModel {
+    id                          String              @id @default(uuid()) @db.Uuid
+    modelType                   ModelType
+    description                 String?
+    trained                     DateTime            @default(now())
+    checkpointId                String?             @db.Uuid
+    checkpoint                  TrainedModel?       @relation("ModelCheckpoint", fields: [checkpointId], references: [id])
+    successors                  TrainedModel[]      @relation("ModelCheckpoint")
+    datasetSnapshotId           String              @db.Uuid
+    datasetSnapshot             DatasetSnapshot     @relation(fields: [datasetSnapshotId], references: [id])
+    batchesWithCategoryModel    Batch[]             @relation("CategoryModel")
+    batchesWithContainerModel   Batch[]             @relation("ContainerModel")
+}
+
+model DatasetSnapshot {
+    id                          String              @id @default(uuid()) @db.Uuid
+    description                 String?
+    created                     DateTime            @default(now())
+    randomSubSampleSeed         String?
+    randomSubSampleTrainAmount  Int?
+    randomSubSampleValidAmount  Int?
+    randomSubSampleTestAmount   Int?
+    trainedModels               TrainedModel[]
+    imageInDatasetSnapshot      ImageInDatasetSnapshot[]
+}
+
+model ImageInDatasetSnapshot {
+    datasetSnapshot             DatasetSnapshot     @relation(fields: [datasetSnapshotId], references: [id])
+    datasetSnapshotId           String              @db.Uuid
+    image                       Image               @relation(fields: [imageId], references: [id])
+    imageId                     String              @db.Uuid
+    split                       DatasetSplit
+    @@id([datasetSnapshotId, imageId])
+}
+
+model Image {
+    id                          String              @id @default(uuid()) @db.Uuid
+    fileExtension               String
+    index                       Int
+    height                      Int
     width                       Int
-    height                      Int   
+    timeTaken                   DateTime
+    batch                       Batch               @relation(fields: [batchId], references: [id])
+    batchId                     String              @db.Uuid
+    chunkId                     String              @db.Uuid
+    bboxes                      BBox[]
+    imageInDatasetSnapshot      ImageInDatasetSnapshot[]
+}
+
+model Video {
+    batchId                     String              @id @db.Uuid @unique
+    fileExtension               String
+    height                      Int
+    width                       Int
+    batch                       Batch               @relation(fields: [batchId], references: [id])
+}
+
+model Batch {
+    id                          String              @id @default(uuid()) @db.Uuid
+    count                       Int
+    canCount                    Int
+    plasticCount                Int
+    gabletopCount               Int
+    drinkboxCount               Int
+    pouchCount                  Int
+    timeStarted                 DateTime
+    timeSubmitted               DateTime
+    miscellaneousNotes          String?
+    areaCollected               String?
+    countiUnit                  CountiUnit          @relation(fields: [countiUnitId], references: [id])
+    countiUnitId                String
+    countingStrategy            CountingStrategy
+    containerModel              TrainedModel?       @relation(name: "ContainerModel", fields: [containerModelId], references: [id])
+    containerModelId            String?             @db.Uuid
+    categoryModel               TrainedModel?       @relation(name: "CategoryModel", fields: [categoryModelId], references: [id])
+    categoryModelId             String?             @db.Uuid
+    images                      Image[]
+    video                       Video?
+}
+
+enum BBoxType {
+    DETECTION
+    ANNOTATION
+}
+
+model BBox {
+    id                          String              @id @default(uuid()) @db.Uuid
+    image                       Image               @relation(fields: [imageId], references: [id])
+    imageId                     String              @db.Uuid
+    label                       String
+    bboxType                    BBoxType
+    x1                          Int
+    y1                          Int
+    x2                          Int
+    y2                          Int
 }

@@ -8,36 +8,44 @@ services:
 
     volumes:
       - ../:/workspace:cached
+      - ./build-from-source:/build-from-source
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
 
-    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
-    network_mode: service:db
-
     # Uncomment the next line to use a non-root user for all processes.
     user: vscode
+
+    devices:
+      - /dev/video0:/dev/video0
+
+    shm_size: '5gb'
+
+    network_mode: service:db
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
     # (Adding the "ports" property to this file will not forward from a Codespace.)
 
   db:
-    image: postgres:latest
+    image: postgres:16
     restart: unless-stopped
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ai-container-counter-postgres-data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: postgres
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - 5432:5432
-      - 8080:8080
-      - 8081:8081
-      - 9099:9099
-
-    # Add "forwardPorts": ["5432"] to **devcontainer.json** to forward PostgreSQL locally.
-    # (Adding the "ports" property to this file will not forward from a Codespace.)
+      - 5000:5000
+      - 8000:8000
 
 volumes:
-  postgres-data:
+  ai-container-counter-postgres-data:

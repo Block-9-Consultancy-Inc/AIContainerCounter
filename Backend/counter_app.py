@@ -241,6 +241,7 @@ class CounterApp:
             self.gstreamer_app.play()
             self.end_of_prev_frame = perf_counter_ns()
 
+        self.last_time_stop_button_pressed: datetime = None
 
         if self.button_listener_serial_port is not None:
             def on_button_pressed(button_id: int):
@@ -253,7 +254,12 @@ class CounterApp:
                     else:
                         self.gstreamer_app.pause()
                 elif button_id == 4:
-                    self.gstreamer_app.stop()
+                    last_time_stop_button_pressed = self.last_time_stop_button_pressed
+                    self.last_time_stop_button_pressed = datetime.now()
+                    if last_time_stop_button_pressed is None or (self.last_time_stop_button_pressed - last_time_stop_button_pressed).total_seconds() > 2:
+                        self.sio.emit('stop_confirmation_state', 'need_stop_confirmation')
+                    else:
+                        self.gstreamer_app.stop()
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
 

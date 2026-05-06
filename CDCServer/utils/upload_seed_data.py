@@ -129,7 +129,7 @@ def get_all_batches_from_day(day: datetime):
     start = datetime(day.year, day.month, day.day)
     end = start + timedelta(days=1)
 
-    batches = Batch.select().where((Batch.time_started > start) & (Batch.time_started < end))
+    batches = Batch.select().where((Batch.time_started > start) & (Batch.time_started < end) & (Batch.time_submitted != None))
     
     return list(batches)
 
@@ -289,9 +289,9 @@ def upload_models():
         print(response.content)
 
 if __name__ == '__main__':
-    procedure = int(sys.argv[2])
+    procedure = int(sys.argv[1])
 
-    if procedure == 0:
+    if procedure == 1:
         register_counti_unit()
 
         upload_models()
@@ -299,11 +299,11 @@ if __name__ == '__main__':
         day = datetime(2025, 3, 14)
 
         upload_daily_counti_metadata_input_for_day(day)
-    elif procedure == 1:
+    elif procedure == 2:
         day = datetime(2025, 3, 15)
 
         upload_daily_counti_metadata_input_for_day(day)
-    elif procedure == 2:
+    elif procedure == 3:
         day = datetime(2025, 3, 18)
 
         upload_daily_counti_metadata_input_for_day(day)

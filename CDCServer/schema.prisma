@@ -51,8 +51,8 @@ model TrainedModel {
     checkpointId                String?             @db.Uuid
     checkpoint                  TrainedModel?       @relation("ModelCheckpoint", fields: [checkpointId], references: [id])
     successors                  TrainedModel[]      @relation("ModelCheckpoint")
-    datasetSnapshotId           String?              @db.Uuid
-    datasetSnapshot             DatasetSnapshot?     @relation(fields: [datasetSnapshotId], references: [id])
+    datasetSnapshotId           String?             @db.Uuid
+    datasetSnapshot             DatasetSnapshot?    @relation(fields: [datasetSnapshotId], references: [id])
     batchesWithCategoryModel    Batch[]             @relation("CategoryModel")
     batchesWithContainerModel   Batch[]             @relation("ContainerModel")
 }

@@ -4,11 +4,12 @@ from datetime import datetime
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from prisma import Prisma
 from prisma.models import Image, Video, DatasetSnapshot, Batch, BBox
-from prisma.enums import DatasetSplit, BBoxType, CountiUnitStatus, CountingStrategy # Import the enum from generated types
+from prisma.enums import DatasetSplit, BBoxType, CountiUnitStatus, CountingStrategy, ModelType # Import the enum from generated types
+from prisma.errors import PrismaError, RecordNotFoundError
 import random
 import uuid
 import traceback
@@ -111,8 +112,7 @@ class RegisterCountiUnitInput(BaseModel):
 
 
 class RegisterCountiResponse(BaseModel):
-    successful: bool = Field(..., description='Whether the registration was successful.')
-    unsuccessful_reason: Optional[str] = Field(None, description="The reason for unsuccessful registration if unsuccessful.") 
+    message: Optional[str] = Field(None, description="A message detailing registration status.") 
 
 
 class BBoxInImageInput(BaseModel):
@@ -134,7 +134,6 @@ class ImageInBatchInput(BaseModel):
 
 class VideoInBatchInput(BaseModel):
     file_extension: str
-    index: int
     height: int
     width: int
 
@@ -144,7 +143,7 @@ class BatchInput(BaseModel):
     can_count: int
     plastic_count: int
     gabletop_count: int
-    drinbox_count: int
+    drinkbox_count: int
     pouch_count: int
     time_started: datetime
     time_submitted: datetime
@@ -161,12 +160,35 @@ class UploadDailyCountiMetadataInput(BaseModel):
     batches: List[BatchInput] = Field(..., description='The list of batches to upload')
 
 class UploadDailyCountiMetadataResponse(BaseModel):
-    successful: bool = Field(..., description='Whether the metadata upload was successful.')
     batches_saved: int = Field(0)
     videos_saved: int = Field(0)
     images_saved: int = Field(0)
     bboxes_saved: int = Field(0)
-    unsuccessful_reason: Optional[str] = Field(None, description="The reason for unsuccessful metadata upload if unsuccessful.") 
+
+# endregion DatasetSnapshot Models
+
+# region TrainedModel Models
+# Input model for creating a single TrainedModel metadata entry
+class TrainedModelCreate(BaseModel):
+    id: Optional[str] = Field(..., description="Optional UUID of trained model")
+    modelType: ModelType = Field(..., description="Type of the model (e.g., YOLO_CONTAINER).")
+    datasetSnapshotId: Optional[str] = Field(None, description="UUID of the DatasetSnapshot used for training.")
+    description: Optional[str] = Field(None, description="Optional description for the trained model.")
+    checkpointId: Optional[str] = Field(None, description="Optional UUID of the base model checkpoint used for training.")
+
+# Output model for representing a TrainedModel
+class TrainedModelResponse(BaseModel):
+    id: str = Field(..., description="The UUID of the Trained Model.")
+    modelType: ModelType = Field(..., description="Type of the model.")
+    description: Optional[str] = Field(None, description="Description of the model.")
+    trained: datetime = Field(..., description="Timestamp when the model training finished/metadata was recorded.")
+    checkpointId: Optional[str] = Field(None, description="UUID of the base model checkpoint, if any.")
+    datasetSnapshotId: Optional[str] = Field(None, description="UUID of the DatasetSnapshot used for training.")
+
+    class Config:
+        from_attributes = True
+
+# endregion TrainedModel Models
 
 # --- FastAPI Application Setup ---
 
@@ -215,9 +237,9 @@ async def register_new_counti_unit(input: RegisterCountiUnitInput):
         existing_unit = await db.countiunit.find_unique(where={ 'id': input.id })
 
         if existing_unit is not None:
-            return RegisterCountiResponse(
-                successful=False,
-                unsuccessful_reason="A Counti unit with this ID already exists."
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Counti unit with this id is already registered."
             )
         
         await db.countiunit.create(data={
@@ -227,13 +249,13 @@ async def register_new_counti_unit(input: RegisterCountiUnitInput):
         })
 
         return RegisterCountiResponse(
-                successful=True,
+                message=f"Successfully registered new counti unit with id: {input.id}",
             )
     except Exception as e:
-        return RegisterCountiResponse(
-                successful=False,
-                unsuccessful_reason=f"Error: {e}"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to register new counti unit due to error: {e}"
+        )
 
 @app.post(
     "/upload-daily-counti-metadata/",
@@ -243,7 +265,6 @@ async def register_new_counti_unit(input: RegisterCountiUnitInput):
     tags=["Counti Metadata"]
 )
 async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
-    print(f'Here: {input}')
     try:
         batches = []
         videos = []
@@ -256,7 +277,7 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                 canCount=batch.can_count,
                 plasticCount=batch.plastic_count,
                 gabletopCount=batch.gabletop_count,
-                drinkboxCount=batch.drinbox_count,
+                drinkboxCount=batch.drinkbox_count,
                 pouchCount=batch.pouch_count,
                 timeStarted=batch.time_started,
                 timeSubmitted=batch.time_submitted,
@@ -307,7 +328,6 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
         images_saved = await db.image.create_many(data=images)
         bboxes_saved = await db.bbox.create_many(data=bboxes)
         response = UploadDailyCountiMetadataResponse(
-            successful=True,
             batches_saved=batches_saved,
             videos_saved=videos_saved,
             images_saved=images_saved,
@@ -317,9 +337,9 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
         return response
     except Exception as e:
         print(traceback.format_exc())
-        return UploadDailyCountiMetadataResponse(
-            successful=False,
-            unsuccessful_reason=f'Error: {e}'
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to save daily counti metadata due to error: {e}"
         )
 
 @app.post(
@@ -435,8 +455,140 @@ async def get_dataset_snapshot(snapshot_id: str):
         )
     
     return await DatasetSnapshotResponse.from_dataset_snapshot(snapshot)
-    
 
+def cond_dict(
+        cond: bool, cond_dict: dict,
+) -> dict:
+    return cond_dict if cond else {}
+
+# region Trained Model Endpoints
+@app.post(
+    "/trainedmodels/",
+    response_model=TrainedModelResponse, # Returns a list
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload metadata for one or more newly trained models",
+    tags=["Trained Models"]
+)
+async def create_trained_model(model_data: TrainedModelCreate):
+    """
+    Uploads metadata for one or more newly trained models.
+    Each item in the list should contain:
+    - **modelType**: The type of the model (enum).
+    - **datasetSnapshotId**: The UUID of the dataset snapshot used for training.
+    - **description**: Optional description.
+    - **checkpointId**: Optional UUID of the base model checkpoint.
+
+    Returns a list of the created trained model metadata records.
+    Performs creations within a database transaction for atomicity.
+    """
+    try:
+         # Prepare data, handling optional fields explicitly
+        create_data = {
+            **cond_dict(model_data.id is not None, { 'id': model_data.id }),
+            'modelType': model_data.modelType,
+            'datasetSnapshotId': model_data.datasetSnapshotId,
+            'description': model_data.description,
+            # Only include checkpointId if it's provided
+            'checkpointId': model_data.checkpointId if model_data.checkpointId else None
+        }
+        # Remove None values if Prisma client expects only provided fields
+        # create_data = {k: v for k, v in create_data.items() if v is not None} # Optional refinement
+
+        new_model = await db.trainedmodel.create(data=create_data)
+        return TrainedModelResponse.model_validate(new_model, from_attributes=True)
+
+    except PrismaError as e:
+        # Catch specific Prisma/DB errors like foreign key violations
+        print(f"Error creating trained model: {e}")
+        error_detail = "Could not create trained model. Ensure related DatasetSnapshot and Checkpoint ID exist and data is valid."
+        # Example: Check for foreign key violation specifically
+        # if e.code == 'P2003': # Prisma error code for foreign key constraint failed
+        #    error_detail = f"Could not create models: Invalid datasetSnapshotId or checkpointId provided."
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_detail
+        )
+    except Exception as e:
+        print(f"Unexpected error creating trained models: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while creating trained models."
+        )
+
+@app.get(
+    "/trainedmodels/latest/",
+    response_model=TrainedModelResponse,
+    summary="Get the latest trained model, optionally filtered by type",
+    tags=["Trained Models"]
+)
+async def get_latest_trained_model(
+    model_type: Optional[ModelType] = Query(None, description="Filter by a specific model type.") # Use Query for better docs/validation
+):
+    """
+    Retrieves the metadata of the most recently trained model based on the 'trained' timestamp.
+    Optionally filters by `model_type`.
+
+    - **model_type** (query parameter): If provided, filters for the latest model of this specific type.
+
+    Returns the latest matching trained model's metadata.
+    Raises `HTTPException` (404 Not Found) if no models exist or none match the filter.
+    """
+    where_clause = {}
+    if model_type:
+        where_clause['modelType'] = model_type
+
+    latest_model = await db.trainedmodel.find_first(
+        where=where_clause,
+        order_by={'trained': 'desc'} # Order by training timestamp descending
+    )
+
+    if not latest_model:
+        error_detail = "No trained models found."
+        if model_type:
+            error_detail = f"No trained models found matching type '{model_type.value}'."
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_detail
+        )
+
+    # Map Prisma model to Pydantic response model
+    return TrainedModelResponse.from_orm(latest_model)
+
+
+@app.get(
+    "/trainedmodels/{model_id}",
+    response_model=TrainedModelResponse,
+    summary="Get a specific trained model by ID",
+    tags=["Trained Models"]
+)
+async def get_trained_model(model_id: str):
+    """
+    Retrieves the metadata of a specific Trained Model identified by its UUID.
+
+    - **model_id**: The UUID of the Trained Model to fetch.
+
+    Returns the trained model's metadata.
+    Raises `HTTPException` (404 Not Found) if no model exists with the given ID.
+    """
+    try:
+        model = await db.trainedmodel.find_unique_or_raise(
+             where={'id': model_id}
+        )
+        # Map Prisma model to Pydantic response model
+        return TrainedModelResponse.model_validate(model)
+    except RecordNotFoundError:
+         raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trained Model with ID '{model_id}' not found."
+        )
+    except Exception as e:
+        print(f"Unexpected error fetching trained model {model_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while fetching the trained model."
+        )
+
+# endregion Trained Model Endpoints
 
 # --- Root Endpoint for Health Check/Welcome ---
 @app.get("/", tags=["Root"])

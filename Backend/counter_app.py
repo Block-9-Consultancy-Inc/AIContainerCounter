@@ -68,6 +68,8 @@ class CounterApp:
             is_test: bool = False,
             raw_video_footage_dir = './data',
             collected_images_dir = './images',
+            host = '0.0.0.0',
+            port = 5000,
         ) -> None:
 
         try:
@@ -91,6 +93,8 @@ class CounterApp:
             self.is_test = is_test
             self.raw_video_footage_dir = raw_video_footage_dir
             self.collected_images_dir = collected_images_dir
+            self.host = host
+            self.port = port
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
@@ -318,6 +322,9 @@ class CounterApp:
         self.raw_video_footage_dir = environ.get('RAW_VIDEO_FOOTAGE_DIR', './data')
         self.collected_images_dir = environ.get('COLLECTED_IMAGES_DIR', './images')
 
+        self.host = environ.get('HOST', '0.0.0.0')
+        self.port = int(environ.get('PORT', '5000'))
+
     def calculate_frame_time_data(
             self,
             frame_time: int,
@@ -467,7 +474,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
     def run(self):
         gstreamer_app_thread = Thread(target=self.gstreamer_app.run, daemon=True)
         gstreamer_app_thread.start()
-        self.app.run(host='0.0.0.0', port=5000, threaded=True)
+        self.app.run(host=self.host, port=self.port, threaded=True)
 
 def counter_callback(pad, info, counter_app: CounterApp):
     buffer = info.get_buffer()

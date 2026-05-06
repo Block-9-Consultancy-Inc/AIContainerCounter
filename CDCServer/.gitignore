@@ -1,0 +1,3 @@
+**/cdc_seed_data
+**/*.db
+**/__pycache__

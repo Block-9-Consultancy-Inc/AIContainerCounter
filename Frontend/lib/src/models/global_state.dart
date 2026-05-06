@@ -6,6 +6,8 @@ import 'package:stop_watch_timer/stop_watch_timer.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart';
 
 class GlobalState extends ChangeNotifier {
+  final String backendHost;
+  final int backendPort;
   final LastEventCachedStream<Count> detectionEventStream;
   final LastEventCachedStream<String> eventStream;
   final LastEventCachedStream<StateUpdate> stateUpdateEventStream;
@@ -71,6 +73,8 @@ class GlobalState extends ChangeNotifier {
     required this.detectionEventStream,
     required this.eventStream,
     required this.stateUpdateEventStream,
+    required this.backendHost,
+    required this.backendPort
   }) {
     _initializeTextureAndSocket();
   }
@@ -91,7 +95,7 @@ class GlobalState extends ChangeNotifier {
     socket = newSocket();
 
     bool didConnect = await socket!
-        .connectToSocketServer(serverAddress: 'http://0.0.0.0:5000');
+        .connectToSocketServer(serverAddress: 'http://$backendHost:$backendPort');
 
     if (didConnect) {
       print('DART: socket has connected to server successfully');
@@ -103,7 +107,7 @@ class GlobalState extends ChangeNotifier {
       while (!connected) {
         await Future.delayed(const Duration(seconds: 2));
         connected = await socket!
-            .connectToSocketServer(serverAddress: 'http://0.0.0.0:5000');
+            .connectToSocketServer(serverAddress: 'http://$backendHost:$backendPort');
         if (connected) {
           print('DART: socket has connected to server successfully');
           socket!

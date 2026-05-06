@@ -16,6 +16,8 @@ Future<void> main() async {
   await RustLib.init();
   await dotenv.load();
   showCategories = dotenv.env['SHOW_CATEGORIES'] == 'true';
+  final backendHost = dotenv.env['HOST'] ?? '0.0.0.0';
+  final backendPort = int.tryParse(dotenv.env['PORT'] ?? '5000') ?? 5000;
   final eventStream = LastEventCachedStream(setEventStreamSink());
   final detectionEventStream =
       LastEventCachedStream(setDetectionEventStreamSink());
@@ -30,6 +32,8 @@ Future<void> main() async {
             detectionEventStream: detectionEventStream,
             eventStream: eventStream,
             stateUpdateEventStream: stateUpdateEventStream,
+            backendHost: backendHost,
+            backendPort: backendPort,
           ),
       child: const AIContainerCounterApp()));
 }

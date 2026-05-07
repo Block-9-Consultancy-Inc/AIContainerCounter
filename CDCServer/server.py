@@ -311,7 +311,6 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
 
                 for bbox in image.bboxes:
                     id = str(uuid.uuid4())
-                    print(id)
                     bboxes.append(BBox(
                         id=id,
                         imageId=image.image_id,
@@ -380,13 +379,13 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
             existing_image['roboflow'] = roboflow_image
 
         image_links_to_create = [
-            {'imageId': old_and_new.get('existing').id, 'split': chunk_id_to_split(old_and_new.get('existing').chunkId) }
-            for old_and_new in existing_images
+            {'imageId': image_id, 'split': chunk_id_to_split(old_and_new.get('existing').chunkId) }
+            for image_id, old_and_new in existing_images.items()
         ]
 
         bboxes_to_create = []
 
-        for old_and_new in existing_images:
+        for image_id, old_and_new in existing_images.items():
             roboflow_image: ImageSplitInput = old_and_new.get('roboflow')
             existing_image: Image = old_and_new.get('existing')
             bboxes_to_create.extend(list(map(lambda e: {
@@ -420,6 +419,7 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
         # Catch potential errors during database operation (e.g., foreign key constraint if imageId doesn't exist)
         # In a production scenario, log the error 'e' and potentially check for specific Prisma/DB errors
         print(f"Error creating dataset snapshot: {e}") # Basic logging
+        print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Could not create dataset snapshot. Ensure all image IDs exist and data is valid. Error: {str(e)}"

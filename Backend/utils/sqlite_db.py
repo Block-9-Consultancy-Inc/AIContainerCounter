@@ -120,6 +120,15 @@ def init_db():
     db.create_tables(tables_to_create)
     db.execute_sql('PRAGMA foreign_keys = ON;')
 
+def get_all_batches_from_day(day: datetime.datetime):
+
+    start = datetime.datetime(day.year, day.month, day.day)
+    end = start + datetime.timedelta(days=1)
+
+    batches = Batch.select().where((Batch.time_started > start) & (Batch.time_started < end))
+    
+    return list(batches)
+
 def compute_accuracy(actual: int, expected: int):
     return 100.0 - (abs(expected - actual) / expected * 100.0)
 @dataclass
@@ -230,8 +239,12 @@ def save_state(data_to_save: DataToSave, collected_images_dir: str):
                     category_model=data_to_save.batch.category_model
                 )
                 updated = Batch.save(batch)
+                print(f'BATCH TO SAVE UPDATE: {batch.id}')
                 if not updated:
                     Batch.save(batch, force_insert=True)
+                    print('BATCH TO SAVE FORCE INSERT')
+            else:
+                print('BATCH TO SAVE IS NONE')
 
             multi_container_images = list(map(lambda e: MultiContainerImage(
                 id=e.id,

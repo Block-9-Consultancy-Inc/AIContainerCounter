@@ -20,13 +20,17 @@ IMAGE_BUFFER_SIZE = 30
 
 def save_state_process(data_to_save_queue: Queue, collected_images_dir: str):
     sqlite_db.init_db()
+    print('DB INITIALIZED')
     while True:
         try:
             data_to_save = data_to_save_queue.get()
             sqlite_db.save_state(data_to_save, collected_images_dir)
             with open('resources/save_state_success.json', 'w') as f:
                 json.dump({ 'message': f'successfully saved {len(data_to_save.multi_container_images)} multi container images and {len(data_to_save.single_container_images)} single container images' }, f, indent=4)
+            print('SUCCESSFULLY SAVED IMAGES')
         except Exception as e:
+            print(f'FAILED SAVING IMAGES: {e}')
+            print(traceback.format_exc())
             with open('resources/save_state_error.json', 'w') as f:
                 json.dump({ 'error': str(e), 'traceback': traceback.format_exc()}, f, indent=4)
 

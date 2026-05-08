@@ -211,6 +211,7 @@ class ImageWithBBoxesResponse(BaseModel):
     height: int
     width: int
     timeTaken: datetime
+    batchId: str
     chunkId: str
     bboxes: List[BBoxResponse] = [] # Include list of BBoxes
 

@@ -229,7 +229,7 @@ class CursorInput(BaseModel):
 
 class PaginationRequest(BaseModel):
     """Request body model for pagination parameters."""
-    limit: int = Field(10, gt=0, le=100, description="Number of items per page (max 100)")
+    limit: int = Field(10, gt=0, le=5000, description="Number of items per page (max 100)")
     # Use the CursorInput model for the cursor field
     cursor: Optional[CursorInput] = Field(None, description="Cursor for pagination (time_taken and image_id of the last item from the previous page)")
     sort_order: str = Field("asc", pattern="^(asc|desc)$", description="Sort order for 'timeTaken' ('asc' or 'desc')")

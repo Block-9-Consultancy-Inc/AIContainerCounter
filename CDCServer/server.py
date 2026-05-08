@@ -47,6 +47,7 @@ class DatasetSnapshotCreate(BaseModel):
 # Represents an image included in a snapshot for response output
 class ImageInSnapshotResponse(BaseModel):
     image_id: str = Field(..., description="The UUID of the included Image.")
+    batch_id: str = Field(..., description="The UUID of the batch of the Image.")
     file_extension: str = Field(..., description="The file extension of the included Image.")
     image_height: int = Field(..., description="The Image height in pixels.")
     image_width: int = Field(..., description="The Image width in pixels.")
@@ -77,6 +78,7 @@ class DatasetSnapshotResponse(BaseModel):
         for img_in_snap in snapshot.imageInDatasetSnapshot:
             data = ImageInSnapshotResponse(
                 image_id=img_in_snap.imageId,
+                batch_id=img_in_snap.image.batchId,
                 file_extension=img_in_snap.image.fileExtension,
                 image_height=img_in_snap.image.height,
                 image_width=img_in_snap.image.width,
@@ -199,7 +201,6 @@ class BBoxResponse(BaseModel):
     y1: int
     x2: int
     y2: int
-    modelId: Optional[str] = None
 
     class Config:
         from_attributes = True # Enable ORM mode for easy Prisma model conversion
@@ -230,6 +231,7 @@ class CursorInput(BaseModel):
 class PaginationRequest(BaseModel):
     """Request body model for pagination parameters."""
     limit: int = Field(10, gt=0, le=5000, description="Number of items per page (max 100)")
+    contains_verified_bboxes: bool
     # Use the CursorInput model for the cursor field
     cursor: Optional[CursorInput] = Field(None, description="Cursor for pagination (time_taken and image_id of the last item from the previous page)")
     sort_order: str = Field("asc", pattern="^(asc|desc)$", description="Sort order for 'timeTaken' ('asc' or 'desc')")
@@ -657,38 +659,6 @@ async def get_paginated_images(
     - **sort_order**: 'asc' (default) or 'desc' for sorting by `timeTaken`.
     """
     try:
-        # --- Build Prisma Query Arguments ---
-        query_args = {
-            "take": pagination.limit + 1, # Fetch one extra to determine next cursor
-            "order_by": [
-                {"timeTaken": pagination.sort_order },
-                {"id": pagination.sort_order }, # Secondary sort key for stable ordering
-            ],
-            "include": {
-                "bboxes": True # Include related bounding boxes
-            },
-        }
-
-        # --- Handle Cursor ---
-        if pagination.cursor:
-            # Prisma's cursor expects a dictionary identifying the unique record
-            # For composite keys/cursors based on order_by, use the field names directly
-            query_args["cursor"] = {
-                # This structure tells Prisma where to start based on the composite order
-                'timeTaken_id': {
-                     'timeTaken': pagination.cursor.time_taken,
-                     'id': pagination.cursor.image_id,
-                }
-            }
-            # Skip the cursor item itself when a cursor is provided
-            query_args["skip"] = 1
-        else:
-             # No cursor means fetching the first page
-            query_args["skip"] = 0 # Explicitly set skip to 0 for clarity
-
-
-        print(f"Executing Prisma query with args: {query_args}")
-
         # --- Execute Query ---
         images = await db.image.find_many(
             take=pagination.limit + 1,
@@ -699,6 +669,7 @@ async def get_paginated_images(
                 'id': pagination.sort_order
             }
             ],
+            where={ 'bboxes': { 'some': { 'bboxType': BBoxType.ANNOTATION }}} if pagination.contains_verified_bboxes else None,
             include={ 'bboxes': True },
             skip=1 if pagination.cursor is not None else 0
         )

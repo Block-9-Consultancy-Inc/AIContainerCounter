@@ -1,12 +1,9 @@
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from server.dependencies import db
+from server.auth import handle_api_key
 from server.routers import counti, dataset_snapshots, images, trained_models
-
-# Load environment variables from .env file
-load_dotenv()
 
 # --- FastAPI Application Setup ---
 
@@ -25,6 +22,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Counti API",
     description="API for managing Counti datasets and models.",
+    dependencies=[Depends(handle_api_key)],
     version="1.0.0",
     lifespan=lifespan
 )

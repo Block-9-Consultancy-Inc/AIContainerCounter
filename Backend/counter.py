@@ -465,6 +465,7 @@ class Counter:
 
     def reset_counter(self):
         batch = counter_to_batch(self)
+        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
         save_to_db = self.center_line_zone.in_count > 3
         self.byte_tracker.reset()
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
@@ -493,7 +494,6 @@ class Counter:
         self.last_image_center_line_zone_in_count = 0
         self.last_image_last_line_zone_in_count = 0
 
-        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
         if not self.is_test and save_to_db:
             self.data_to_save_queue.put(self.data_to_save)
         self.prev_data_to_save = self.data_to_save

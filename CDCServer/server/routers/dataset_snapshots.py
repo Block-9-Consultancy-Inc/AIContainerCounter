@@ -115,7 +115,7 @@ def roboflow_image_file_name_to_id(roboflow_image_file_name: str):
 
 
 @router.post(
-    "/datasetsnapshots/",
+    "/",
     response_model=DatasetSnapshotResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new Dataset Snapshot",
@@ -200,7 +200,7 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
 
 
 @router.get(
-    "/datasetsnapshots/{snapshot_id}",
+    "/{snapshot_id}",
     response_model=DatasetSnapshotResponse,
     summary="Get a specific Dataset Snapshot by ID",
     tags=["Dataset Snapshots"]

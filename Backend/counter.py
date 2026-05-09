@@ -439,7 +439,7 @@ class Counter:
         if self.last_time_image_collected is not None and (datetime.now() - self.last_time_image_collected).total_seconds() < 0.5:
             return False
         
-        if max(self.get_count_differences()) >= 3:
+        if max(self.get_count_differences()) >= 2:
             return True
         
         return False

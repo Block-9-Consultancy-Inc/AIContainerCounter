@@ -135,8 +135,6 @@ class Counter:
         self.names = names
         self.yolo_model = yolo_model_path.split('/')[-1]
         self.category_model = category_model_path.split('/')[-1]
-        self.byte_tracker = ByteTrack()
-        # self.byte_tracker = ByteTrack(minimum_consecutive_frames=5, minimum_matching_threshold=0.7)
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
         self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
         self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
@@ -181,7 +179,7 @@ class Counter:
     def set_expected_count(self, expected_category_counts: dict[str, int]):
         self.expected_category_counts = expected_category_counts
 
-    def _current_count(self):
+    def current_count(self):
         return {
             'count': self.center_line_zone.in_count,
             'can_count': self.category_counts.get('can'),
@@ -202,8 +200,6 @@ class Counter:
     def dual_model_snapshot(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
 
         send_data_to_save = False
-
-        detections = self.byte_tracker.update_with_detections(detections)
 
         annotated_frame = self.trace_annotator.annotate(
             scene=decoded_frame.copy(),
@@ -264,7 +260,7 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
-            return annotated_frame, self._current_count()
+            return annotated_frame, self.current_count()
 
         try:
             squeeze_axis = 0
@@ -344,20 +340,16 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
-            return annotated_frame, self._current_count()
+            return annotated_frame, self.current_count()
         except Exception as e:
             print(f'got error in counter trigger: {e}')
             error_traceback = traceback.format_exc()
             print(error_traceback)
-            return decoded_frame, self._current_count()
+            return decoded_frame, self.current_count()
 
     def yolo_consensus(self, decoded_frame: np.ndarray, rgb_frame: np.ndarray, detections: Detections):
         try:
             send_data_to_save = False
-
-            original_class_ids = detections.class_id
-            detections.class_id = np.full(original_class_ids.shape, 0)
-            detections = self.byte_tracker.update_with_detections(detections)
             
             self.first_line_zone.trigger(detections)
             center_crossed_in, _ =  self.center_line_zone.trigger(detections)
@@ -372,7 +364,6 @@ class Counter:
                 tracker_ids = np.squeeze(detections.tracker_id[center_crossed_in_coords].astype(int), axis=squeeze_axis)
                 self.tracker_id_prediction_histogram.set_tracker_id_crossed_center(tracker_ids)
 
-            detections.class_id = original_class_ids
             self.category_counts = self.tracker_id_prediction_histogram.update_from_detections(detections)
 
             self.capture_counts()
@@ -428,12 +419,12 @@ class Counter:
                 self.data_to_save_shms = []
                 self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
 
-            return annotated_frame, self._current_count()
+            return annotated_frame, self.current_count()
         except Exception as e:
             print(f'got error in counter trigger: {e}')
             error_traceback = traceback.format_exc()
             print(error_traceback)
-            return decoded_frame, self._current_count()
+            return decoded_frame, self.current_count()
     
     def should_capture_image(self):
         if self.last_time_image_collected is not None and (datetime.now() - self.last_time_image_collected).total_seconds() < 0.5:
@@ -467,7 +458,6 @@ class Counter:
         batch = counter_to_batch(self)
         self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
         save_to_db = self.center_line_zone.in_count > 3
-        self.byte_tracker.reset()
         self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
         self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
         self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])

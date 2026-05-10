@@ -18,7 +18,7 @@ import sys
 import cv2
 import numpy as np
 import traceback
-from supervision import Detections
+from supervision import Detections, ByteTrack
 import counter as ctr
 from utils.sqlite_db import Batch, get_today_summary
 from playhouse.shortcuts import model_to_dict
@@ -144,6 +144,8 @@ class CounterApp:
         self.showing_video = self.is_test
 
         self.model = YOLO(self.model_path)
+        self.byte_tracker = ByteTrack()
+        # self.byte_tracker = ByteTrack(minimum_consecutive_frames=5, minimum_matching_threshold=0.7)
         self.counter = ctr.Counter(
             self.model.names,
             self.width,
@@ -390,25 +392,18 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'current_test_case': self.current_test_case
         }, namespace='/')
 
-    def detection_frame_process(self, rgb_frame: np.ndarray):
+    def detection_frame_process(self, rgb_frame: np.ndarray, bgr_frame: np.ndarray, detections: Detections):
         start_of_current_frame = perf_counter_ns()
         waiting_for_frame_time = (start_of_current_frame - self.end_of_prev_frame) / 1_000_000
         try:
-            if self.map1 is not None and self.map2 is not None:
-                rgb_frame = cv2.remap(rgb_frame, self.map1, None, None)
-                after_undistortion = perf_counter_ns()
-                undistortion_time = (after_undistortion - start_of_current_frame) / 1_000_000
+            if self.gstreamer_app.status != 'paused':
+                bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
             else:
-                undistortion_time = None
-                after_undistortion = None
-            bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
-            results = self.model.predict(bgr_frame, imgsz=self.model_imgsz, verbose=False)[0]
-            detections = Detections.from_ultralytics(results)
-            bgr_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+                payload = self.counter.current_count()
             if self.is_test and self.current_test_case is not None:
                 payload['current_test_case'] = self.current_test_case
             after_inference = perf_counter_ns()
-            total_inferencing_tracking_count_time = (after_inference - (after_undistortion if after_undistortion is not None else start_of_current_frame)) / 1_000_000
+            total_inferencing_tracking_count_time = (after_inference - start_of_current_frame) / 1_000_000
 
             if self.showing_video:
                 buffer = self.jpeg.encode(bgr_frame, quality=self.frame_encode_quality)
@@ -438,6 +433,7 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             if self.reset_counter:
                 today_summary = get_today_summary()
                 batch = self.counter.reset_counter()
+                self.byte_tracker.reset()
                 self.reset_counter = False
                 if batch is not None:
                     self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
@@ -463,7 +459,6 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
                 socket_emit_time,
                 jpeg_encode_time,
                 base64_encode_time,
-                undistortion_time=undistortion_time,
             )
             self.end_of_prev_frame = perf_counter_ns()
         except Exception as e:
@@ -485,11 +480,23 @@ def counter_callback(pad, info, counter_app: CounterApp):
     frame = get_numpy_from_buffer(buffer, 'RGB', 1920, 1080)
 
     # TODO yolo possibly requires BGR while category models require RGB, look into and find solution
+    
+    if counter_app.map1 is not None and counter_app.map2 is not None:
+        rgb_frame = cv2.remap(frame, counter_app.map1, None, None)
+        # after_undistortion = perf_counter_ns()
+    #     undistortion_time = (after_undistortion - start_of_current_frame) / 1_000_000
+    # else:
+    #     undistortion_time = None
+    #     after_undistortion = None
+    bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+    results = counter_app.model.predict(bgr_frame, imgsz=counter_app.model_imgsz, verbose=False)[0]
+    detections = Detections.from_ultralytics(results)
+    original_class_ids = detections.class_id
+    detections.class_id = np.full(original_class_ids.shape, 0)
+    detections = counter_app.byte_tracker.update_with_detections(detections)
+    detections.class_id = original_class_ids
 
-    if counter_app.gstreamer_app.status == 'paused':
-        return Gst.PadProbeReturn.DROP
-
-    counter_app.detection_frame_process(frame)
+    counter_app.detection_frame_process(frame, bgr_frame, detections)
 
     return Gst.PadProbeReturn.OK
 

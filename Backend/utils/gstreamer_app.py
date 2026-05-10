@@ -281,17 +281,15 @@ class GStreamerApp:
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"jpegdec2_q")} ! jpegdec ! {QUEUE(name=f"unixfdsink_q")} ! unixfdsink socket-path={self.socket_path} wait-for-connection=false'
+            pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
 
         print(f'main pipeline: {pipeline_string}')
         return pipeline_string
     
     def get_raw_feed_collection_pipeline_string(self, first_file_path):
         pipeline_string = (
-            f'unixfdsrc socket-path={self.socket_path} ! '
-            # f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
-            f'{QUEUE(name=f"data_collection_identity_q")} ! identity name=data_collection_callback ! '
-            f'{QUEUE(name=f"jpegenc_q")} ! jpegenc ! '
+            f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
+            f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
             f'{QUEUE(name=f"splitmuxsink_q")} ! '
             f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
         )
@@ -350,13 +348,6 @@ class GStreamerApp:
             splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
             splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
 
-            identity = self.data_collection_pipeline.get_by_name("data_collection_callback")
-            if identity is None:
-                print("Warning: data_collection_callback element not found, add <identity name=data_collection_callback> in your pipeline where you want the callback to be called.")
-            else:
-                identity_pad = identity.get_static_pad("src")
-                identity_pad.add_probe(Gst.PadProbeType.BUFFER, data_collection_callback, self)
-
             disable_qos(self.data_collection_pipeline)
 
             GLib.usleep(2000000)  # 2 second delay
@@ -376,6 +367,9 @@ class GStreamerApp:
         if self.status != 'playing':
             print(f'Current pipeline status is already {self.status}, cannot pause')
             return
+        if self.collect_raw_frames:
+            valve = self.pipeline.get_by_name('valve')
+            valve.set_property('drop', True)
         self.status = 'paused'
         self.on_state_changed(self.status)
         print('Pipeline now paused')
@@ -391,22 +385,12 @@ class GStreamerApp:
             return
         
         self.pipeline.set_state(Gst.State.PLAYING)
-        self.data_collection_pipeline.set_state(Gst.State.PLAYING)
+        if self.collect_raw_frames:
+            valve = self.pipeline.get_by_name('valve')
+            valve.set_property('drop', False)
         self.status = 'playing'
         self.on_state_changed(self.status)
         print('Pipeline now playing')
-
-
-def data_collection_callback(pad, info, gstreamer_app: GStreamerApp):
-    buffer = info.get_buffer()
-    # Check if the buffer is valid
-    if buffer is None:
-        return Gst.PadProbeReturn.OK
-    
-    if gstreamer_app.status == 'paused':
-        return Gst.PadProbeReturn.DROP
-
-    return Gst.PadProbeReturn.OK
 
 # ---------------------------------------------------------
 # Functions used to get numpy arrays from GStreamer buffers
@@ -414,7 +398,7 @@ def data_collection_callback(pad, info, gstreamer_app: GStreamerApp):
 
 def handle_rgb(map_info, width, height):
     # The copy() method is used to create a copy of the numpy array. This is necessary because the original numpy array is created from buffer data, and it does not own the data it represents. Instead, it's just a view of the buffer's data.
-    return np.ndarray(shape=(height, width, 3), dtype=np.uint8, buffer=map_info.data)
+    return np.ndarray(shape=(height, width, 3), dtype=np.uint8, buffer=map_info.data).copy()
 
 def handle_nv12(map_info, width, height):
     y_plane_size = width * height

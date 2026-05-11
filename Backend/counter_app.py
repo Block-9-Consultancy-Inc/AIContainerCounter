@@ -265,6 +265,7 @@ class CounterApp:
             self.end_of_prev_frame = perf_counter_ns()
 
         self.last_time_stop_button_pressed: datetime = None
+        self.last_time_reset_button_pressed: datetime = None
 
         if self.button_listener_serial_port is not None:
             def on_button_pressed(button_id: int):
@@ -279,8 +280,10 @@ class CounterApp:
                             self.reset_counter = True
                 elif button_id == 3:
                     if self.gstreamer_app.status != 'playing':
+                        self.detection_status = DetectionStatus.RUNNING
                         self.gstreamer_app.play()
                     else:
+                        self.detection_status = DetectionStatus.STOPPED
                         self.gstreamer_app.pause()
                 elif button_id == 4:
                     if self.gstreamer_app.status != 'stopped':

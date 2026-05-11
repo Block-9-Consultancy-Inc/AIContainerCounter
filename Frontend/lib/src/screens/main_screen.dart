@@ -354,7 +354,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
         Selector<GlobalState, PipelineState>(
           builder: (context, pipelineState, child) {
-            if (pipelineState == PipelineState.running) {
+            if (pipelineState != PipelineState.stopped) {
               return const SizedBox.shrink();
             }
 

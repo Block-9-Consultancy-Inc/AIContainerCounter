@@ -280,6 +280,8 @@ class CounterApp:
                             emit_button_pressed_event = False
                         else:
                             self.reset_counter = True
+                    else:
+                        emit_button_pressed_event = False
                 elif button_id == 3:
                     if self.gstreamer_app.status != 'playing':
                         self.detection_status = DetectionStatus.RUNNING
@@ -296,6 +298,8 @@ class CounterApp:
                             emit_button_pressed_event = False
                         else:
                             self.gstreamer_app.stop()
+                    else:
+                        emit_button_pressed_event = False
                 if emit_button_pressed_event:
                     self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)

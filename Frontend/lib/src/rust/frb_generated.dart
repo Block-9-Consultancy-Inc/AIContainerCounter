@@ -856,6 +856,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 4:
         return const StateUpdate_StopConfirmationUpdate();
+      case 5:
+        return const StateUpdate_ResetConfirmationUpdate();
       default:
         throw Exception("unreachable");
     }
@@ -1337,6 +1339,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             newState: var_newState, error: var_error, debug: var_debug);
       case 4:
         return const StateUpdate_StopConfirmationUpdate();
+      case 5:
+        return const StateUpdate_ResetConfirmationUpdate();
       default:
         throw UnimplementedError('');
     }
@@ -1756,6 +1760,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_String(debug, serializer);
       case StateUpdate_StopConfirmationUpdate():
         sse_encode_i_32(4, serializer);
+      case StateUpdate_ResetConfirmationUpdate():
+        sse_encode_i_32(5, serializer);
     }
   }
 

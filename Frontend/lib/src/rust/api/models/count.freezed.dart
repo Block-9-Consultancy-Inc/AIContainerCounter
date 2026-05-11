@@ -329,4 +329,25 @@ class StateUpdate_StopConfirmationUpdate extends StateUpdate {
   }
 }
 
+/// @nodoc
+
+class StateUpdate_ResetConfirmationUpdate extends StateUpdate {
+  const StateUpdate_ResetConfirmationUpdate() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_ResetConfirmationUpdate);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate.resetConfirmationUpdate()';
+  }
+}
+
 // dart format on

@@ -1018,6 +1018,9 @@ impl SseDecode for crate::api::models::count::StateUpdate {
             4 => {
                 return crate::api::models::count::StateUpdate::StopConfirmationUpdate;
             }
+            5 => {
+                return crate::api::models::count::StateUpdate::ResetConfirmationUpdate;
+            }
             _ => {
                 unimplemented!("");
             }
@@ -1372,6 +1375,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::models::count::StateUpdate {
             .into_dart(),
             crate::api::models::count::StateUpdate::StopConfirmationUpdate => {
                 [4.into_dart()].into_dart()
+            }
+            crate::api::models::count::StateUpdate::ResetConfirmationUpdate => {
+                [5.into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -1781,6 +1787,9 @@ impl SseEncode for crate::api::models::count::StateUpdate {
             }
             crate::api::models::count::StateUpdate::StopConfirmationUpdate => {
                 <i32>::sse_encode(4, serializer);
+            }
+            crate::api::models::count::StateUpdate::ResetConfirmationUpdate => {
+                <i32>::sse_encode(5, serializer);
             }
             _ => {
                 unimplemented!("");

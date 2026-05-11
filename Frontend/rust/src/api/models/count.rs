@@ -357,7 +357,8 @@ pub enum StateUpdate {
         error: Option<String>,
         debug: Option<String>
     },
-    StopConfirmationUpdate
+    StopConfirmationUpdate,
+    ResetConfirmationUpdate
 }
 
 #[derive(Clone)]

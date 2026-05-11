@@ -270,7 +270,12 @@ class CounterApp:
             def on_button_pressed(button_id: int):
                 print(f'{button_id} pressed!')
                 if button_id == 1:
-                    self.reset_counter = True
+                    last_time_reset_button_pressed = self.last_time_reset_button_pressed
+                    self.last_time_reset_button_pressed = datetime.now()
+                    if last_time_reset_button_pressed is None or (self.last_time_reset_button_pressed - last_time_reset_button_pressed).total_seconds() > 2:
+                        self.sio.emit('reset_confirmation_state', 'need_reset_confirmation')
+                    else:
+                        self.reset_counter = True
                 elif button_id == 3:
                     if self.gstreamer_app.status != 'playing':
                         self.gstreamer_app.play()

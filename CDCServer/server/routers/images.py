@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, APIRouter
 from pydantic import BaseModel, Field
 from prisma.enums import BBoxType
+from prisma.models import ImageTag, ImageWithTag
 from server.dependencies import db
 
 router = APIRouter(prefix="/images")
@@ -59,7 +60,15 @@ class PaginatedImageResponse(BaseModel):
     next_cursor: Optional[Dict[str, Any]] = Field(None, description="Cursor for fetching the next page {time_taken: ..., image_id: ...}")
 
 
+class SetImageTagsInput(BaseModel):
+    image_ids: List[str] = Field(..., description="A list of image ids to set tags for.")
+    tags: List[str] = Field(..., description="A list of tags to assign to the images.")
 
+class SetImageTagsResponse(BaseModel):
+    num_images_linked: int = Field(...)
+    num_of_image_tags_saved: int = Field(..., description="The number of image tags saved.")
+    num_of_image_tags_saved: int = Field(..., description="The number of image tags saved.")
+    num_of_new_tags_created: int = Field(..., description="The number of new images that were created if they did not exist before.")
 
 @router.post("/", response_model=PaginatedImageResponse, tags=["Images"])
 async def get_paginated_images(
@@ -116,5 +125,39 @@ async def get_paginated_images(
 
     except Exception as e:
         print(f"Error fetching images: {e}")
+        # Consider more specific error handling based on potential Prisma errors
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+@router.post("/tags", response_model=SetImageTagsResponse, tags=["Images", "Tags"])
+async def set_image_tags(input: SetImageTagsInput):
+    try:
+        # --- Execute Query ---
+        tags_created = 0
+        tags = set(input.tags)
+        existing_tags = set(map(lambda e: e.name, await db.imagetag.find_many(where={ 'name' : { 'in': list(tags) }})))
+        non_existing_tags = list(tags.difference(existing_tags))
+        if len(non_existing_tags) > 0:
+            tags_created = await db.imagetag.create_many(list(map(lambda e: ImageTag(name=e).model_dump(exclude_none=True), non_existing_tags)), skip_duplicates=True)
+
+
+        existing_images = await db.image.find_many(where={ 'id': { 'in': input.image_ids }})
+
+        images_with_tags = []
+
+        for image in existing_images:
+            for tag in tags:
+                images_with_tags.append(ImageWithTag(imageId=image.id, tagName=tag).model_dump(exclude_none=True))
+
+        num_of_image_tags_saved = await db.imagewithtag.create_many(images_with_tags, skip_duplicates=True)
+
+        return SetImageTagsResponse(
+            num_images_linked=len(existing_images),
+            num_of_image_tags_saved=num_of_image_tags_saved,
+            num_of_new_tags_created=tags_created
+        )
+
+    except Exception as e:
+        print(f"Error setting image tags: {e}")
         # Consider more specific error handling based on potential Prisma errors
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")

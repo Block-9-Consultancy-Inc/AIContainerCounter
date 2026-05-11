@@ -40,6 +40,8 @@ class GlobalState extends ChangeNotifier {
                   content: Text('Press the stop button again to confirm.'),
                 ));
         await Future.delayed(const Duration(milliseconds: 1500));
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
         return;
       } else if (stateUpdate is StateUpdate_ResetConfirmationUpdate) {
         showDialog(
@@ -51,6 +53,8 @@ class GlobalState extends ChangeNotifier {
                   content: Text('Press the submit button again to confirm.'),
                 ));
         await Future.delayed(const Duration(milliseconds: 1500));
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
         return;
       }
 

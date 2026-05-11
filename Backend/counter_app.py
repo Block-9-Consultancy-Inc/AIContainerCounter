@@ -270,24 +270,26 @@ class CounterApp:
             def on_button_pressed(button_id: int):
                 print(f'{button_id} pressed!')
                 if button_id == 1:
-                    last_time_reset_button_pressed = self.last_time_reset_button_pressed
-                    self.last_time_reset_button_pressed = datetime.now()
-                    if last_time_reset_button_pressed is None or (self.last_time_reset_button_pressed - last_time_reset_button_pressed).total_seconds() > 2:
-                        self.sio.emit('reset_confirmation_state', 'need_reset_confirmation')
-                    else:
-                        self.reset_counter = True
+                    if self.gstreamer_app.status != 'stopped':
+                        last_time_reset_button_pressed = self.last_time_reset_button_pressed
+                        self.last_time_reset_button_pressed = datetime.now()
+                        if last_time_reset_button_pressed is None or (self.last_time_reset_button_pressed - last_time_reset_button_pressed).total_seconds() > 2:
+                            self.sio.emit('reset_confirmation_state', 'need_reset_confirmation')
+                        else:
+                            self.reset_counter = True
                 elif button_id == 3:
                     if self.gstreamer_app.status != 'playing':
                         self.gstreamer_app.play()
                     else:
                         self.gstreamer_app.pause()
                 elif button_id == 4:
-                    last_time_stop_button_pressed = self.last_time_stop_button_pressed
-                    self.last_time_stop_button_pressed = datetime.now()
-                    if last_time_stop_button_pressed is None or (self.last_time_stop_button_pressed - last_time_stop_button_pressed).total_seconds() > 2:
-                        self.sio.emit('stop_confirmation_state', 'need_stop_confirmation')
-                    else:
-                        self.gstreamer_app.stop()
+                    if self.gstreamer_app.status != 'stopped':
+                        last_time_stop_button_pressed = self.last_time_stop_button_pressed
+                        self.last_time_stop_button_pressed = datetime.now()
+                        if last_time_stop_button_pressed is None or (self.last_time_stop_button_pressed - last_time_stop_button_pressed).total_seconds() > 2:
+                            self.sio.emit('stop_confirmation_state', 'need_stop_confirmation')
+                        else:
+                            self.gstreamer_app.stop()
                 self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
 

@@ -383,6 +383,7 @@ class GStreamerApp:
             print('Pipeline stopped, attempting to run')
             self.run_thread = Thread(target=self.run)
             self.run_thread.start()
+            return
 
         if self.status != 'paused':
             print(f'Current pipeline status is {self.status}, cannot play')

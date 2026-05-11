@@ -3,7 +3,12 @@ from functools import lru_cache
 from server import config
 
 # Initialize Prisma Client
-db = Prisma(auto_register=True)
+db = Prisma(
+    http={
+        'timeout': None
+    },
+    auto_register=True
+)
 
 
 @lru_cache

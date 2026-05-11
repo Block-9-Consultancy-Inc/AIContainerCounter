@@ -232,6 +232,8 @@ sealed class StateUpdate with _$StateUpdate {
   }) = StateUpdate_PipelineStateUpdate;
   const factory StateUpdate.stopConfirmationUpdate() =
       StateUpdate_StopConfirmationUpdate;
+  const factory StateUpdate.resetConfirmationUpdate() =
+      StateUpdate_ResetConfirmationUpdate;
 }
 
 class TodaySummary {

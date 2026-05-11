@@ -29,12 +29,28 @@ class GlobalState extends ChangeNotifier {
         .where((e) =>
             e is StateUpdate_PipelineStateUpdate ||
             e is StateUpdate_StopConfirmationUpdate)
-        .listen((stateUpdate) {
+        .listen((stateUpdate) async {
       if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Are you sure you want to stop? Press the stop button again to confirm')));
+        showDialog(
+            // ignore: use_build_context_synchronously
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const AlertDialog(
+                  title: Text('Stop Confirmation'),
+                  content: Text('Press the stop button again to confirm.'),
+                ));
+        await Future.delayed(const Duration(milliseconds: 1500));
+        return;
+      } else if (stateUpdate is StateUpdate_ResetConfirmationUpdate) {
+        showDialog(
+            // ignore: use_build_context_synchronously
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const AlertDialog(
+                  title: Text('Submit Batch Confirmation'),
+                  content: Text('Press the submit button again to confirm.'),
+                ));
+        await Future.delayed(const Duration(milliseconds: 1500));
         return;
       }
 
@@ -69,13 +85,12 @@ class GlobalState extends ChangeNotifier {
     notifyListeners();
   }
 
-  GlobalState({
-    required this.detectionEventStream,
-    required this.eventStream,
-    required this.stateUpdateEventStream,
-    required this.backendHost,
-    required this.backendPort
-  }) {
+  GlobalState(
+      {required this.detectionEventStream,
+      required this.eventStream,
+      required this.stateUpdateEventStream,
+      required this.backendHost,
+      required this.backendPort}) {
     _initializeTextureAndSocket();
   }
 
@@ -94,8 +109,8 @@ class GlobalState extends ChangeNotifier {
 
     socket = newSocket();
 
-    bool didConnect = await socket!
-        .connectToSocketServer(serverAddress: 'http://$backendHost:$backendPort');
+    bool didConnect = await socket!.connectToSocketServer(
+        serverAddress: 'http://$backendHost:$backendPort');
 
     if (didConnect) {
       print('DART: socket has connected to server successfully');
@@ -106,8 +121,8 @@ class GlobalState extends ChangeNotifier {
       bool connected = false;
       while (!connected) {
         await Future.delayed(const Duration(seconds: 2));
-        connected = await socket!
-            .connectToSocketServer(serverAddress: 'http://$backendHost:$backendPort');
+        connected = await socket!.connectToSocketServer(
+            serverAddress: 'http://$backendHost:$backendPort');
         if (connected) {
           print('DART: socket has connected to server successfully');
           socket!

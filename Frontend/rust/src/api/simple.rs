@@ -249,6 +249,9 @@ impl Socket {
                         "stop_confirmation_state" => {
                             let _  = sink.add(StateUpdate::StopConfirmationUpdate);
                         },
+                        "reset_confirmation_state" => {
+                            let _  = sink.add(StateUpdate::ResetConfirmationUpdate);
+                        },
                         _ => {
                             let batch = Batch::from_json(&payload_json.unwrap());
                             let _ = sink.add(StateUpdate::BatchFetch { batch });

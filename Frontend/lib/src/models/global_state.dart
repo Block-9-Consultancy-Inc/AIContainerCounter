@@ -34,6 +34,7 @@ class GlobalState extends ChangeNotifier {
         showDialog(
             // ignore: use_build_context_synchronously
             context: context,
+            useRootNavigator: true,
             barrierDismissible: false,
             builder: (context) => const AlertDialog(
                   title: Text('Stop Confirmation'),
@@ -47,6 +48,7 @@ class GlobalState extends ChangeNotifier {
         showDialog(
             // ignore: use_build_context_synchronously
             context: context,
+            useRootNavigator: true,
             barrierDismissible: false,
             builder: (context) => const AlertDialog(
                   title: Text('Submit Batch Confirmation'),

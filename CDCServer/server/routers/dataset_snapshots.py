@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
 from prisma.models import Image, DatasetSnapshot
-from prisma.enums import DatasetSplit, BBoxType
+from prisma.enums import DatasetSplit, BBoxType, DatasetSnapshotType
 import random
 import traceback
 from server.dependencies import db
@@ -178,6 +178,7 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
             data={
                 'description': snapshot_data.description,
                 # Use the 'create' nested write operation for the relation
+                'snapshotType': DatasetSnapshotType.FROM_SCRATCH if snapshot_data.random_subsample_percentage is None else DatasetSnapshotType.CHECKPOINT,
                 'imageInDatasetSnapshot': {
                     'create': image_links_to_create
                 }

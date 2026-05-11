@@ -13,5 +13,6 @@ if __name__ == '__main__':
         'server.app:app',
         host=environ.get('HOST', '0.0.0.0'),
         port=int(environ.get('PORT', '8000')),
-        reload=environ.get('PYTHON_ENV', 'DEVELOPMENT') != 'PRODUCTION'
+        reload=environ.get('PYTHON_ENV', 'DEVELOPMENT') != 'PRODUCTION',
+        timeout_keep_alive=300
     )

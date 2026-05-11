@@ -31,6 +31,7 @@ class GlobalState extends ChangeNotifier {
             e is StateUpdate_StopConfirmationUpdate)
         .listen((stateUpdate) async {
       if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
+        print('SHOWED DIALOG');
         showDialog(
             // ignore: use_build_context_synchronously
             context: context,
@@ -43,8 +44,10 @@ class GlobalState extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 1500));
         // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
+        print('POPPED DIALOG');
         return;
       } else if (stateUpdate is StateUpdate_ResetConfirmationUpdate) {
+        print('SHOWED DIALOG');
         showDialog(
             // ignore: use_build_context_synchronously
             context: context,
@@ -57,6 +60,7 @@ class GlobalState extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 1500));
         // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
+        print('POPPED DIALOG');
         return;
       }
 

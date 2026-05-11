@@ -257,9 +257,12 @@ class GStreamerApp:
         self.shutdown()
 
 
-    def shutdown(self, signum=None, frame=None, error = None, debug = None):
+    def shutdown(self, signum=None, frame=None, error = None, debug = None, on_request=False):
         if signum is not None:
             print(f'got signum {signum}')
+        if not on_request:
+            print("Shutting down... Hit Ctrl-C again to force quit.")
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
         self.on_stopped()
         GLib.usleep(500000)  # 0.1 second delay
         self.pipeline.set_state(Gst.State.PAUSED)
@@ -279,7 +282,8 @@ class GStreamerApp:
         self.on_state_changed(self.status, error=error, debug=debug)
         print('Pipeline now stopped fully')
         GLib.usleep(100000)  # 0.1 second delay
-        if self.collect_raw_frames:
+        if self.collect_raw_frames and on_request:
+            print(f'ON REQUEST: {on_request}')
             data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_file_path)
             try:
                 self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
@@ -360,7 +364,7 @@ class GStreamerApp:
         if self.status == 'stopped':
             print(f'Current pipeline status is already {self.status}, cannot stop again')
             return
-        self.shutdown()
+        self.shutdown(on_request=True)
     
     def pause(self):
         if self.status != 'playing':

@@ -28,7 +28,8 @@ class GlobalState extends ChangeNotifier {
     stateUpdateEventStream.stream
         .where((e) =>
             e is StateUpdate_PipelineStateUpdate ||
-            e is StateUpdate_StopConfirmationUpdate)
+            e is StateUpdate_StopConfirmationUpdate ||
+            e is StateUpdate_ResetConfirmationUpdate)
         .listen((stateUpdate) async {
       if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
         print('SHOWED DIALOG');
@@ -71,7 +72,8 @@ class GlobalState extends ChangeNotifier {
       } else if (_currentPipelineState == PipelineState.running &&
           stateUpdate.newState == PipelineState.paused) {
         stopWatchTimer.onStopTimer();
-      } else if (_currentPipelineState == PipelineState.running &&
+      } else if ((_currentPipelineState == PipelineState.running ||
+              _currentPipelineState == PipelineState.paused) &&
           stateUpdate.newState == PipelineState.stopped) {
         stopWatchTimer.onResetTimer();
       }

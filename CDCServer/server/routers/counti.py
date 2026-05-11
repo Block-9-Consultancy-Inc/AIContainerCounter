@@ -2,9 +2,8 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
-from prisma.models import Image, Video, Batch, BBox
+from prisma.models import Image, Video, Batch, BBox, BatchWithTag, BatchTag
 from prisma.enums import BBoxType, CountiUnitStatus, CountingStrategy
-import uuid
 import traceback
 from server.dependencies import db
 
@@ -21,6 +20,7 @@ class RegisterCountiResponse(BaseModel):
 
 
 class BBoxInImageInput(BaseModel):
+    id: str
     x1: int
     y1: int
     x2: int
@@ -58,6 +58,7 @@ class BatchInput(BaseModel):
     category_model_id: Optional[str]
     counting_strategy: CountingStrategy
     images: List[ImageInBatchInput]
+    tags:   Optional[List[str]]
     video: Optional[VideoInBatchInput]
 
 class UploadDailyCountiMetadataInput(BaseModel):
@@ -66,6 +67,8 @@ class UploadDailyCountiMetadataInput(BaseModel):
 
 class UploadDailyCountiMetadataResponse(BaseModel):
     batches_saved: int = Field(0)
+    tags_created: int = Field(0)
+    batch_with_tags_saved: int = Field(0)
     videos_saved: int = Field(0)
     images_saved: int = Field(0)
     bboxes_saved: int = Field(0)
@@ -114,7 +117,9 @@ async def register_new_counti_unit(input: RegisterCountiUnitInput):
 )
 async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
     try:
+        tags = set()
         batches = []
+        batches_with_tags = []
         videos = []
         images = []
         bboxes = []
@@ -137,6 +142,10 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                 categoryModelId=batch.category_model_id
             ).model_dump(exclude_none=True))
 
+            if batch.tags is not None and len(batch.tags) > 0:
+                tags.update(batch.tags)
+                batches_with_tags.extend(list(map(lambda e: BatchWithTag(batchId=batch.id,tagName=e).model_dump(exclude_none=True), batch.tags)))
+            
             if batch.video is not None:
                 videos.append(Video(
                     batchId=batch.id,
@@ -158,9 +167,8 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                 ).model_dump(exclude_none=True))
 
                 for bbox in image.bboxes:
-                    id = str(uuid.uuid4())
                     bboxes.append(BBox(
-                        id=id,
+                        id=bbox.id,
                         imageId=image.image_id,
                         label=bbox.label,
                         bboxType=BBoxType.DETECTION,
@@ -170,12 +178,20 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                         y2=bbox.y2
                     ).model_dump(exclude_none=True))
 
-        batches_saved = await db.batch.create_many(data=batches)
-        videos_saved = await db.video.create_many(data=videos)
-        images_saved = await db.image.create_many(data=images)
-        bboxes_saved = await db.bbox.create_many(data=bboxes)
+        batches_saved = await db.batch.create_many(data=batches, skip_duplicates=True)
+        tags_created = 0
+        existing_tags = set(map(lambda e: e.name, await db.batchtag.find_many(where={ 'name' : { 'in': list(tags) }})))
+        non_existing_tags = list(tags.difference(existing_tags))
+        if len(non_existing_tags) > 0:
+            tags_created = await db.batchtag.create_many(list(map(lambda e: BatchTag(name=e).model_dump(exclude_none=True), non_existing_tags)), skip_duplicates=True)
+        batches_with_tags_saved = await db.batchwithtag.create_many(batches_with_tags)
+        videos_saved = await db.video.create_many(data=videos, skip_duplicates=True)
+        images_saved = await db.image.create_many(data=images, skip_duplicates=True)
+        bboxes_saved = await db.bbox.create_many(data=bboxes, skip_duplicates=True)
         response = UploadDailyCountiMetadataResponse(
             batches_saved=batches_saved,
+            tags_created=tags_created,
+            batch_with_tags_saved=batches_with_tags_saved,
             videos_saved=videos_saved,
             images_saved=images_saved,
             bboxes_saved=bboxes_saved

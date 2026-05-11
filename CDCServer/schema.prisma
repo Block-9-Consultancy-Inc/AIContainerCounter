@@ -57,10 +57,16 @@ model TrainedModel {
     batchesWithContainerModel   Batch[]             @relation("ContainerModel")
 }
 
+enum DatasetSnapshotType {
+    CHECKPOINT
+    FROM_SCRATCH
+}
+
 model DatasetSnapshot {
     id                          String              @id @default(uuid()) @db.Uuid
     description                 String?
     created                     DateTime            @default(now())
+    snapshotType                DatasetSnapshotType
     randomSubSampleSeed         String?
     randomSubSampleTrainAmount  Int?
     randomSubSampleValidAmount  Int?
@@ -90,6 +96,21 @@ model Image {
     chunkId                     String              @db.Uuid
     bboxes                      BBox[]
     imageInDatasetSnapshot      ImageInDatasetSnapshot[]
+    tags                        ImageWithTag[]
+}
+
+model ImageWithTag {
+    image                       Image               @relation(fields: [imageId], references: [id])
+    imageId                     String              @db.Uuid
+    tag                         ImageTag            @relation(fields: [tagName], references: [name])
+    tagName                     String              
+    @@id([imageId, tagName])
+}
+
+model ImageTag {
+    name                        String              @id
+    description                 String?
+    images                      ImageWithTag[]
 }
 
 model Video {
@@ -121,6 +142,21 @@ model Batch {
     categoryModelId             String?             @db.Uuid
     images                      Image[]
     video                       Video?
+    tags                        BatchWithTag[]
+}
+
+model BatchWithTag {
+    batch                       Batch               @relation(fields: [batchId], references: [id])
+    batchId                     String              @db.Uuid
+    tag                         BatchTag            @relation(fields: [tagName], references: [name])
+    tagName                     String              
+    @@id([batchId, tagName])
+}
+
+model BatchTag {
+    name                        String              @id
+    description                 String?
+    batches                     BatchWithTag[]
 }
 
 enum BBoxType {

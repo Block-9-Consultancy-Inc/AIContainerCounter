@@ -284,16 +284,7 @@ class GStreamerApp:
         GLib.usleep(100000)  # 0.1 second delay
         if self.collect_raw_frames and on_request:
             print(f'ON REQUEST: {on_request}')
-            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_file_path)
-            try:
-                self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
-                splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
-                splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
-                disable_qos(self.data_collection_pipeline)
-            except Exception as e:
-                print(f'error with data collection pipeline: {e}')
-                print(data_collection_pipeline_string)
-                sys.exit(1)
+            self.create_pipeline()
 
 
     def get_pipeline_string(self):

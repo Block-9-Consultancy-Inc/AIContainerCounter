@@ -7,7 +7,6 @@ from flask.json.provider import DefaultJSONProvider
 from os import environ
 import socketio
 import base64
-from threading import Thread
 from ultralytics import YOLO
 from turbojpeg import TurboJPEG
 from flask_cors import CORS
@@ -22,11 +21,19 @@ from supervision import Detections, ByteTrack
 import counter as ctr
 from utils.sqlite_db import Batch, get_today_summary
 from playhouse.shortcuts import model_to_dict
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import uuid
 from utils.button_listener import ButtonListener
 import os
+from enum import Enum
+
+class DetectionStatus(Enum):
+    RUNNING = 0
+    STOPPED = 1
+    PAUSED = 2
+    SHOWED = 3
+    DISAPPEARED = 4
 
 class CustomJSONEncoder(json.JSONEncoder):
     """ Special json encoder """
@@ -71,6 +78,13 @@ class CounterApp:
             host = '0.0.0.0',
             port = 5000,
         ) -> None:
+
+        self.last_time_detection_showed = datetime.now()
+        self.last_time_detection_disappeared = datetime.now()
+        self.last_time_detection_paused = datetime.now()
+        self.last_time_detection_played = datetime.now()
+        self.detection_status = DetectionStatus.STOPPED
+
 
         try:
             os.remove('test.socket')
@@ -234,16 +248,19 @@ class CounterApp:
         @sio.on('pause')
         def pause_pipeline(sid, msg):
             print(f'pausing')
+            self.detection_status = DetectionStatus.STOPPED
             self.gstreamer_app.pause()
 
         @sio.on('stop')
         def stop_pipeline(sid, msg):
             print(f'stopping')
+            self.detection_status = DetectionStatus.STOPPED
             self.gstreamer_app.stop()
 
         @sio.on('play')
         def play_pipeline(sid, msg):
             print(f'playing')
+            self.detection_status = DetectionStatus.RUNNING
             self.gstreamer_app.play()
             self.end_of_prev_frame = perf_counter_ns()
 
@@ -469,7 +486,10 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
     def run(self):
         self.app.run(host=self.host, port=self.port, threaded=True)
 
-def counter_callback(pad, info, counter_app: CounterApp):
+pausing_threshold = timedelta(seconds=2)
+unpause_threshold = timedelta(milliseconds=300)
+
+def detection_frame_callback(pad, info, counter_app: CounterApp):
     buffer = info.get_buffer()
     # Check if the buffer is valid
     if buffer is None:
@@ -494,6 +514,31 @@ def counter_callback(pad, info, counter_app: CounterApp):
     detections = counter_app.byte_tracker.update_with_detections(detections)
     detections.class_id = original_class_ids
 
+    if counter_app.detection_status != DetectionStatus.STOPPED:
+        if len(detections) > 0 and counter_app.detection_status != DetectionStatus.RUNNING:
+            if counter_app.detection_status == DetectionStatus.PAUSED:
+                counter_app.detection_status = DetectionStatus.SHOWED
+                counter_app.last_time_detection_showed = datetime.now()
+            elif counter_app.detection_status == DetectionStatus.SHOWED:
+                if datetime.now() - counter_app.last_time_detection_showed > unpause_threshold:
+                    counter_app.detection_status = DetectionStatus.RUNNING
+                    counter_app.last_time_detection_played = datetime.now()
+                    counter_app.gstreamer_app.play()
+            elif counter_app.detection_status == DetectionStatus.DISAPPEARED:
+                counter_app.detection_status = DetectionStatus.RUNNING
+
+        if len(detections) == 0 and counter_app.detection_status != DetectionStatus.PAUSED:
+            if counter_app.detection_status == DetectionStatus.RUNNING:
+                counter_app.detection_status = DetectionStatus.DISAPPEARED
+                counter_app.last_time_detection_disappeared = datetime.now()
+            elif counter_app.detection_status == DetectionStatus.DISAPPEARED:
+                if datetime.now() - counter_app.last_time_detection_disappeared > pausing_threshold:
+                    counter_app.detection_status = DetectionStatus.PAUSED
+                    counter_app.last_time_detection_paused = datetime.now()
+                    counter_app.gstreamer_app.pause()
+            elif counter_app.detection_status == DetectionStatus.SHOWED:
+                counter_app.detection_status = DetectionStatus.PAUSED
+
     counter_app.detection_frame_process(frame, bgr_frame, detections)
 
     return Gst.PadProbeReturn.OK
@@ -505,7 +550,7 @@ class CounterGstreamerApp(GStreamerApp):
     def __init__(self, on_state_changed, on_stopped, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
         super().__init__(on_state_changed, on_stopped, first_file_name, video_source, width, height, fps, user_data)
         self.collect_raw_frames = not user_data.is_test
-        self.app_callback = counter_callback
+        self.app_callback = detection_frame_callback
         self.new_location_callback = new_location_callback
         self.create_pipeline()
 

@@ -2,6 +2,7 @@ import 'package:ai_container_counter/src/models/global_state.dart';
 import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/screens/real_time_video_stream.dart';
 import 'package:ai_container_counter/src/widgets/current_batch_view.dart';
+import 'package:ai_container_counter/src/widgets/end_of_day_upload_progress.dart';
 import 'package:ai_container_counter/src/widgets/previous_batch_list_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -359,11 +360,35 @@ class _MainScreenState extends State<MainScreen> {
             }
 
             return GestureDetector(
-              onTap: () {
-                context
-                    .read<GlobalState>()
-                    .socket
-                    ?.emitEvent(event: 'play', data: 'play');
+              onTap: () async {
+                final stopEarly = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Early Stop Confirmation'),
+                    content: const Text(
+                        'Are you sure you want to stop early? The remaining tasks will be completed the next time the app is stopped.'),
+                    actions: [
+                      ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(true);
+                          },
+                          child: const Text('Stop')),
+                      TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(false);
+                          },
+                          child: const Text('Cancel')),
+                    ],
+                  ),
+                );
+
+                if (stopEarly ?? false) {
+                  // ignore: use_build_context_synchronously
+                  context
+                      .read<GlobalState>()
+                      .socket
+                      ?.emitEvent(event: 'play', data: 'play');
+                }
               },
               child: Material(
                 color: Colors.black.withAlpha(150),
@@ -383,15 +408,10 @@ class _MainScreenState extends State<MainScreen> {
                           style: const TextStyle(fontSize: 50),
                           textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 20),
+                        const Text('Performing end of day upload tasks...'),
                         const SizedBox(height: 10),
-                        const Text(
-                          'Press button 3 to continue',
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            fontSize: 30,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        const EndOfDayUploadProgress(),
                       ],
                     ),
                   ),

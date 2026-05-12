@@ -23,7 +23,33 @@ class CurrentBatchView extends StatelessWidget {
                 minimumSize: const WidgetStatePropertyAll(Size.infinite),
                 shape: WidgetStatePropertyAll(RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20)))),
-            onPressed: context.read<GlobalState>().submitBatch,
+            onPressed: () async {
+              final close = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Submit Batch Confirmation'),
+                  content:
+                      const Text('Are you sure you want to close this bag?'),
+                  actions: [
+                    ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(true);
+                        },
+                        child: const Text('Close')),
+                    TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(false);
+                        },
+                        child: const Text('Cancel')),
+                  ],
+                ),
+              );
+
+              if (close ?? false) {
+                // ignore: use_build_context_synchronously
+                context.read<GlobalState>().submitBatch();
+              }
+            },
             child: const AutoSizeText(
               'Submit Batch',
               maxLines: 2,
@@ -177,10 +203,36 @@ class CurrentBatchView extends StatelessWidget {
                                 child: const Icon(Icons.pause)),
                           const SizedBox(width: 20),
                           FloatingActionButton(
-                              onPressed: () => context
-                                  .read<GlobalState>()
-                                  .socket
-                                  ?.emitEvent(event: 'stop', data: 'stop'),
+                              onPressed: () async {
+                                final stop = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Stop Confirmation'),
+                                    content: const Text(
+                                        'Are you sure you want to stop for the day?'),
+                                    actions: [
+                                      ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop(true);
+                                          },
+                                          child: const Text('Stop')),
+                                      TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop(false);
+                                          },
+                                          child: const Text('Cancel')),
+                                    ],
+                                  ),
+                                );
+
+                                if (stop ?? false) {
+                                  // ignore: use_build_context_synchronously
+                                  context
+                                      .read<GlobalState>()
+                                      .socket
+                                      ?.emitEvent(event: 'stop', data: 'stop');
+                                }
+                              },
                               child: const Icon(Icons.stop)),
                         ],
                       ),

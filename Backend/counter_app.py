@@ -504,8 +504,8 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
     def run(self):
         self.app.run(host=self.host, port=self.port, threaded=True)
 
-pausing_threshold = timedelta(seconds=2)
-unpause_threshold = timedelta(milliseconds=300)
+pausing_threshold = timedelta(seconds=3)
+unpause_threshold = timedelta(milliseconds=400)
 
 def detection_frame_callback(pad, info, counter_app: CounterApp):
     buffer = info.get_buffer()

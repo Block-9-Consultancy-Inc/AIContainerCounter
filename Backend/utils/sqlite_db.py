@@ -125,7 +125,7 @@ def get_all_batches_from_day(day: datetime.datetime):
     start = datetime.datetime(day.year, day.month, day.day)
     end = start + datetime.timedelta(days=1)
 
-    batches = Batch.select().where((Batch.time_started > start) & (Batch.time_started < end))
+    batches = Batch.select().where((Batch.time_started > start) & (Batch.time_started < end)).order_by(Batch.time_started.asc())
     
     return list(batches)
 

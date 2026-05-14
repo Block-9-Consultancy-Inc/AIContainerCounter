@@ -91,6 +91,9 @@ class CounterApp:
         except:
             pass
         self.is_test = is_test
+
+        self.set_auto_start_pause_handling = self.dummy_auto_start_pause_handling if self.is_test else self.auto_start_pause_handling
+
         if not load_params_from_dotenv:
             self.height = height
             self.width = width
@@ -427,7 +430,38 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             'current_test_case': self.current_test_case
         }, namespace='/')
 
+    def dummy_auto_start_pause_handling(self, detections: Detections):
+        pass
+
+    def auto_start_pause_handling(self, detections: Detections):
+        if self.detection_status != DetectionStatus.STOPPED:
+            if len(detections) > 0 and self.detection_status != DetectionStatus.RUNNING:
+                if self.detection_status == DetectionStatus.PAUSED:
+                    self.detection_status = DetectionStatus.SHOWED
+                    self.last_time_detection_showed = datetime.now()
+                elif self.detection_status == DetectionStatus.SHOWED:
+                    if datetime.now() - self.last_time_detection_showed > unpause_threshold:
+                        self.detection_status = DetectionStatus.RUNNING
+                        self.last_time_detection_played = datetime.now()
+                        self.gstreamer_app.play()
+                elif self.detection_status == DetectionStatus.DISAPPEARED:
+                    self.detection_status = DetectionStatus.RUNNING
+
+            if len(detections) == 0 and self.detection_status != DetectionStatus.PAUSED:
+                if self.detection_status == DetectionStatus.RUNNING:
+                    self.detection_status = DetectionStatus.DISAPPEARED
+                    self.last_time_detection_disappeared = datetime.now()
+                elif self.detection_status == DetectionStatus.DISAPPEARED:
+                    if datetime.now() - self.last_time_detection_disappeared > pausing_threshold:
+                        self.detection_status = DetectionStatus.PAUSED
+                        self.last_time_detection_paused = datetime.now()
+                        self.gstreamer_app.pause()
+                elif self.detection_status == DetectionStatus.SHOWED:
+                    self.detection_status = DetectionStatus.PAUSED
+
     def detection_frame_process(self, rgb_frame: np.ndarray, bgr_frame: np.ndarray, detections: Detections):
+        self.set_auto_start_pause_handling(detections)
+        
         start_of_current_frame = perf_counter_ns()
         waiting_for_frame_time = (start_of_current_frame - self.end_of_prev_frame) / 1_000_000
         try:
@@ -532,30 +566,7 @@ def detection_frame_callback(pad, info, counter_app: CounterApp):
     detections = counter_app.byte_tracker.update_with_detections(detections)
     detections.class_id = original_class_ids
 
-    if counter_app.detection_status != DetectionStatus.STOPPED:
-        if len(detections) > 0 and counter_app.detection_status != DetectionStatus.RUNNING:
-            if counter_app.detection_status == DetectionStatus.PAUSED:
-                counter_app.detection_status = DetectionStatus.SHOWED
-                counter_app.last_time_detection_showed = datetime.now()
-            elif counter_app.detection_status == DetectionStatus.SHOWED:
-                if datetime.now() - counter_app.last_time_detection_showed > unpause_threshold:
-                    counter_app.detection_status = DetectionStatus.RUNNING
-                    counter_app.last_time_detection_played = datetime.now()
-                    counter_app.gstreamer_app.play()
-            elif counter_app.detection_status == DetectionStatus.DISAPPEARED:
-                counter_app.detection_status = DetectionStatus.RUNNING
-
-        if len(detections) == 0 and counter_app.detection_status != DetectionStatus.PAUSED:
-            if counter_app.detection_status == DetectionStatus.RUNNING:
-                counter_app.detection_status = DetectionStatus.DISAPPEARED
-                counter_app.last_time_detection_disappeared = datetime.now()
-            elif counter_app.detection_status == DetectionStatus.DISAPPEARED:
-                if datetime.now() - counter_app.last_time_detection_disappeared > pausing_threshold:
-                    counter_app.detection_status = DetectionStatus.PAUSED
-                    counter_app.last_time_detection_paused = datetime.now()
-                    counter_app.gstreamer_app.pause()
-            elif counter_app.detection_status == DetectionStatus.SHOWED:
-                counter_app.detection_status = DetectionStatus.PAUSED
+    
 
     counter_app.detection_frame_process(frame, bgr_frame, detections)
 

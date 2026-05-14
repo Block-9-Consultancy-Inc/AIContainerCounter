@@ -97,7 +97,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_test_iteration_counting_result['drinkbox_count'] = max(message.get('drinkbox_count'), current_test_iteration_counting_result['drinkbox_count'])
         current_test_iteration_counting_result['gabletop_count'] = max(message.get('gabletop_count'), current_test_iteration_counting_result['gabletop_count'])
         current_test_iteration_counting_result['pouch_count'] = max(message.get('pouch_count'), current_test_iteration_counting_result['pouch_count'])
-        current_test_iteration_frames.append(message.get('encoded_frame'))
+        # current_test_iteration_frames.append(message.get('encoded_frame'))
     @client.on('frame_time')
     def on_frame_time(message):
         if message.get('current_test_case') != current_test_case:
@@ -158,7 +158,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_env_dest_folder = f'{dest_folder}/{current_env_name}'
         batches = os.listdir(src_folder)
         num_of_batches = len(batches)
-        for batch_index, batch in enumerate(batches):
+        for batch_index, batch in enumerate(reversed(batches)):
             if batch == 'intro.avi':
                 continue
             current_batch_start = perf_counter()
@@ -247,15 +247,15 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 current_batch_results.append(current_test_iteration_counting_result)
                 current_env_results.append(current_test_iteration_counting_result)
                 current_test_video_file_name = test_video_file_name.split('.')[0]
-                with sv.VideoSink(f'{current_batch_dest_folder}/{current_test_video_file_name}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=current_env_fps, total_frames=len(current_test_iteration_frames))) as video_sink:
-                    with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batches} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
-                        for encoded_frame in current_test_iteration_frames:
-                            base64_decoded = base64.b64decode(encoded_frame)
-                            decoded_frame = jpeg.decode(base64_decoded)
-                            video_sink.write_frame(decoded_frame)
-                            pbar.update()
-                            if stop_now:
-                                break
+                # with sv.VideoSink(f'{current_batch_dest_folder}/{current_test_video_file_name}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=current_env_fps, total_frames=len(current_test_iteration_frames))) as video_sink:
+                #     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batches} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
+                #         for encoded_frame in current_test_iteration_frames:
+                #             base64_decoded = base64.b64decode(encoded_frame)
+                #             decoded_frame = jpeg.decode(base64_decoded)
+                #             video_sink.write_frame(decoded_frame)
+                #             pbar.update()
+                #             if stop_now:
+                #                 break
 
                 current_iteration_end = perf_counter()
 

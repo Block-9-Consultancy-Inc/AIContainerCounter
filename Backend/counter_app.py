@@ -536,6 +536,8 @@ avg_socket_emit_time: {self.avg_socket_emit_time:0.2f} ms, avg_undistortion_time
             print(error_traceback)
 
     def run(self):
+        if self.is_test:
+            self.gstreamer_app.play()
         self.app.run(host=self.host, port=self.port, threaded=True)
 
 pausing_threshold = timedelta(seconds=3)

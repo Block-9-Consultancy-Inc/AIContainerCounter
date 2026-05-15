@@ -293,12 +293,12 @@ class GStreamerApp:
         display_pipeline = 'fakesink'
         pipeline_string = (
             f'{source_pipeline} '
-            f'{QUEUE(name=f"video_rate_q")} ! video-rate max-rate={self.fps} ! '
+            f'{QUEUE(name=f"video_rate_q")} ! videorate max-rate={self.fps} ! '
             f'{user_callback_pipeline} ! '
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
+            pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"video_rate_q_2")} ! videorate max-rate={self.fps} ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
 
         print(f'main pipeline: {pipeline_string}')
         return pipeline_string
@@ -307,7 +307,6 @@ class GStreamerApp:
         pipeline_string = (
             f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
             f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
-            f'{QUEUE(name=f"video_rate_q_2")} ! video-rate max-rate={self.fps} ! '
             f'{QUEUE(name=f"splitmuxsink_q")} ! '
             f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
         )

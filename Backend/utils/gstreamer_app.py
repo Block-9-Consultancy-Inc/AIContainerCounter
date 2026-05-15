@@ -293,6 +293,7 @@ class GStreamerApp:
         display_pipeline = 'fakesink'
         pipeline_string = (
             f'{source_pipeline} '
+            f'video-rate max-rate={self.fps} ! {QUEUE(name=f"video_rate_q")} ! '
             f'{user_callback_pipeline} ! '
             f'{display_pipeline}'
         )
@@ -307,6 +308,7 @@ class GStreamerApp:
             f'shmsrc do-timestamp=true socket-path={self.socket_path} ! '
             f'image/jpeg, width={self.width}, height={self.height}, framerate={self.fps}/1  ! '
             f'{QUEUE(name=f"splitmuxsink_q")} ! '
+            f'video-rate max-rate={self.fps} ! {QUEUE(name=f"video_rate_q_2")} ! '
             f'splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
         )
 

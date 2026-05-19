@@ -115,6 +115,7 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=1920, video_he
     """
     source_element = (
         f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! '
+        f'{QUEUE(name=f"video_rate_q")} ! videorate max-rate={fps} ! '
         f'{QUEUE(name=f"tee_q")} ! '
         'tee name=t '
         f't. ! {QUEUE(name=f"jpegdec_q")} ! jpegdec ! '
@@ -293,12 +294,11 @@ class GStreamerApp:
         display_pipeline = 'fakesink'
         pipeline_string = (
             f'{source_pipeline} '
-            f'{QUEUE(name=f"video_rate_q")} ! videorate max-rate={self.fps} ! '
             f'{user_callback_pipeline} ! '
             f'{display_pipeline}'
         )
         if self.collect_raw_frames:
-            pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"video_rate_q_2")} ! videorate max-rate={self.fps} ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
+            pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
 
         print(f'main pipeline: {pipeline_string}')
         return pipeline_string

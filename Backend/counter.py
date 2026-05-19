@@ -173,8 +173,9 @@ class Counter:
         self.prev_data_to_save: sqlite_db.DataToSave = None
         self.prev_data_to_save_shms: list[shared_memory.SharedMemory] = []
 
-        self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue, collected_images_dir])
-        self.save_state_process.start()
+        if not self.is_test:
+            self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue, collected_images_dir])
+            self.save_state_process.start()
 
     def set_expected_count(self, expected_category_counts: dict[str, int]):
         self.expected_category_counts = expected_category_counts

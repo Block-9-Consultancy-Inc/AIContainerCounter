@@ -35,6 +35,7 @@ class RegisterCountiResponse(BaseModel):
 
 
 class BBoxInImageInput(BaseModel):
+    id: str
     x1: int
     y1: int
     x2: int
@@ -79,6 +80,7 @@ class BatchInput(BaseModel):
     category_model_id: Optional[str]
     counting_strategy: str
     images: List[ImageInBatchInput]
+    tags: Optional[List[str]]
     video: Optional[VideoInBatchInput]
 
     class Config:
@@ -151,6 +153,7 @@ def image_to_image_input(image: MultiContainerImage, prev_chunk_id: uuid.UUID, p
         else:
             label = 'container'
         bboxes.append(BBoxInImageInput(
+            id=str(bbox_raw.id),
             x1=bbox_raw.x1,
             y1=bbox_raw.y1,
             x2=bbox_raw.x2,
@@ -209,6 +212,7 @@ def batch_to_batch_input(batch: Batch) -> BatchInput:
         container_model_id=model_map.get(batch.yolo_model),
         counting_strategy=DUAL_MODEL_SNAPSHOT,
         images=images,
+        tags=None,
         video=VideoInBatchInput(
             height=1080,
             width=1920,
@@ -218,6 +222,7 @@ def batch_to_batch_input(batch: Batch) -> BatchInput:
 
 def upload_daily_counti_metadata_input_for_day(day: datetime) -> UploadDailyCountiMetadataInput:
     raw_batches = get_all_batches_from_day(day)
+    print(f'num of raw batches: {len(raw_batches)}')
     batches = list(map(batch_to_batch_input, raw_batches))
 
     input = UploadDailyCountiMetadataInput(
@@ -225,7 +230,7 @@ def upload_daily_counti_metadata_input_for_day(day: datetime) -> UploadDailyCoun
         batches=batches
     )
 
-    response = requests.post('http://localhost:8000/upload-daily-counti-metadata', data=input.model_dump_json())
+    response = requests.post('http://localhost:8000/counti/upload-daily-counti-metadata', data=input.model_dump_json(), headers={ 'api-key': "ZYscCuLo3vIKS9Ruu71NIISw" })
 
     response_details = response.content
 
@@ -238,7 +243,7 @@ def register_counti_unit():
         location='vancouver'
     )
 
-    response = requests.post('http://localhost:8000/register-counti-unit', data=input.model_dump_json())
+    response = requests.post('http://localhost:8000/counti/register-counti-unit', data=input.model_dump_json(), headers={ 'api-key': "ZYscCuLo3vIKS9Ruu71NIISw" })
 
     response_details = response.content
 
@@ -284,7 +289,7 @@ def upload_models():
     ]
 
     for input in inputs:
-        response = requests.post('http://localhost:8000/trainedmodels', data=input.model_dump_json())
+        response = requests.post('http://localhost:8000/trainedmodels', data=input.model_dump_json(), headers={ 'api-key': "ZYscCuLo3vIKS9Ruu71NIISw" })
 
         print(response.content)
 
@@ -296,15 +301,15 @@ if __name__ == '__main__':
 
         upload_models()
 
-        day = datetime(2025, 3, 14)
+        day = datetime(2025, 4, 30)
 
         upload_daily_counti_metadata_input_for_day(day)
     elif procedure == 2:
-        day = datetime(2025, 3, 15)
+        day = datetime(2025, 5, 1)
 
         upload_daily_counti_metadata_input_for_day(day)
     elif procedure == 3:
-        day = datetime(2025, 3, 18)
+        day = datetime(2025, 5, 2)
 
         upload_daily_counti_metadata_input_for_day(day)
     else:

@@ -5,10 +5,12 @@
 if __name__ == '__main__':
     import uvicorn
     # Load environment variables from .env file
-    from os import environ
+    from os import environ, makedirs
     from dotenv import load_dotenv
     load_dotenv()
 
+    makedirs(environ.get('TEMP_DATA_DIR', './temp_data_dir'), exist_ok=True)
+    
     uvicorn.run(
         'server.app:app',
         host=environ.get('HOST', '0.0.0.0'),

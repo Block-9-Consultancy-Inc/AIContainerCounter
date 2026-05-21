@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from server.dependencies import db
 from server.auth import handle_api_key
-from server.routers import counti, dataset_snapshots, images, trained_models
+from server.routers import counti, dataset_snapshots, images, trained_models, tasks
 
 # --- FastAPI Application Setup ---
 
@@ -31,6 +31,7 @@ app.include_router(counti.router)
 app.include_router(dataset_snapshots.router)
 app.include_router(images.router)
 app.include_router(trained_models.router)
+app.include_router(tasks.router)
 
 # --- Root Endpoint for Health Check/Welcome ---
 @app.get("/", tags=["Root"])

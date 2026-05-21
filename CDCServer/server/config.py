@@ -7,5 +7,12 @@ class Settings(BaseSettings):
     db_url: str
     api_key: str
     python_env: str = 'DEVELOPMENT'
-
+    roboflow_api_key: str
+    roboflow_workspace: str
+    roboflow_project: str
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_s3_bucket: str
+    temp_data_dir: str = './temp_data_dir'
+    
     model_config = SettingsConfigDict(env_file=".env")

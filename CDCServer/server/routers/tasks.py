@@ -1,6 +1,5 @@
-from datetime import datetime
-from typing import List, Optional, Dict, Any
-from fastapi import HTTPException, APIRouter
+from typing import List
+from fastapi import HTTPException, APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
 from prisma.enums import ImageStatus, BBoxType
 from prisma.models import Image
@@ -8,15 +7,15 @@ from server.dependencies import db, get_settings, roboflow_project, s3_session
 import uuid
 import os
 import io
-from PIL import Image as PILImage
 import json
 import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 from aioboto3 import Session
 import aiofiles
-from time import perf_counter
 import traceback
+from time import perf_counter
+from itertools import batched
 
 router = APIRouter(prefix="/tasks")
 
@@ -150,10 +149,28 @@ async def fetch_and_mark_images(num_of_images: int) -> List[str]:
     except Exception as e:
         print(f'Error fetching and marking images: ${e}')
         return []
+    
+async def download_and_upload_images(upload_tasks: List[UploadTask]):
+    before = perf_counter()
+    for upload_tasks_in_task in batched(upload_tasks, n=20):
+        download_tasks = []
+        for upload_task in upload_tasks_in_task:
+            download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
+
+        await asyncio.gather(*download_tasks)
+
+        with tqdm.tqdm(desc="Upload tasks", total=len(upload_tasks_in_task)) as pbar:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = {executor.submit(upload_to_roboflow, arg): arg for arg in upload_tasks_in_task}
+                for future in as_completed(futures):
+                    pbar.update(1)
+    after = perf_counter()
+    print(f'Took {after - before} seconds total')
 
 @router.post("/", response_model=AssignTaskResponse, tags=["Tasks"])
 async def assign_tasks(
-    input: AssignTaskInput
+    input: AssignTaskInput,
+    background_tasks: BackgroundTasks
 ):
     try:
         # --- Execute Query ---
@@ -202,28 +219,12 @@ async def assign_tasks(
         await db.verificationtask.create_many(tasks_to_create, skip_duplicates=True)
         await db.imageinverificationtask.create_many(image_in_tasks_to_create, skip_duplicates=True)
 
-        download_tasks = []
-
-        before = perf_counter()
-
-        for upload_task in upload_tasks:
-            download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
-
-        await asyncio.gather(*download_tasks)
-
-        with tqdm.tqdm(desc="Upload tasks", total=len(upload_tasks)) as pbar:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = {executor.submit(upload_to_roboflow, arg): arg for arg in upload_tasks}
-                for future in as_completed(futures):
-                    pbar.update(1)
-
-        after = perf_counter()
-
-        print(f'took {after - before} s')
+        background_tasks.add_task(download_and_upload_images, upload_tasks)
 
         return AssignTaskResponse(
             task_names=list(map(lambda e: e.get('id'), tasks_to_create))
         )
+    
     except Exception as e:
         print(f"Error fetching images: {e}")
         print(traceback.format_exc())

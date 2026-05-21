@@ -1,3 +1,5 @@
 **/cdc_seed_data
 **/*.db
 **/__pycache__
+resources
+temp_data_dir

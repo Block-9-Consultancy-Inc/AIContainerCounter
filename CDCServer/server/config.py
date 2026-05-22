@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     aws_access_key_id: str
     aws_secret_access_key: str
     aws_s3_bucket: str
+    pulse_access_key: str
     temp_data_dir: str = './temp_data_dir'
     
     model_config = SettingsConfigDict(env_file=".env")

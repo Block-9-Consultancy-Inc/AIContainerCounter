@@ -3,6 +3,7 @@ from functools import lru_cache
 from server import config
 import roboflow
 import aioboto3
+from httpx import AsyncClient
 
 @lru_cache
 def get_settings():
@@ -16,6 +17,7 @@ db = Prisma(
     auto_register=True
 )
 
+http_client = AsyncClient()
 
 roboflow_project = roboflow.Roboflow(api_key=get_settings().roboflow_api_key).workspace(get_settings().roboflow_workspace).project(get_settings().roboflow_project)
 

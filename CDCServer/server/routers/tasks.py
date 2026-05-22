@@ -172,32 +172,46 @@ async def fetch_and_mark_images(num_of_images: int) -> List[str]:
     
 async def download_and_upload_images(upload_tasks: List[UploadTask]):
     before = perf_counter()
-    for upload_tasks_in_task in batched(upload_tasks, n=NUM_OF_IMAGES_PER_TASK*2):
-        download_tasks = []
-        for upload_task in upload_tasks_in_task:
-            download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
 
-        await asyncio.gather(*download_tasks)
+    download_tasks = []
+    for upload_task in upload_tasks:
+        download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
 
-        with tqdm.tqdm(desc="Upload tasks", total=len(upload_tasks_in_task)) as pbar:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = {executor.submit(upload_to_roboflow, arg): arg for arg in upload_tasks_in_task}
-                results = []
-                for future in as_completed(futures):
-                    results.append(future.result())
-                    pbar.update(1)
+    await asyncio.gather(*download_tasks)
 
-                images_uploaded = 0
-                annotations_uploaded = 0
-                for result in results:
-                    if result.get('image', {}).get('success', False):
-                        images_uploaded += 1
-                    if result.get('annotation', {}).get('success', False):
-                        annotations_uploaded += 1
-                print(f'Roboflow upload results: {images_uploaded=}, {annotations_uploaded=}')
+    with tqdm.tqdm(desc="Upload first tasks", total=len(upload_tasks)) as pbar:
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(upload_to_roboflow, arg): arg for arg in upload_tasks}
+            results = []
+            for future in as_completed(futures):
+                results.append(future.result())
+                pbar.update(1)
 
+            images_uploaded = 0
+            annotations_uploaded = 0
+            for result in results:
+                if result.get('image', {}).get('success', False):
+                    images_uploaded += 1
+                if result.get('annotation', {}).get('success', False):
+                    annotations_uploaded += 1
+            print(f'Roboflow upload results: {images_uploaded=}, {annotations_uploaded=}')
+    
     after = perf_counter()
+
     print(f'Task upload took {after - before} seconds total')
+
+    
+async def handle_upload_tasks(upload_tasks: List[UploadTask]):
+    first_task_upload_tasks = upload_tasks[:NUM_OF_IMAGES_PER_TASK]
+
+    await download_and_upload_images(first_task_upload_tasks)
+
+    if len(upload_tasks) <= NUM_OF_IMAGES_PER_TASK:
+        return
+
+    rest_upload_tasks = upload_tasks[NUM_OF_IMAGES_PER_TASK:]
+
+    await download_and_upload_images(rest_upload_tasks)
 
 async def create_pulse_tasks(input: PulseCreateTaskInput):
     print(f'Hitting pulse endpoint')
@@ -269,7 +283,7 @@ async def assign_tasks(
             tasks=pulse_tasks_to_create
         ))
 
-        background_tasks.add_task(download_and_upload_images, upload_tasks)
+        background_tasks.add_task(handle_upload_tasks, upload_tasks)
 
         return AssignTaskResponse(
             created_tasks=list(map(lambda e: CreatedTask(task_name=e.task_name, image_count=e.image_count), pulse_tasks_to_create))

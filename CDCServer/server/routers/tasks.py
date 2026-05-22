@@ -114,6 +114,7 @@ async def download_img(session: Session, image: Image):
         buffer = io.BytesIO(obj)
         await f.write(buffer.getbuffer())
 
+# TODO handle failures for downloads and uploads
 def upload_to_roboflow(upload_task: UploadTask):
     try:
         image_path = f'{get_settings().temp_data_dir}/{upload_task.image.id}.{upload_task.image.fileExtension}'
@@ -125,7 +126,7 @@ def upload_to_roboflow(upload_task: UploadTask):
             annotation_path=labels,
             batch_name=f'{upload_task.user_id}: {upload_task.task_id}',
             is_prediction=True,
-            num_retry_uploads=3,
+            num_retry_uploads=30,
         )
 
         os.remove(image_path)

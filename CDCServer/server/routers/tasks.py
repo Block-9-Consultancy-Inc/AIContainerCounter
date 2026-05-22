@@ -3,7 +3,7 @@ from fastapi import HTTPException, APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
 from prisma.enums import ImageStatus, BBoxType
 from prisma.models import Image
-from server.dependencies import db, get_settings, roboflow_project, s3_session
+from server.dependencies import db, get_settings, roboflow_project, s3_session, http_client
 import uuid
 import os
 import io
@@ -16,20 +16,39 @@ import aiofiles
 import traceback
 from time import perf_counter
 from itertools import batched
+from datetime import datetime
 
 router = APIRouter(prefix="/tasks")
+
+NUM_OF_IMAGES_PER_TASK = 20
 
 class AssignTaskInput(BaseModel):
     num_of_tasks: int = Field(5, gt=0, le=10, description="Number of tasks to assign (maximum 10)")
     user_id: str
 
+class CreatedTask(BaseModel):
+    task_name: str
+    image_count: int
+
 class AssignTaskResponse(BaseModel):
-    task_names: List[str] = Field([], description="The name of the tasks uploaded to Roboflow")
+    created_tasks: List[CreatedTask] = Field([], description="The created tasks that were uploaded to Roboflow.")
 
 class UploadTask(BaseModel):
     task_id: str
     user_id: str
     image: Image
+
+class PulseTask(BaseModel):
+    id: str
+    task_name: str
+    image_count: int
+
+class PulseCreateTaskInput(BaseModel):
+    roboflow_id: str
+    due_date: str
+    project_id: int = 5
+    company_id: int = 6
+    tasks: List[PulseTask]
 
 def extract_labels_from_image(image: Image):
     classes = [
@@ -101,17 +120,19 @@ def upload_to_roboflow(upload_task: UploadTask):
 
         labels = extract_labels_from_image(upload_task.image)
 
-        roboflow_project.single_upload(
+        result = roboflow_project.single_upload(
             image_path=image_path,
             annotation_path=labels,
-            batch_name=f'DEWI DO NOT TOUCH: {upload_task.task_id}: {upload_task.user_id}',
+            batch_name=f'{upload_task.user_id}: {upload_task.task_id}',
             is_prediction=True,
             num_retry_uploads=3,
         )
 
         os.remove(image_path)
+        return result
     except Exception as e:
         print(f'Error uploading to roboflow: {e}')
+        return {}
 
 def cast_uuid_to_text(uuids: list[str]) -> str:
     output = "("
@@ -122,7 +143,6 @@ def cast_uuid_to_text(uuids: list[str]) -> str:
             output += ', '
         else:
             output += ')'
-    print(output)
     return output
 
 async def fetch_and_mark_images(num_of_images: int) -> List[str]:
@@ -152,7 +172,7 @@ async def fetch_and_mark_images(num_of_images: int) -> List[str]:
     
 async def download_and_upload_images(upload_tasks: List[UploadTask]):
     before = perf_counter()
-    for upload_tasks_in_task in batched(upload_tasks, n=20):
+    for upload_tasks_in_task in batched(upload_tasks, n=NUM_OF_IMAGES_PER_TASK*2):
         download_tasks = []
         for upload_task in upload_tasks_in_task:
             download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
@@ -162,10 +182,27 @@ async def download_and_upload_images(upload_tasks: List[UploadTask]):
         with tqdm.tqdm(desc="Upload tasks", total=len(upload_tasks_in_task)) as pbar:
             with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = {executor.submit(upload_to_roboflow, arg): arg for arg in upload_tasks_in_task}
+                results = []
                 for future in as_completed(futures):
+                    results.append(future.result())
                     pbar.update(1)
+
+                images_uploaded = 0
+                annotations_uploaded = 0
+                for result in results:
+                    if result.get('image', {}).get('success', False):
+                        images_uploaded += 1
+                    if result.get('annotation', {}).get('success', False):
+                        annotations_uploaded += 1
+                print(f'Roboflow upload results: {images_uploaded=}, {annotations_uploaded=}')
+
     after = perf_counter()
-    print(f'Took {after - before} seconds total')
+    print(f'Task upload took {after - before} seconds total')
+
+async def create_pulse_tasks(input: PulseCreateTaskInput):
+    print(f'Hitting pulse endpoint')
+    response = await http_client.post('https://pulse.eazyreturn.ca/api/create-bulk-tasks', json=input.model_dump(), headers={ 'Authorization': get_settings().pulse_access_key })
+    print(f'Pulse response: {response.content}')
 
 @router.post("/", response_model=AssignTaskResponse, tags=["Tasks"])
 async def assign_tasks(
@@ -174,14 +211,13 @@ async def assign_tasks(
 ):
     try:
         # --- Execute Query ---
-        num_of_images = input.num_of_tasks * 10
+        num_of_images = input.num_of_tasks * NUM_OF_IMAGES_PER_TASK
         image_ids = await fetch_and_mark_images(num_of_images)
-        print(image_ids)
         if len(image_ids) == 0:
             raise HTTPException(status_code=500, detail=f"No more images left!")
         
         images = await db.image.find_many(
-            take=input.num_of_tasks * 10,
+            take=input.num_of_tasks * NUM_OF_IMAGES_PER_TASK,
             order=[
                 {
                     'batchId': 'asc',
@@ -197,32 +233,46 @@ async def assign_tasks(
             include={ 'bboxes': { 'where':  { 'bboxType': BBoxType.DETECTION } } }, 
         )
 
+        pulse_tasks_to_create: List[PulseTask] = []
         tasks_to_create = []
         image_in_tasks_to_create = []
 
         upload_tasks: List[UploadTask] = []
 
-        for i in range(0, len(images), 10):
+        for i in range(0, len(images), NUM_OF_IMAGES_PER_TASK):
             task_id = str(uuid.uuid4())
             tasks_to_create.append({
                 'id': task_id,
                 'userId': input.user_id
             })
-            images_in_current_task = images[i:i+10]
+            images_in_current_task = images[i:i+NUM_OF_IMAGES_PER_TASK]
             image_in_tasks_to_create.extend(list(map(lambda e: {
                 'imageId': e.id,
                 'verificationTaskId': task_id
             }, images_in_current_task)))
+
+            pulse_tasks_to_create.append(PulseTask(
+                id=task_id,
+                task_name=f'{input.user_id}: {task_id}',
+                image_count=len(images_in_current_task)
+            ))
 
             upload_tasks.extend(list(map(lambda e: UploadTask(task_id=task_id, user_id=input.user_id, image=e), images_in_current_task)))
 
         await db.verificationtask.create_many(tasks_to_create, skip_duplicates=True)
         await db.imageinverificationtask.create_many(image_in_tasks_to_create, skip_duplicates=True)
 
+        now = datetime.now()
+        await create_pulse_tasks(PulseCreateTaskInput(
+            roboflow_id=input.user_id,
+            due_date=f'{now.year}-{now.month:02d}-{(now.day + 1):02d}',
+            tasks=pulse_tasks_to_create
+        ))
+
         background_tasks.add_task(download_and_upload_images, upload_tasks)
 
         return AssignTaskResponse(
-            task_names=list(map(lambda e: e.get('id'), tasks_to_create))
+            created_tasks=list(map(lambda e: CreatedTask(task_name=e.task_name, image_count=e.image_count), pulse_tasks_to_create))
         )
     
     except Exception as e:

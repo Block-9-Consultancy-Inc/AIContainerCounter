@@ -34,7 +34,7 @@ model CountiUnit {
     registered                  DateTime            @default(now())
     updated                     DateTime            @updatedAt
     status                      CountiUnitStatus
-    batches Batch[]
+    batches                     Batch[]
 }
 
 enum ModelType {
@@ -84,20 +84,43 @@ model ImageInDatasetSnapshot {
     @@id([datasetSnapshotId, imageId])
 }
 
-model VerificationTask {
+model VerificationSession {
     id                          String              @id @default(uuid()) @db.Uuid
     userId                      String
     timeAssigned                DateTime            @default(now())
     timeCompleted               DateTime?
-    imageInVerificationTask     ImageInVerificationTask[]
+    imageInVerificationSession  ImageInVerificationSession[]
 }
 
-model ImageInVerificationTask {
-    verificationTask            VerificationTask    @relation(fields: [verificationTaskId], references: [id])
-    verificationTaskId          String              @db.Uuid
+enum CorrectionType {
+    ADDED_MISSING
+    REMOVED_EXTRA
+    CHANGED_LABEL
+    CHANGED_COORDS
+}
+
+model Correction {
+    id                          String              @id @default(uuid()) @db.Uuid
+    correctionType              CorrectionType
+    newLabel                    String?
+    x1                          Int?
+    y1                          Int?
+    x2                          Int?
+    y2                          Int?
+    originalBBox                BBox?                @relation(fields: [originalBBoxId], references: [id])
+    originalBBoxId              String?              @db.Uuid
+    imageInVerificationSession  ImageInVerificationSession @relation(fields: [verificationSessionId, imageId], references: [verificationSessionId, imageId])
+    verificationSessionId       String               @db.Uuid
+    imageId                     String               @db.Uuid
+}
+
+model ImageInVerificationSession {
+    verificationSession         VerificationSession @relation(fields: [verificationSessionId], references: [id])
+    verificationSessionId       String              @db.Uuid
     image                       Image               @relation(fields: [imageId], references: [id])
     imageId                     String              @db.Uuid
-    @@id([verificationTaskId, imageId])
+    corrections                 Correction[]
+    @@id([verificationSessionId, imageId])
 }
 
 enum ImageStatus {
@@ -120,7 +143,7 @@ model Image {
     imageInDatasetSnapshot      ImageInDatasetSnapshot[]
     tags                        ImageWithTag[]
     imageStatus                 ImageStatus         @default(ON_QUEUE)
-    imageInVerificationTask     ImageInVerificationTask[]
+    imageInVerificationTask     ImageInVerificationSession[]
 }
 
 model ImageWithTag {
@@ -183,19 +206,14 @@ model BatchTag {
     batches                     BatchWithTag[]
 }
 
-enum BBoxType {
-    DETECTION
-    ANNOTATION
-}
-
 model BBox {
     id                          String              @id @default(uuid()) @db.Uuid
     image                       Image               @relation(fields: [imageId], references: [id])
     imageId                     String              @db.Uuid
     label                       String
-    bboxType                    BBoxType
     x1                          Int
     y1                          Int
-    x2                          Int
+    x2                          Int 
     y2                          Int
+    corrections                 Correction[]
 }

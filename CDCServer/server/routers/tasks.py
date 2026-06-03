@@ -15,7 +15,6 @@ from aioboto3 import Session
 import aiofiles
 import traceback
 from time import perf_counter
-from itertools import batched
 from datetime import datetime
 
 router = APIRouter(prefix="/tasks")
@@ -277,12 +276,13 @@ async def assign_tasks(
         await db.verificationtask.create_many(tasks_to_create, skip_duplicates=True)
         await db.imageinverificationtask.create_many(image_in_tasks_to_create, skip_duplicates=True)
 
-        now = datetime.now()
-        await create_pulse_tasks(PulseCreateTaskInput(
-            roboflow_id=input.user_id,
-            due_date=f'{now.year}-{now.month:02d}-{(now.day + 1):02d}',
-            tasks=pulse_tasks_to_create
-        ))
+        if get_settings().python_env == 'PRODUCTION':
+            now = datetime.now()
+            await create_pulse_tasks(PulseCreateTaskInput(
+                roboflow_id=input.user_id,
+                due_date=f'{now.year}-{now.month:02d}-{(now.day + 1):02d}',
+                tasks=pulse_tasks_to_create
+            ))
 
         background_tasks.add_task(handle_upload_tasks, upload_tasks)
 

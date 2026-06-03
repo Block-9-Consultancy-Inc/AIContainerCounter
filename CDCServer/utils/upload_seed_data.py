@@ -36,6 +36,7 @@ class RegisterCountiResponse(BaseModel):
 
 class BBoxInImageInput(BaseModel):
     id: str
+    tracker_id: Optional[int] = None
     x1: int
     y1: int
     x2: int
@@ -154,6 +155,7 @@ def image_to_image_input(image: MultiContainerImage, prev_chunk_id: uuid.UUID, p
             label = 'container'
         bboxes.append(BBoxInImageInput(
             id=str(bbox_raw.id),
+            tracker_id=bbox_raw.tracker_id,
             x1=bbox_raw.x1,
             y1=bbox_raw.y1,
             x2=bbox_raw.x2,

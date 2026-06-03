@@ -211,6 +211,7 @@ model BBox {
     image                       Image               @relation(fields: [imageId], references: [id])
     imageId                     String              @db.Uuid
     label                       String
+    trackerId                   Int?
     x1                          Int
     y1                          Int
     x2                          Int 

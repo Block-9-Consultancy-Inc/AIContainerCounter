@@ -21,6 +21,7 @@ class RegisterCountiResponse(BaseModel):
 
 class BBoxInImageInput(BaseModel):
     id: str
+    tracker_id: Optional[int] = None
     x1: int
     y1: int
     x2: int
@@ -173,6 +174,7 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                         imageId=image.image_id,
                         label=bbox.label,
                         bboxType=BBoxType.DETECTION,
+                        trackerId=bbox.tracker_id,
                         x1=bbox.x1,
                         y1=bbox.y1,
                         x2=bbox.x2,

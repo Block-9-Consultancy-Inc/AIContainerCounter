@@ -108,7 +108,14 @@ def chunk_id_to_split(chunk_id: str, seed = '42'):
     return random.choices(values, weights=probabilities, k=1)[0]
 
 def roboflow_image_file_name_to_id(roboflow_image_file_name: str):
-    split_index = 0 if roboflow_image_file_name.count('_') == 2 else 1 
+    underscore_count = roboflow_image_file_name.count('_')
+    match underscore_count:
+        case 1:
+            split_index = 0
+        case 2:
+            split_index = 0
+        case _:
+            split_index = 1
     return roboflow_image_file_name.split('_')[split_index]
 
 # --- API Endpoints ---

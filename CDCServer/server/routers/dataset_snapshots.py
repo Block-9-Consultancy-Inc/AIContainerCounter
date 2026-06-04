@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
 from prisma.models import Image, DatasetSnapshot
-from prisma.enums import DatasetSplit, BBoxType, DatasetSnapshotType
+from prisma.enums import DatasetSplit, DatasetSnapshotType
 import random
 import traceback
 from server.dependencies import db
@@ -169,7 +169,6 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
             roboflow_image: ImageSplitInput = old_and_new.get('roboflow')
             existing_image: Image = old_and_new.get('existing')
             bboxes_to_create.extend(list(map(lambda e: {
-                'bboxType': BBoxType.ANNOTATION,
                 'label': e.label,
                 'imageId': existing_image.id,
                 'x1': max(0, round((e.center_x - e.width / 2) * roboflow_image.image_width)),
@@ -191,7 +190,7 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
                 }
             },
             # Include the related data in the response from Prisma
-            include={'imageInDatasetSnapshot':  { 'include': { 'image': { 'include': { 'bboxes': { 'where': { 'bboxType': BBoxType.ANNOTATION }}}}}}}
+            include={'imageInDatasetSnapshot':  { 'include': { 'image': { 'include': { 'bboxes': True }}}}}
         )
 
         return await DatasetSnapshotResponse.from_dataset_snapshot(new_snapshot)
@@ -226,7 +225,7 @@ async def get_dataset_snapshot(snapshot_id: str):
     """
     snapshot = await db.datasetsnapshot.find_unique(
         where={'id': snapshot_id},
-        include={'imageInDatasetSnapshot': { 'include': { 'image': { 'include': { 'bboxes': { 'where': { 'bboxType': BBoxType.ANNOTATION }} }} }}}  # Ensure related images are fetched
+        include={'imageInDatasetSnapshot': { 'include': { 'image': { 'include': { 'bboxes': True }} }}}  # Ensure related images are fetched
     )
 
     if not snapshot:

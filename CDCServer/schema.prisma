@@ -109,8 +109,8 @@ model Correction {
     y2                          Int?
     originalBBox                BBox?                @relation(fields: [originalBBoxId], references: [id])
     originalBBoxId              String?              @db.Uuid
-    imageInVerificationSession  ImageInVerificationSession @relation(fields: [verificationSessionId, imageId], references: [verificationSessionId, imageId])
-    verificationSessionId       String               @db.Uuid
+    imageInVerificationSession  ImageInVerificationSession? @relation(fields: [verificationSessionId, imageId], references: [verificationSessionId, imageId])
+    verificationSessionId       String?               @db.Uuid
     imageId                     String               @db.Uuid
 }
 
@@ -127,6 +127,7 @@ enum ImageStatus {
     ON_QUEUE
     VERIFICATION_IN_PROGRESS
     VERIFIED
+    UNKNOWN
 }
 
 model Image {
@@ -143,7 +144,7 @@ model Image {
     imageInDatasetSnapshot      ImageInDatasetSnapshot[]
     tags                        ImageWithTag[]
     imageStatus                 ImageStatus         @default(ON_QUEUE)
-    imageInVerificationTask     ImageInVerificationSession[]
+    imageInVerificationSession  ImageInVerificationSession[]
 }
 
 model ImageWithTag {

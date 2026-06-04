@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import HTTPException, APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
-from prisma.enums import ImageStatus, BBoxType
+from prisma.enums import ImageStatus
 from prisma.models import Image
 from server.dependencies import db, get_settings, roboflow_project, s3_session, http_client
 import uuid
@@ -244,25 +244,25 @@ async def assign_tasks(
                 }
             ],
             where={ 'id': { 'in': image_ids } },
-            include={ 'bboxes': { 'where':  { 'bboxType': BBoxType.DETECTION } } }, 
+            include={ 'bboxes': True }, 
         )
 
         pulse_tasks_to_create: List[PulseTask] = []
-        tasks_to_create = []
-        image_in_tasks_to_create = []
+        verification_sessions_to_create = []
+        image_in_sessions_to_create = []
 
         upload_tasks: List[UploadTask] = []
 
         for i in range(0, len(images), NUM_OF_IMAGES_PER_TASK):
             task_id = str(uuid.uuid4())
-            tasks_to_create.append({
+            verification_sessions_to_create.append({
                 'id': task_id,
                 'userId': input.user_id
             })
             images_in_current_task = images[i:i+NUM_OF_IMAGES_PER_TASK]
-            image_in_tasks_to_create.extend(list(map(lambda e: {
+            image_in_sessions_to_create.extend(list(map(lambda e: {
                 'imageId': e.id,
-                'verificationTaskId': task_id
+                'verificationSessionId': task_id
             }, images_in_current_task)))
 
             pulse_tasks_to_create.append(PulseTask(
@@ -273,8 +273,8 @@ async def assign_tasks(
 
             upload_tasks.extend(list(map(lambda e: UploadTask(task_id=task_id, user_id=input.user_id, image=e), images_in_current_task)))
 
-        await db.verificationtask.create_many(tasks_to_create, skip_duplicates=True)
-        await db.imageinverificationtask.create_many(image_in_tasks_to_create, skip_duplicates=True)
+        await db.verificationsession.create_many(verification_sessions_to_create, skip_duplicates=True)
+        await db.imageinverificationsession.create_many(image_in_sessions_to_create, skip_duplicates=True)
 
         if get_settings().python_env == 'PRODUCTION':
             now = datetime.now()

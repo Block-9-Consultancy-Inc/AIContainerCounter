@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
 from prisma.models import Image, Video, Batch, BBox, BatchWithTag, BatchTag
-from prisma.enums import BBoxType, CountiUnitStatus, CountingStrategy, ImageStatus
+from prisma.enums import CountiUnitStatus, CountingStrategy, ImageStatus
 import traceback
 from server.dependencies import db
 
@@ -173,7 +173,6 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                         id=bbox.id,
                         imageId=image.image_id,
                         label=bbox.label,
-                        bboxType=BBoxType.DETECTION,
                         trackerId=bbox.tracker_id,
                         x1=bbox.x1,
                         y1=bbox.y1,

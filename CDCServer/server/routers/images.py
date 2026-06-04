@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, APIRouter
 from pydantic import BaseModel, Field
-from prisma.enums import BBoxType
 from prisma.models import ImageTag, ImageWithTag
 from server.dependencies import db
 
@@ -96,7 +95,7 @@ async def get_paginated_images(
                 'id': pagination.sort_order
             }
             ],
-            where={ 'bboxes': { 'some': { 'bboxType': BBoxType.ANNOTATION }}} if pagination.contains_verified_bboxes else None,
+            # where={ 'bboxes': { 'some': { 'bboxType': BBoxType.ANNOTATION }}} if pagination.contains_verified_bboxes else None,
             include={ 'bboxes': True },
             skip=1 if pagination.cursor is not None else 0
         )

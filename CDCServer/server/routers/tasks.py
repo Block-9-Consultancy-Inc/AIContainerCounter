@@ -15,7 +15,7 @@ from aioboto3 import Session
 import aiofiles
 import traceback
 from time import perf_counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/tasks")
 
@@ -152,6 +152,7 @@ async def fetch_and_mark_images(num_of_images: int) -> List[str]:
             rows = await tx.query_raw(f"""
                 SELECT id FROM "Image"
                 WHERE "imageStatus" = '{ImageStatus.ON_QUEUE}'
+                ORDER BY "timeTaken" DESC
                 FOR UPDATE SKIP LOCKED
                 LIMIT {num_of_images}
             """)
@@ -224,6 +225,13 @@ async def assign_tasks(
     background_tasks: BackgroundTasks
 ):
     try:
+        last_session = await db.verificationsession.find_first(where={ 'userId': input.user_id }, order=[{ 'timeAssigned': 'desc' }])
+
+        if last_session is not None:
+            seconds_since_last_assignment = (datetime.now(timezone.utc) - last_session.timeAssigned).total_seconds()
+            if seconds_since_last_assignment < 120:
+                raise HTTPException(status_code=400, detail=f"Need to wait 120 seconds, only {seconds_since_last_assignment} passed")
+            
         # --- Execute Query ---
         num_of_images = input.num_of_tasks * NUM_OF_IMAGES_PER_TASK
         image_ids = await fetch_and_mark_images(num_of_images)

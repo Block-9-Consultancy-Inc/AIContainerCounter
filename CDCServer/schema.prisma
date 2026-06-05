@@ -112,6 +112,9 @@ model Correction {
     imageInVerificationSession  ImageInVerificationSession? @relation(fields: [verificationSessionId, imageId], references: [verificationSessionId, imageId])
     verificationSessionId       String?               @db.Uuid
     imageId                     String               @db.Uuid
+
+    @@index([originalBBoxId])
+    @@index([verificationSessionId, imageId])
 }
 
 model ImageInVerificationSession {
@@ -145,6 +148,8 @@ model Image {
     tags                        ImageWithTag[]
     imageStatus                 ImageStatus         @default(ON_QUEUE)
     imageInVerificationSession  ImageInVerificationSession[]
+
+    @@index([imageStatus])
 }
 
 model ImageWithTag {
@@ -218,4 +223,6 @@ model BBox {
     x2                          Int 
     y2                          Int
     corrections                 Correction[]
+
+    @@index([imageId])
 }

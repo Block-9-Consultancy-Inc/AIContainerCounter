@@ -1,7 +1,9 @@
 #include "gstframeindexer.h"
-#include <stdio.h>
 
+// Declare a static GstDebugCategory variable
 GST_DEBUG_CATEGORY_STATIC (gst_frame_indexer_debug_category);
+
+// Define GST_CAT_DEFAULT to make this the default category for logging macros in this file
 #define GST_CAT_DEFAULT gst_frame_indexer_debug_category
 
 /* Define an enum for the signals */
@@ -58,7 +60,6 @@ gst_frame_indexer_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     GST_WARNING_OBJECT (self, "Failed to add frame index metadata to buffer!");
     // Decide if this is a critical error. For now, let the buffer pass.
   } else {
-    printf("Applied frame index %u\n", index_to_apply);
     GST_LOG_OBJECT (self, "Applied frame index %u", index_to_apply);
   }
 
@@ -87,8 +88,12 @@ gst_frame_indexer_class_init (GstFrameIndexerClass * klass)
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS (klass);
 
-  GST_DEBUG_CATEGORY_INIT (gst_frame_indexer_debug_category, "frameindexer",
-      0, "Frame Indexer Element");
+  // Initialize the debug category
+  GST_DEBUG_CATEGORY_INIT (gst_frame_indexer_debug_category, /* Category variable */
+      "frameindexer",        /* Category name (used in GST_DEBUG env var) */
+      0,                     /* Color for output (0 = default) */
+      "Frame Indexer Element"/* Description */
+  );
 
   gst_element_class_set_static_metadata (element_class,
       "Frame Indexer",                        // Long name
@@ -115,7 +120,7 @@ gst_frame_indexer_class_init (GstFrameIndexerClass * klass)
   // we could potentially explore gst_base_transform_set_passthrough.
   // However, adding metadata *does* require the buffer to be writable.
   // GstBaseTransform's transform_ip handles making the buffer writable if it isn't already.
-
+  
   // Install signals
   /**
    * GstFrameIndexer::reset-frame-index:
@@ -134,18 +139,18 @@ gst_frame_indexer_class_init (GstFrameIndexerClass * klass)
 //   klass->reset_frame_index_signal_handler = gst_frame_indexer_reset_signal_handler;
 
     // In gst_frame_indexer_class_init, replace the signal registration part with:
-    // gst_frame_indexer_signals[SIGNAL_RESET_FRAME_INDEX] =
-    // g_signal_new ("reset-frame-index", // Signal name
-    //             G_TYPE_FROM_CLASS (klass), // Owner GType
-    //             G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION, // Signal flags
-    //             0, // Class offset for class handler (0 if no specific class struct field)
-    //             NULL, // Accumulator
-    //             NULL, // Accumulator data
-    //             g_cclosure_marshal_VOID__VOID, // Default marshaller for VOID_VOID
-    //             G_TYPE_NONE, // Return type
-    //             0);          // Number of parameters
+    gst_frame_indexer_signals[SIGNAL_RESET_FRAME_INDEX] =
+    g_signal_new_class_handler ("reset-frame-index", // Signal name
+                G_TYPE_FROM_CLASS (klass), // Owner GType
+                G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION, // Signal flags
+                G_CALLBACK(gst_frame_indexer_reset_signal_handler),
+                NULL, // Accumulator
+                NULL, // Accumulator data
+                g_cclosure_marshal_VOID__VOID, // Default marshaller for VOID_VOID
+                G_TYPE_NONE, // Return type
+                0);          // Number of parameters
 
-    // // Connect the default handler for this signal
+    // Connect the default handler for this signal
     // g_signal_new_class_handler (G_TYPE_FROM_CLASS(klass),
     //                         g_signal_lookup("reset-frame-index", G_TYPE_FROM_CLASS(klass)),
     //                         G_CALLBACK(gst_frame_indexer_reset_signal_handler));

@@ -11,6 +11,28 @@ VIDEO_DIRECTORY = "/home/ammanz/Projects/AIContainerCounter/GSTFrameIndexer/vide
 # Supported video extensions (add more if needed)
 SUPPORTED_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.webm', '.ts', '.mpg', '.mpeg')
 
+def get_gst_message_type_name(message_type: Gst.MessageType) -> str:
+    """
+    Returns the string name of a GstMessageType.
+
+    Args:
+        message_type: A Gst.MessageType enum value.
+
+    Returns:
+        A string representing the name of the message type.
+    """
+    if not isinstance(message_type, Gst.MessageType):
+        # Handle cases where the input might not be a valid GstMessageType
+        # For example, if an integer is passed that doesn't map to a type.
+        # Gst.message_type_get_name() expects a GstMessageType enum value.
+        try:
+            # Attempt to cast integer to Gst.MessageType if it's an int
+            message_type = Gst.MessageType(message_type)
+        except ValueError:
+            return f"Invalid GstMessageType value: {message_type}"
+
+    return Gst.message_type_get_name(message_type)
+
 class VideoPlayer:
     def __init__(self, video_dir):
         self.video_files = []
@@ -120,6 +142,9 @@ class VideoPlayer:
             structure = message.get_structure()
             if structure and structure.has_name("GstPlayFlags"): # Example, might need specific check
                  print(f"Element message: {structure.to_string()}")
+        elif mtype == Gst.MessageType.STREAM_START:
+            self.frameindexer.emit("reset-frame-index")
+
 
 
     def play_next_video(self, player=None):
@@ -127,23 +152,6 @@ class VideoPlayer:
             print("No videos in playlist to play.")
             self.loop.quit()
             return
-
-        # Reset frame indexer if it exists
-        if self.frameindexer:
-            print("Resetting frame indexer...")
-            self.frameindexer.emit("reset-frame-index")
-        else:
-            # Try to find it again if it wasn't found initially
-            # This might happen if playbin hasn't fully built its internal pipeline yet.
-            video_sink_bin = self.playbin.get_property("video-sink")
-            if video_sink_bin:
-                self.frameindexer = video_sink_bin.get_by_name("myframeindexer")
-                if self.frameindexer:
-                    print("Found frameindexer on demand, resetting...")
-                    self.frameindexer.emit("reset-frame-index")
-                else:
-                    print("Warning: Could not find frameindexer to reset.")
-
 
         self.current_video_index = (self.current_video_index + 1) % len(self.video_files)
         next_uri = GLib.filename_to_uri(self.video_files[self.current_video_index], None)

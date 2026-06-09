@@ -93,3 +93,31 @@ gst_buffer_add_frame_index_meta (GstBuffer * buffer, guint frame_index)
   fimeta->frame_index = frame_index;
   return fimeta;
 }
+
+
+/**
+ * gst_frame_indexer_get_index_from_buffer:
+ * @buffer: A #GstBuffer.
+ * @frame_index_out: (out): Pointer to a guint to store the retrieved frame index.
+ *
+ * Retrieves the frame index from the #GstFrameIndexMeta on the buffer, if present.
+ *
+ * Returns: %TRUE if the metadata was found and index retrieved, %FALSE otherwise.
+ */
+gboolean // Export this function
+gst_frame_indexer_get_index_from_buffer (GstBuffer *buffer, guint *frame_index_out)
+{
+  GstFrameIndexMeta *meta;
+
+  g_return_val_if_fail (GST_IS_BUFFER (buffer), FALSE);
+  g_return_val_if_fail (frame_index_out != NULL, FALSE);
+
+
+
+  meta = gst_buffer_get_frame_index_meta (buffer);
+  if (meta) {
+    *frame_index_out = meta->frame_index;
+    return TRUE;
+  }
+  return FALSE;
+}

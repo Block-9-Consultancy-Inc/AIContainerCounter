@@ -112,7 +112,7 @@ class VideoPlayer:
 
     def on_about_to_finish(self, player):
         print("\n--- about-to-finish: Current video ending ---")
-        self.play_next_video(player=player)
+        self.play_next_video()
 
     def on_bus_message(self, bus, message):
         mtype = message.type
@@ -147,7 +147,7 @@ class VideoPlayer:
 
 
 
-    def play_next_video(self, player=None):
+    def play_next_video(self):
         if not self.video_files:
             print("No videos in playlist to play.")
             self.loop.quit()
@@ -157,11 +157,10 @@ class VideoPlayer:
         next_uri = GLib.filename_to_uri(self.video_files[self.current_video_index], None)
 
         print(f"Playing next: {self.video_files[self.current_video_index]} (URI: {next_uri})")
-        playbin = player if player is not None else self.playbin
-        playbin.set_property("uri", next_uri)
+        self.playbin.set_property("uri", next_uri)
         # Playbin should automatically go to PLAYING. If it was in PLAYING, setting URI re-triggers.
         # If it reached EOS and went to PAUSED/READY, explicitly set to PLAYING.
-        playbin.set_state(Gst.State.PLAYING)
+        self.playbin.set_state(Gst.State.PLAYING)
 
 
 

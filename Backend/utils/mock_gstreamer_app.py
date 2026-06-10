@@ -153,7 +153,7 @@ SUPPORTED_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.webm', '.ts', '.mpg', 
 # -----------------------------------------------------------------------------------------------
 # GStreamerApp class
 # -----------------------------------------------------------------------------------------------
-class GStreamerApp:
+class MockVideoGStreamerApp:
     def __init__(
             self,
             on_state_changed: Callable,
@@ -162,13 +162,16 @@ class GStreamerApp:
             video_dir: str,
             fps: int,
             user_data,
-            socket_path = 'test.socket'
+            socket_path = 'test.socket',
+            loop = True,
+            print_progress = False
         ):
         # Set up signal handler for SIGINT (Ctrl-C)
         Gst.init(None)
         signal.signal(signal.SIGINT, self.shutdown)
         self.video_files = []
         self.current_video_index = -1
+        self.actual_current_video_index = -1
         self.frameindexer = None
         self.first_file_path = first_file_name
         self.fps = fps
@@ -187,6 +190,8 @@ class GStreamerApp:
         self.on_state_changed(self.status)
         self.on_stopped = on_stopped
         self.first_stream_started = False
+        self.loop = loop
+        self.print_progress = print_progress
         self.scan_video_directory()
 
     def scan_video_directory(self):
@@ -259,6 +264,9 @@ class GStreamerApp:
             print("No videos in playlist to play.")
             return
 
+        if not self.loop and self.current_video_index + 1 >= len(self.video_files):
+            return
+        
         self.current_video_index = (self.current_video_index + 1) % len(self.video_files)
         next_uri = GLib.filename_to_uri(self.video_files[self.current_video_index], None)
 
@@ -284,7 +292,8 @@ class GStreamerApp:
             # print(f"QoS message received from {qos_element}")
             pass
         elif t == Gst.MessageType.STREAM_START:
-            print(f'STREAM START MESSAGE RECEIVED')
+            self.actual_current_video_index = (self.actual_current_video_index + 1) % len(self.video_files)
+            print(f'STREAM START MESSAGE RECEIVED FOR {self.actual_current_video_index + 1} / {len(self.video_files)}')
             self.frameindexer.emit("reset-frame-index")
             if not self.first_stream_started and self.collect_raw_frames:
                 print('STARTING RAW FRAME COLLECTION PIPELINE')
@@ -340,7 +349,9 @@ class GStreamerApp:
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(fps=self.fps)
         user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        display_pipeline = 'fakesink' if not self.collect_raw_frames else f'{QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! unixfdsink socket-path={self.socket_path} wait-for-connection=false'
+        display_pipeline = 'fakesink sync=true' if not self.collect_raw_frames else f'{QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! unixfdsink socket-path={self.socket_path} wait-for-connection=false'
+        if self.print_progress:
+            display_pipeline = 'progressreport name=progress update-freq=1 ! ' + display_pipeline
         pipeline_string = (
             f'{source_pipeline} '
             f'{user_callback_pipeline} ! '
@@ -407,7 +418,7 @@ class GStreamerApp:
 
 
     def play(self):
-        if self.status =='stopped':
+        if self.status == 'stopped':
             print('Pipeline stopped, attempting to run')
             self.run_thread = Thread(target=self.run)
             self.run_thread.start()
@@ -532,17 +543,19 @@ if __name__ == '__main__':
     def new_location_callback(splitmux, fragment_id, user_data):
         return f'test.avi'
     
-    gstreamer_app = GStreamerApp(
+    gstreamer_app = MockVideoGStreamerApp(
         on_state_changed=on_state_changed,
         on_stopped=on_stopped,
         first_file_name='test.avi',
         video_dir='videos',
         fps=30,
-        user_data=AppCallback()
-        
+        user_data=AppCallback(),
+        loop=False,
+        print_progress=True
     )
     gstreamer_app.app_callback = dummy_app_callback
     gstreamer_app.new_location_callback = new_location_callback
+    gstreamer_app.collect_raw_frames = False
     gstreamer_app.create_pipeline()
     gstreamer_app.run()
     GLib.MainLoop().run()

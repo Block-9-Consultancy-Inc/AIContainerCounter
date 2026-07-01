@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple, Dict
 from fastapi import HTTPException, APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
 from prisma.enums import ImageStatus
@@ -35,6 +35,7 @@ class AssignTaskResponse(BaseModel):
 class UploadTask(BaseModel):
     task_id: str
     user_id: str
+    image_prefix: str
     image: Image
 
 class PulseTask(BaseModel):
@@ -104,11 +105,12 @@ async def get_s3_obj(client, s3_key):
     return obj
 
 
-async def download_img(session: Session, image: Image):
+async def download_img(session: Session, upload_task: UploadTask):
     """convert the obj to image and save"""
+    image = upload_task.image
     async with session.client('s3') as s3_client:
         obj = await get_s3_obj(s3_client, f'counti-images/{image.batchId}/{image.id}.{image.fileExtension}')
-    image_path = f'{get_settings().temp_data_dir}/{image.id}.{image.fileExtension}'
+    image_path = f'{get_settings().temp_data_dir}/{upload_task.image_prefix}_{image.id}.{image.fileExtension}'
     async with aiofiles.open(image_path, 'wb') as f:
         buffer = io.BytesIO(obj)
         await f.write(buffer.getbuffer())
@@ -116,7 +118,7 @@ async def download_img(session: Session, image: Image):
 # TODO handle failures for downloads and uploads
 def upload_to_roboflow(upload_task: UploadTask):
     try:
-        image_path = f'{get_settings().temp_data_dir}/{upload_task.image.id}.{upload_task.image.fileExtension}'
+        image_path = f'{get_settings().temp_data_dir}/{upload_task.image_prefix}_{upload_task.image.id}.{upload_task.image.fileExtension}'
 
         labels = extract_labels_from_image(upload_task.image)
 
@@ -132,6 +134,7 @@ def upload_to_roboflow(upload_task: UploadTask):
         return result
     except Exception as e:
         print(f'Error uploading to roboflow: {e}')
+        print(traceback.format_exc())
         return {}
 
 def cast_uuid_to_text(uuids: list[str]) -> str:
@@ -145,14 +148,15 @@ def cast_uuid_to_text(uuids: list[str]) -> str:
             output += ')'
     return output
 
-async def fetch_and_mark_images(num_of_images: int) -> List[str]:
+async def fetch_and_mark_images(num_of_images: int) -> Tuple[List[str], List[Dict[str, str]]]:
     try:
         async with db.tx() as tx:
             # Step 1: Select and lock the images
             rows = await tx.query_raw(f"""
-                SELECT id FROM "Image"
+                SELECT i.id, i."batchId", i.index FROM "Image" i
+                INNER JOIN "Batch" b ON b.id = i."batchId"
                 WHERE "imageStatus" = '{ImageStatus.ON_QUEUE}'
-                ORDER BY "timeTaken" DESC
+                ORDER BY b."timeSubmitted" DESC, i."batchId", i."index" ASC
                 FOR UPDATE SKIP LOCKED
                 LIMIT {num_of_images}
             """)
@@ -166,17 +170,17 @@ async def fetch_and_mark_images(num_of_images: int) -> List[str]:
                     WHERE id IN {cast_uuid_to_text(image_ids)}
                 """)
 
-            return image_ids
+            return image_ids, rows
     except Exception as e:
         print(f'Error fetching and marking images: ${e}')
-        return []
+        return [], []
     
 async def download_and_upload_images(upload_tasks: List[UploadTask]):
     before = perf_counter()
 
     download_tasks = []
     for upload_task in upload_tasks:
-        download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task.image)))
+        download_tasks.append(asyncio.create_task(download_img(s3_session, upload_task)))
 
     await asyncio.gather(*download_tasks)
 
@@ -234,26 +238,28 @@ async def assign_tasks(
             
         # --- Execute Query ---
         num_of_images = input.num_of_tasks * NUM_OF_IMAGES_PER_TASK
-        image_ids = await fetch_and_mark_images(num_of_images)
+        image_ids, image_info = await fetch_and_mark_images(num_of_images)
+        batches = list(set([image['batchId'] for image in image_info]))
+
+        image_prefix_map = {}
+        for image in image_info:
+            image_id = image['id']
+            image_index = image['index']
+            batch_index = batches.index(image['batchId'])
+            image_prefix_map[image_id] = f'prefix_{batch_index:05d}_{image_index:05d}'
+
         if len(image_ids) == 0:
             raise HTTPException(status_code=500, detail=f"No more images left!")
         
-        images = await db.image.find_many(
+        images_map = {image.id: image for image in (await db.image.find_many(
             take=input.num_of_tasks * NUM_OF_IMAGES_PER_TASK,
-            order=[
-                {
-                    'batchId': 'asc',
-                },
-                {
-                    'timeTaken': 'asc',
-                },
-                {
-                    'id': 'asc'
-                }
-            ],
             where={ 'id': { 'in': image_ids } },
             include={ 'bboxes': True }, 
-        )
+        ))}
+
+        images: List[Image] = []
+        for image_id in image_ids:
+            images.append(images_map[image_id])
 
         pulse_tasks_to_create: List[PulseTask] = []
         verification_sessions_to_create = []
@@ -279,7 +285,7 @@ async def assign_tasks(
                 image_count=len(images_in_current_task)
             ))
 
-            upload_tasks.extend(list(map(lambda e: UploadTask(task_id=task_id, user_id=input.user_id, image=e), images_in_current_task)))
+            upload_tasks.extend(list(map(lambda e: UploadTask(task_id=task_id, user_id=input.user_id, image=e, image_prefix=image_prefix_map[e.id]), images_in_current_task)))
 
         await db.verificationsession.create_many(verification_sessions_to_create, skip_duplicates=True)
         await db.imageinverificationsession.create_many(image_in_sessions_to_create, skip_duplicates=True)

@@ -108,6 +108,8 @@ def chunk_id_to_split(chunk_id: str, seed = '42'):
     return random.choices(values, weights=probabilities, k=1)[0]
 
 def roboflow_image_file_name_to_id(roboflow_image_file_name: str):
+    if 'prefix' in roboflow_image_file_name:
+        return roboflow_image_file_name.split('_')[3].removesuffix('.jpg')
     underscore_count = roboflow_image_file_name.count('_')
     match underscore_count:
         case 1:

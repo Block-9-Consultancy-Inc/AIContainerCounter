@@ -278,7 +278,7 @@ class CounterApp:
                     if self.gstreamer_app.status != 'stopped':
                         last_time_reset_button_pressed = self.last_time_reset_button_pressed
                         self.last_time_reset_button_pressed = datetime.now()
-                        if last_time_reset_button_pressed is None or (self.last_time_reset_button_pressed - last_time_reset_button_pressed).total_seconds() > 2:
+                        if not self.is_test and last_time_reset_button_pressed is None or (self.last_time_reset_button_pressed - last_time_reset_button_pressed).total_seconds() > 2:
                             self.sio.emit('reset_confirmation_state', 'need_reset_confirmation')
                             emit_button_pressed_event = False
                         else:

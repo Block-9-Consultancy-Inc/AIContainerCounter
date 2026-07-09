@@ -1,7 +1,7 @@
 import json
 from ultralytics import YOLO
 from tqdm import tqdm
-from os import listdir, environ
+from os import listdir, environ, makedirs
 from os.path import join
 import supervision as sv
 import torch
@@ -79,6 +79,7 @@ class CounterVideo:
         self.counting_algorithm = environ.get('COUNTING_ALGORITHM', 'YOLO_CONSENSUS').lower()
 
     def bulk_process_directory(self, source_dir: str, dest_dir: str):
+        makedirs(dest_dir, exist_ok=True)
         if self.show_output:
             cv2.namedWindow("Counti", cv2.WND_PROP_FULLSCREEN)
             cv2.setWindowProperty("Counti", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)

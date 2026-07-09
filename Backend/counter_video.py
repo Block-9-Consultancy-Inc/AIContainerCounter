@@ -128,15 +128,19 @@ class CounterVideo:
 
                 if self.show_output:
                     cv2.imshow("Counti", annotated_frame)
-                    cv2.waitKey(0)
+                    cv2.waitKey(1)
 
                 sink.write_frame(annotated_frame)
+
+        output_json_filename = target_path.replace('.mp4', '.json')
+        with open(output_json_filename, 'w') as f:
+            json.dump(self.counter.current_count(), f, indent=4)
         self.reset_counter()
 
 
 
 if __name__ == "__main__":
-    counter_video = CounterVideo()
+    counter_video = CounterVideo(show_output=True)
     source_dir = sys.argv[1]
     dest_dir = sys.argv[2]
 

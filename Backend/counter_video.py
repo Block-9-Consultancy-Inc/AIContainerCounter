@@ -16,6 +16,8 @@ print('Is using CUDA: ' + str(torch.cuda.is_available()))
 class CounterVideo:
     def __init__(self,
             load_params_from_dotenv = True,
+            height = 1080,
+            width = 1920,
             model_path = 'resources/counting-machine-1-category-yolo11.pt',
             category_model_path = 'resources/resnet_v1_18_unscaled.pth',
             model_imgsz = 1440,
@@ -28,6 +30,8 @@ class CounterVideo:
             self.__load_params_from_dotenv()
         else:
             self.model_path = model_path
+            self.height = height
+            self.width = width
             self.category_model_path = category_model_path
             self.model_imgsz = model_imgsz
             self.camera_calibration_params_path = camera_calibration_params_path
@@ -37,8 +41,8 @@ class CounterVideo:
         self.byte_tracker = sv.ByteTrack()
         self.counter = ctr.Counter(
             self.model.names,
-            1920,
-            1080,
+            self.width,
+            self.height,
             self.model_path,
             self.category_model_path,
             '',
@@ -63,6 +67,18 @@ class CounterVideo:
 
     def __load_params_from_dotenv(self, dotenv_path = './.env'):
         load_dotenv(dotenv_path)
+
+        height_from_env = environ.get('HEIGHT')
+        if height_from_env == None or not height_from_env.isdigit():
+            self.height = 1080
+        else:
+            self.height = int(height_from_env)
+
+        width_from_env = environ.get('WIDTH')
+        if width_from_env == None or not width_from_env.isdigit():
+            self.width = 1920
+        else:
+            self.width = int(width_from_env)
 
         self.model_path = environ.get('MODEL_PATH')
 

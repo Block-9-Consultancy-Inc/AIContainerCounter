@@ -111,26 +111,42 @@ class CounterVideo:
             
 
     def process_video(self, source_path: str, target_path: str):
-        video_info = sv.VideoInfo.from_video_path(source_path)
-        generator = sv.get_video_frames_generator(source_path)
-        with sv.VideoSink(target_path, video_info) as sink:
-            for bgr_frame in tqdm(generator, total=video_info.total_frames):
-                if self.map1 is not None and self.map2 is not None:
-                    bgr_frame = cv2.remap(bgr_frame, self.map1, None, None)
-                rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-                results = self.model.predict(bgr_frame.copy(), imgsz=self.model_imgsz, agnostic_nms=True, verbose=False)[0]
-                detections = sv.Detections.from_ultralytics(results)
-                original_class_ids = detections.class_id
-                detections.class_id = np.full(original_class_ids.shape, 0)
-                detections = self.byte_tracker.update_with_detections(detections)
-                detections.class_id = original_class_ids
-                annotated_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+        # Open the video file
+        cap = cv2.VideoCapture(source_path)
 
-                if self.show_output:
-                    cv2.imshow("Counti", annotated_frame)
-                    cv2.waitKey(1)
+        if not cap.isOpened():
+            raise IOError(f"Cannot open video file: {source_path}")
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')  # or use 'XVID', 'mp4v', etc.
 
-                sink.write_frame(annotated_frame)
+        # Open output writer
+        out = cv2.VideoWriter(target_path, fourcc, 30, (self.width, self.height))
+        frame_idx = 0
+        while True:
+            ret, bgr_frame = cap.read()
+            if not ret:
+                break  # No more frames or error
+
+            if self.map1 is not None and self.map2 is not None:
+                bgr_frame = cv2.remap(bgr_frame, self.map1, None, None)
+            rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+            results = self.model.predict(bgr_frame.copy(), imgsz=self.model_imgsz, agnostic_nms=True, verbose=False)[0]
+            detections = sv.Detections.from_ultralytics(results)
+            original_class_ids = detections.class_id
+            detections.class_id = np.full(original_class_ids.shape, 0)
+            detections = self.byte_tracker.update_with_detections(detections)
+            detections.class_id = original_class_ids
+            annotated_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+
+            if self.show_output:
+                cv2.imshow("Counti", annotated_frame)
+                cv2.waitKey(1)
+
+            out.write(annotated_frame)
+
+            frame_idx += 1
+
+        cap.release()
+        out.release()
 
         output_json_filename = target_path.replace('.mp4', '.json')
         with open(output_json_filename, 'w') as f:

@@ -1,54 +1,126 @@
 import json
-from ultralytics import YOLO, solutions
+from ultralytics import YOLO
 from tqdm import tqdm
 from os import listdir, environ
 from os.path import join
 import supervision as sv
 import torch
+from dotenv import load_dotenv
+import counter as ctr
+import sys
+import numpy as np
+import cv2
+
 print('Is using CUDA: ' + str(torch.cuda.is_available()))
 
-HEIGHT = 1080
-WIDTH = 1920
+class CounterVideo:
+    def __init__(self,
+            load_params_from_dotenv = True,
+            model_path = 'resources/counting-machine-1-category-yolo11.pt',
+            category_model_path = 'resources/resnet_v1_18_unscaled.pth',
+            model_imgsz = 1440,
+            camera_calibration_params_path: str = None,
+            counting_algorithm: str = 'yolo_consensus',
+            show_output = False,
+        ) -> None:
+        self.show_output = show_output
+        if load_params_from_dotenv:
+            self.__load_params_from_dotenv()
+        else:
+            self.model_path = model_path
+            self.category_model_path = category_model_path
+            self.model_imgsz = model_imgsz
+            self.camera_calibration_params_path = camera_calibration_params_path
+            self.counting_algorithm = counting_algorithm
 
-COUNTING_REGION_WIDTH_PERCENTAGE = 0.4
+        self.model = YOLO(self.model_path)
+        self.byte_tracker = sv.ByteTrack()
+        self.counter = ctr.Counter(
+            self.model.names,
+            1920,
+            1080,
+            self.model_path,
+            self.category_model_path,
+            '',
+            counting_algorithm=self.counting_algorithm,
+            is_test=True,
+        )
 
-MODEL_PATH = environ.get('MODEL_PATH')
-if MODEL_PATH == None:
-    MODEL_PATH = "general-model-1-9.pt"
+        if self.camera_calibration_params_path is not None:
+            with np.load(self.camera_calibration_params_path) as data:
+                self.camera_mtx = data.get('camera_matrix')
+                self.dist_coeffs = data.get('dist_coeffs')
 
-SOURCE_VIDEO_DIR_PATH = 'test_video_input'
-TARGET_VIDEO_DIR_PATH = 'test_video_output'
+            self.new_camera_mtx, self.roi = cv2.getOptimalNewCameraMatrix(self.camera_mtx, self.dist_coeffs, (self.width, self.height), 0)
+            self.map1, self.map2 = cv2.initUndistortRectifyMap(self.camera_mtx, self.dist_coeffs, None, self.new_camera_mtx, (self.width, self.height), cv2.CV_16SC2)
+        else:
+            self.map1, self.map2 = None, None
+
+    def reset_counter(self):
+        self.counter.reset_counter()
+        self.byte_tracker.reset()
 
 
-def main():
+    def __load_params_from_dotenv(self, dotenv_path = './.env'):
+        load_dotenv(dotenv_path)
 
-    model = YOLO(MODEL_PATH)
+        self.model_path = environ.get('MODEL_PATH')
 
-    # Define region points
-    region_points = [(int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), 0), (int(WIDTH / 2) + int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT), (int(WIDTH / 2) - int(WIDTH * COUNTING_REGION_WIDTH_PERCENTAGE / 2), HEIGHT)]
+        self.category_model_path = environ.get('CATEGORY_MODEL_PATH')
 
-    # Init Object Counter
-    counter = solutions.ObjectCounter(
-        reg_pts=region_points,
-        names=model.names,
-        draw_tracks=True,
-        line_thickness=2,
-    )
+        model_imgsiz_from_env = environ.get('MODEL_IMGSZ')
+        if model_imgsiz_from_env == None or not model_imgsiz_from_env.isdigit():
+            self.model_imgsz = 1440
+        else:
+            self.model_imgsz = int(model_imgsiz_from_env)
 
-    source_videos = listdir(SOURCE_VIDEO_DIR_PATH)
+        self.camera_calibration_params_path = environ.get('CAMERA_CALIBRATION_PARAMS_PATH')
 
-    for i in range(0, len(source_videos)):
-        source_video_path = join(SOURCE_VIDEO_DIR_PATH, source_videos[i]) 
-        target_video_path = join(TARGET_VIDEO_DIR_PATH, source_videos[i]) 
-        video_info = sv.VideoInfo.from_video_path(source_video_path)
-        generator = sv.get_video_frames_generator(source_video_path)
-        with sv.VideoSink(target_video_path, video_info) as sink:
-            for frame in tqdm(generator, total=video_info.total_frames):
-                tracks = model.track(frame.copy(), persist=True, agnostic_nms=True)
+        self.counting_algorithm = environ.get('COUNTING_ALGORITHM', 'YOLO_CONSENSUS').lower()
 
-                processed_frame = counter.start_counting(frame.copy(), tracks)
-                
-                sink.write_frame(processed_frame)
+    def bulk_process_directory(self, source_dir: str, dest_dir: str):
+        if self.show_output:
+            cv2.namedWindow("Counti", cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty("Counti", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        source_videos = listdir(source_dir)
+
+        for i in range(0, len(source_videos)):
+            source_video_path = join(source_dir, source_videos[i]) 
+            target_video_path = join(dest_dir, source_videos[i])
+            self.process_video(source_video_path, target_video_path)
+
+        if self.show_output:
+            cv2.destroyAllWindows()
+            
+
+    def process_video(self, source_path: str, target_path: str):
+        video_info = sv.VideoInfo.from_video_path(source_path)
+        generator = sv.get_video_frames_generator(source_path)
+        with sv.VideoSink(target_path, video_info) as sink:
+            for bgr_frame in tqdm(generator, total=video_info.total_frames):
+                if self.map1 is not None and self.map2 is not None:
+                    bgr_frame = cv2.remap(bgr_frame, self.map1, None, None)
+                rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                results = self.model.predict(bgr_frame.copy(), imgsz=self.model_imgsz, agnostic_nms=True, verbose=False)[0]
+                detections = sv.Detections.from_ultralytics(results)
+                original_class_ids = detections.class_id
+                detections.class_id = np.full(original_class_ids.shape, 0)
+                detections = self.byte_tracker.update_with_detections(detections)
+                detections.class_id = original_class_ids
+                annotated_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+
+                if self.show_output:
+                    cv2.imshow("Counti", annotated_frame)
+                    cv2.waitKey(0)
+
+                sink.write_frame(annotated_frame)
+        self.reset_counter()
+
+
 
 if __name__ == "__main__":
-    main()
+    counter_video = CounterVideo()
+    source_dir = sys.argv[1]
+    dest_dir = sys.argv[2]
+
+    counter_video.bulk_process_directory(source_dir, dest_dir)

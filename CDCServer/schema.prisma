@@ -5,6 +5,7 @@ datasource db {
 
 generator client {
     provider             = "prisma-client-py"
+    previewFeatures      = ["relationJoins"]
     recursive_type_depth = 5
 }
 
@@ -107,11 +108,14 @@ model Correction {
     y1                          Int?
     x2                          Int?
     y2                          Int?
-    originalBBox                BBox?                @relation(fields: [originalBBoxId], references: [id])
-    originalBBoxId              String?              @db.Uuid
+    originalCorrectionId        String?             @db.Uuid
+    originalCorrection          Correction?         @relation("NestedCorrection", fields: [originalCorrectionId], references: [id])
+    newCorrection               Correction[]        @relation("NestedCorrection")
+    originalBBox                BBox?               @relation(fields: [originalBBoxId], references: [id])
+    originalBBoxId              String?             @db.Uuid
     imageInVerificationSession  ImageInVerificationSession? @relation(fields: [verificationSessionId, imageId], references: [verificationSessionId, imageId])
-    verificationSessionId       String?               @db.Uuid
-    imageId                     String               @db.Uuid
+    verificationSessionId       String?             @db.Uuid
+    imageId                     String              @db.Uuid
 
     @@index([originalBBoxId])
     @@index([verificationSessionId, imageId])

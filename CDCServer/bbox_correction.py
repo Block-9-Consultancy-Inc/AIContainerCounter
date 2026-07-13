@@ -5,6 +5,9 @@ import tqdm
 import copy
 import json
 from PIL import Image, ImageDraw
+from prisma import Prisma
+from prisma.enums import BBoxType, CorrectionType
+from asyncio import run
 
 # --- Configuration ---
 IOU_THRESHOLD = 0.9
@@ -13,6 +16,13 @@ FLOAT_COMPARISON_EPSILON = 1e-7
 
 
 # --- Helper Classes and Functions ---
+
+correction_counts = {
+    'CHANGED_COORDS': 0,
+    'CHANGED_LABEL': 0,
+    'ADDED_MISSING': 0,
+    'REMOVED_EXTRA': 0,
+}
 
 class BoundingBox:
     """
@@ -170,6 +180,7 @@ def calculate_corrections(before_bboxes_data: list, after_bboxes_data: list) -> 
             # If both label and coords change, two separate correction entries are made
             # for the same original_bbox_uuid, referencing the same final_bbox_data.
             if label_changed:
+                correction_counts["CHANGED_LABEL"] += 1
                 corrections.append({
                     "type": "CHANGED_LABEL",
                     "original_bbox_uuid": b_before.uuid,
@@ -182,6 +193,7 @@ def calculate_corrections(before_bboxes_data: list, after_bboxes_data: list) -> 
                 })
             
             if coords_changed:
+                correction_counts["CHANGED_COORDS"] += 1
                 corrections.append({
                     "type": "CHANGED_COORDS",
                     "original_bbox_uuid": b_before.uuid,
@@ -202,6 +214,7 @@ def calculate_corrections(before_bboxes_data: list, after_bboxes_data: list) -> 
         # Find the 'after' box corresponding to this temp_id
         b_added = next((ab for ab in after_boxes_list if ab.uuid == temp_id), None)
         if b_added: # Should always be found
+            correction_counts["ADDED_MISSING"] += 1
             corrections.append({
                 "type": "ADDED_MISSING",
                 "added_bbox_data": { # No original UUID for the added box itself
@@ -212,6 +225,7 @@ def calculate_corrections(before_bboxes_data: list, after_bboxes_data: list) -> 
 
     for before_id in unmatched_before_ids:
         b_removed = before_bboxes_map[before_id]
+        correction_counts["REMOVED_EXTRA"] += 1
         corrections.append({
             "type": "REMOVED_EXTRA",
             "original_bbox_uuid": b_removed.uuid,
@@ -296,7 +310,6 @@ def compare_after_lists(
         bool: True if different, False if same.
     """
     if len(after_list_A_no_uuid) != len(after_list_B_no_uuid):
-        print('here')
         return True # Different number of boxes
 
     if not after_list_A_no_uuid: # Both are empty if lengths matched
@@ -341,7 +354,6 @@ def compare_after_lists(
             if num_matches_found == num_boxes: # Optimization: if all found, no need to check more
                 break 
     
-    print(f'{num_matches_found=}, {num_boxes=}')
     return num_matches_found != num_boxes
 
 def calculate_iou_dict(box1, box2):
@@ -520,6 +532,8 @@ def extract_inputs_from_txt_files(annotation_file: str):
         class_index_str, center_x_str, center_y_str, width_str, height_str = line.split(' ')
         class_index, center_x, center_y, width, height = int(class_index_str), float(center_x_str) * 1920, float(center_y_str) * 1080, float(width_str) * 1920, float(height_str) * 1080
         label, x, y, w, h = classes[class_index], round(center_x - width / 2), round(center_y - height / 2), round(width), round(height)
+        if h == 0 or w == 0:
+            continue
         before.append({'uuid': str(line_index), 'x': x, 'y': y, 'w': w, 'h': h, 'label': label})
     
     with open(f'corrections_test_data/verified_annotations/{annotation_file}', 'r') as f:
@@ -532,6 +546,8 @@ def extract_inputs_from_txt_files(annotation_file: str):
         class_index_str, center_x_str, center_y_str, width_str, height_str = line.split(' ')
         class_index, center_x, center_y, width, height = int(class_index_str), float(center_x_str) * 1920, float(center_y_str) * 1080, float(width_str) * 1920, float(height_str) * 1080
         label, x, y, w, h = classes[class_index], round(center_x - width / 2), round(center_y - height / 2), round(width), round(height)
+        if h == 0 or w == 0:
+            continue
         after.append({'x': x, 'y': y, 'w': w, 'h': h, 'label': label})
     
     return annotation_file, before, after
@@ -545,6 +561,7 @@ def run_corrections_calculation_on_one_image(annotation_file: str, before: list,
 def run_on_prod_data():
     annotation_files = os.listdir('corrections_test_data/auto_annotations')
     inputs = []
+    total_auto_bboxes = 0
 
     with tqdm.tqdm(total=len(annotation_files), desc='Extracting inputs from annotation files') as pbar:
         with ThreadPoolExecutor(max_workers=20) as executor:
@@ -552,6 +569,7 @@ def run_on_prod_data():
             for future in as_completed(futures):
                 result = future.result()
                 inputs.append(result)
+                total_auto_bboxes += len(result[1])
                 pbar.update(1)
 
     outputs = []
@@ -569,25 +587,35 @@ def run_on_prod_data():
     print(f'Num of images with no change: {len(images_with_no_change)}')
     print(f'Num of images with different afters: {len(afters_are_not_same)}')
 
-    with open('afters_not_same.json', 'w') as f:
-        json.dump(list(map(lambda e: e[0], afters_are_not_same)), f, indent=4)
+    if len(afters_are_not_same) > 0:
+        with open('afters_not_same.json', 'w') as f:
+            json.dump(list(map(lambda e: e[0], afters_are_not_same)), f, indent=4)
+    print(f'total auto bboxes: {total_auto_bboxes}')
+    print(correction_counts)
+
+    
 
 def check_list_equality(list_1: list[dict], list_2: list[dict]) -> bool:
     if len(list_1) != len(list_2):
         return False
     
-    list_1.sort(key=lambda e: hash(str(e)))
-    list_2.sort(key=lambda e: hash(str(e)))
+    list_1_sorted = list(map(lambda e: dict(sorted(e.items())), list_1))
+    list_2_sorted = list(map(lambda e: dict(sorted(e.items())), list_2))
+    list_1_sorted.sort(key=lambda e: hash(str(e)))
+    list_2_sorted.sort(key=lambda e: hash(str(e)))
     
     for i in range(0, len(list_1)):
         item_1 = list_1[i]
         item_2 = list_2[i]
-        item_1_sorted = dict(sorted(item_1.items()))
-        item_2_sorted = dict(sorted(item_2.items()))
-        if hash(str(item_1_sorted)) != hash(str(item_2_sorted)):
+        if hash(str(item_1)) != hash(str(item_2)):
+            print(f'{item_1} does not match {item_2}')
             return False
         
     return True
+
+def check_list_equality_from_corrections(after: list, after_calculated: list) -> bool:
+    corrections = calculate_corrections(after_calculated, after)
+    return len(corrections) == 0
 
 def generate_image_with_bounding_boxes(boxes, image_size=(1920, 1080), background_color=(0, 0, 0), box_color=(255, 0, 0), box_thickness=2):
     """
@@ -634,13 +662,102 @@ def failing_tests():
 
     for annotation_file in afters_not_same:
         _, before, after = extract_inputs_from_txt_files(annotation_file)
-        corrections = calculate_corrections(before, after)
+        corrections = calculate_corrections(before, after)[:-1]
         calculated_after = apply_corrections(before, corrections)
-        # generated_image = generate_image_with_bounding_boxes(after)
-        # generated_image.save(annotation_file.replace('.txt', '.jpg'))
 
-        print(f'is different {compare_after_lists(calculated_after, after, comparison_iou_threshold=0.99)}')
-        print(f'equality test: {check_list_equality(after, calculated_after)}')
+        print(f'is different {compare_after_lists(after, calculated_after)}')
+
+async def run_on_prod_data_from_db():
+    db = Prisma(
+        http={
+            'timeout': None
+        },
+        auto_register=True
+    )
+
+    await db.connect()
+
+    total_auto_bboxes = 0
+    total_verified_bboxes = 0
+
+    print(f'getting data from db')
+    verified_images = await db.image.find_many(where={ 'bboxes': { 'some': { 'bboxType': BBoxType.ANNOTATION }}}, include={ 'bboxes': True })
+    print(f'got {len(verified_images)} verified images from db')
+
+    inputs = []
+
+    for verified_image in verified_images:
+        before_bboxes = list(map(lambda e: { 'uuid': e.id, 'x': e.x1, 'y': e.y1, 'w': e.x2 - e.x1, 'h': e.y2 - e.y1, 'label': e.label }, filter(lambda e: e.bboxType == BBoxType.DETECTION and e.y2 > e.y1 and e.x2 > e.x1, verified_image.bboxes)))
+        after_bboxes = list(map(lambda e: { 'x': e.x1, 'y': e.y1, 'w': e.x2 - e.x1, 'h': e.y2 - e.y1, 'label': e.label }, filter(lambda e: e.bboxType == BBoxType.ANNOTATION and e.y2 > e.y1 and e.x2 > e.x1, verified_image.bboxes)))
+        inputs.append((verified_image.id, before_bboxes, after_bboxes))
+        total_auto_bboxes += len(before_bboxes)
+        total_verified_bboxes += len(after_bboxes)
+
+    outputs = []
+
+    with tqdm.tqdm(total=len(inputs), desc='Calculating corrections') as pbar:
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = {executor.submit(run_corrections_calculation_on_one_image, *arg): arg for arg in inputs}
+            for future in as_completed(futures):
+                result = future.result()
+                outputs.append(result)
+                pbar.update(1)
+
+    images_with_no_change = list(filter(lambda e: len(e[1]) == 0, outputs))
+    afters_are_not_same = list(filter(lambda e: e[2], outputs))
+    print(f'Num of images with no change: {len(images_with_no_change)}')
+    print(f'Num of images with different afters: {len(afters_are_not_same)}')
+
+    if len(afters_are_not_same) > 0:
+        with open('afters_not_same.json', 'w') as f:
+            json.dump(list(map(lambda e: e[0], afters_are_not_same)), f, indent=4)
+    print(f'total auto bboxes: {total_auto_bboxes}')
+    print(correction_counts)
+
+    corrections_to_create = []
+    for image_id, corrections, afters_are_same in outputs:
+        for correction in corrections:
+            correction_to_add = None
+            if correction.get('type') == 'REMOVED_EXTRA':
+                correction_to_add = {
+                    'imageId': image_id,
+                    'correctionType': CorrectionType.REMOVED_EXTRA,
+                    'originalBBoxId': correction.get("original_bbox_uuid")
+                }
+            elif correction.get('type') == 'CHANGED_LABEL':
+                correction_to_add = {
+                    'imageId': image_id,
+                    'correctionType': CorrectionType.CHANGED_LABEL,
+                    'newLabel': correction.get('new_label'),
+                    'originalBBoxId': correction.get("original_bbox_uuid")
+                }
+            elif correction.get('type') == 'CHANGED_COORDS':
+                correction_to_add = {
+                    'imageId': image_id,
+                    'correctionType': CorrectionType.CHANGED_COORDS,
+                    'originalBBoxId': correction.get("original_bbox_uuid"),
+                    'x1': correction.get('new_coords').get('x'),
+                    'y1': correction.get('new_coords').get('y'),
+                    'x2': correction.get('new_coords').get('x') + correction.get('new_coords').get('w'),
+                    'y2': correction.get('new_coords').get('y') + correction.get('new_coords').get('h'),
+                }
+            elif correction.get('type') == 'ADDED_MISSING':
+                correction_to_add = {
+                    'imageId': image_id,
+                    'correctionType': CorrectionType.ADDED_MISSING,
+                    'x1': correction.get('added_bbox_data').get('coords').get('x'),
+                    'y1': correction.get('added_bbox_data').get('coords').get('y'),
+                    'x2': correction.get('added_bbox_data').get('coords').get('x') + correction.get('added_bbox_data').get('coords').get('w'),
+                    'y2': correction.get('added_bbox_data').get('coords').get('y') + correction.get('added_bbox_data').get('coords').get('h'),
+                }
+            corrections_to_create.append(correction_to_add)
+
+    print(f'{len(corrections_to_create)} corrections to create')
+    # corrections_created = await db.correction.create_many(data=corrections_to_create, skip_duplicates=True)
+    # print(f'{corrections_created} created in db')
+
+    await db.disconnect()
+
 
 if __name__ == "__main__":
-    failing_tests()
+    run(run_on_prod_data_from_db())

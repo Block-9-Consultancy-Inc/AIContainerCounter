@@ -1,56 +1,90 @@
 from datetime import datetime
 from typing import List, Optional
+import PIL.Image
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
-from prisma.models import Image, DatasetSnapshot
-from prisma.enums import DatasetSplit, DatasetSnapshotType
+from prisma.models import DatasetSnapshot
+from prisma.enums import DatasetSplit, ImageStatus, DatasetSnapshotType
 import random
 import traceback
 from server.dependencies import db
+import PIL
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import tqdm
+from server.routers.bbox_correction import run_corrections_calculation_on_one_image
 
 router = APIRouter(prefix="/datasetsnapshots")
 
+
+
 # Represents a bounding box from Roboflow
+
+
 class BBoxData(BaseModel):
-    center_x: float = Field(..., description="The center x coordinate of the bounding box normalized by image width.")
-    center_y: float = Field(..., description="The center y coordinate of the bounding box normalized by image height.")
-    width: float = Field(..., description="The width of the bounding box normalized by the image width.")
-    height: float = Field(..., description="The height of the bounding box normalized by the image height.")
+    center_x: float = Field(
+        ..., description="The center x coordinate of the bounding box normalized by image width.")
+    center_y: float = Field(
+        ..., description="The center y coordinate of the bounding box normalized by image height.")
+    width: float = Field(
+        ..., description="The width of the bounding box normalized by the image width.")
+    height: float = Field(
+        ..., description="The height of the bounding box normalized by the image height.")
     label: str = Field(..., description="The assigned label of the BBox.")
 
 
 # Represents an image and its assigned split for creation input
 class ImageSplitInput(BaseModel):
-    roboflowFileName: str = Field(..., description="The UUID of the Image to include.")
+    roboflowFileName: str = Field(...,
+                                  description="The UUID of the Image to include.")
     image_height: int = Field(..., description="The Image height in pixels.")
     image_width: int = Field(..., description="The Image width in pixels.")
-    bboxes: List[BBoxData] = Field(..., description="The list of verified bounding boxes on the Image.")
+    bboxes: List[BBoxData] = Field(
+        ..., description="The list of verified bounding boxes on the Image.")
 
 # Input model for creating a new DatasetSnapshot
+
+
 class DatasetSnapshotCreate(BaseModel):
-    description: Optional[str] = Field(None, description="Optional description for the snapshot.")
-    images: List[ImageSplitInput] = Field(..., description="List of newly verified roboflow images and their annotations.")
-    random_subsample_percentage: Optional[float] = Field(None, description="An optional random subsample percentage to incorporate old data into the newly-created dataset snapshot.")
+    description: Optional[str] = Field(
+        None, description="Optional description for the snapshot.")
+    images: List[ImageSplitInput] = Field(
+        ..., description="List of newly verified roboflow images and their annotations.")
+    random_subsample_percentage: Optional[float] = Field(
+        None, description="An optional random subsample percentage to incorporate old data into the newly-created dataset snapshot.")
 
 # Represents an image included in a snapshot for response output
+
+
 class ImageInSnapshotResponse(BaseModel):
     image_id: str = Field(..., description="The UUID of the included Image.")
-    batch_id: str = Field(..., description="The UUID of the batch of the Image.")
-    file_extension: str = Field(..., description="The file extension of the included Image.")
+    batch_id: str = Field(...,
+                          description="The UUID of the batch of the Image.")
+    file_extension: str = Field(...,
+                                description="The file extension of the included Image.")
     image_height: int = Field(..., description="The Image height in pixels.")
     image_width: int = Field(..., description="The Image width in pixels.")
-    bboxes: List[BBoxData] = Field(..., description="The list of verified bounding boxes on the Image.")
-    split: DatasetSplit = Field(..., description="The dataset split assigned to this image.")
+    bboxes: List[BBoxData] = Field(
+        ..., description="The list of verified bounding boxes on the Image.")
+    split: DatasetSplit = Field(...,
+                                description="The dataset split assigned to this image.")
 
 # Output model for representing a DatasetSnapshot
+
+
 class DatasetSnapshotResponse(BaseModel):
     id: str = Field(..., description="The UUID of the Dataset Snapshot.")
-    description: Optional[str] = Field(None, description="Description of the snapshot.")
-    created: datetime = Field(..., description="Timestamp when the snapshot was created.")
-    classes: List[str] = Field(..., description="List of classes included in the snapshot.")
-    train: List[ImageInSnapshotResponse] = Field(..., description="List of train images included in the snapshot.")
-    valid: List[ImageInSnapshotResponse] = Field(..., description="List of valid images included in the snapshot.")
-    test: List[ImageInSnapshotResponse] = Field(..., description="List of test images included in the snapshot.")
+    description: Optional[str] = Field(
+        None, description="Description of the snapshot.")
+    created: datetime = Field(...,
+                              description="Timestamp when the snapshot was created.")
+    classes: List[str] = Field(...,
+                               description="List of classes included in the snapshot.")
+    train: List[ImageInSnapshotResponse] = Field(
+        ..., description="List of train images included in the snapshot.")
+    valid: List[ImageInSnapshotResponse] = Field(
+        ..., description="List of valid images included in the snapshot.")
+    test: List[ImageInSnapshotResponse] = Field(
+        ..., description="List of test images included in the snapshot.")
 
     # Pydantic configuration for ORM mode (helps map Prisma models) - may not be strictly necessary with manual mapping
     # class Config:
@@ -71,10 +105,14 @@ class DatasetSnapshotResponse(BaseModel):
                 image_height=img_in_snap.image.height,
                 image_width=img_in_snap.image.width,
                 bboxes=[BBoxData(
-                    center_x=(bbox_in_image_snap.x1 + (bbox_in_image_snap.x2 - bbox_in_image_snap.x1) / 2) / img_in_snap.image.width,
-                    center_y=(bbox_in_image_snap.y1 + (bbox_in_image_snap.y2 - bbox_in_image_snap.y1) / 2) / img_in_snap.image.height,
-                    width=(bbox_in_image_snap.x2 - bbox_in_image_snap.x1) / img_in_snap.image.width,
-                    height=(bbox_in_image_snap.y2 - bbox_in_image_snap.y1) / img_in_snap.image.height,
+                    center_x=(bbox_in_image_snap.x1 + (bbox_in_image_snap.x2 -
+                              bbox_in_image_snap.x1) / 2) / img_in_snap.image.width,
+                    center_y=(bbox_in_image_snap.y1 + (bbox_in_image_snap.y2 -
+                              bbox_in_image_snap.y1) / 2) / img_in_snap.image.height,
+                    width=(bbox_in_image_snap.x2 -
+                           bbox_in_image_snap.x1) / img_in_snap.image.width,
+                    height=(bbox_in_image_snap.y2 -
+                            bbox_in_image_snap.y1) / img_in_snap.image.height,
                     label=bbox_in_image_snap.label,
                 ) for bbox_in_image_snap in img_in_snap.image.bboxes],
                 split=img_in_snap.split
@@ -99,13 +137,13 @@ class DatasetSnapshotResponse(BaseModel):
 # endregion DatasetSnapshot Models
 
 
-
-def chunk_id_to_split(chunk_id: str, seed = '42'):
+def chunk_id_to_split(chunk_id: str, seed='42'):
     random.seed(hash((chunk_id, seed)))
     values = [DatasetSplit.TRAIN, DatasetSplit.VALID, DatasetSplit.TEST]
 
     probabilities = [0.7, 0.2, 0.1]
     return random.choices(values, weights=probabilities, k=1)[0]
+
 
 def roboflow_image_file_name_to_id(roboflow_image_file_name: str):
     if 'prefix' in roboflow_image_file_name:
@@ -153,33 +191,68 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
             for img in snapshot_data.images
         ]
 
-        existing_images = {image.id: {'existing': image} for image in (await db.image.find_many(where={ 'id': { 'in': image_ids }}))}
+        images = await db.image.find_many(
+            where={
+                'AND': [
+                    {'id': {'in': image_ids}},
+                    { 
+                        'OR': [
+                            { 'imageStatus': ImageStatus.VERIFICATION_IN_PROGRESS },
+                            { 'imageStatus': ImageStatus.UNKNOWN }
+                        ]
+                    }
+                ]
+            },
+            include={
+                'bboxes': True,
+                'imageInVerificationSession': {
+                    'include': {
+                        'verificationSession': True,
+                        'corrections': { 'include': { 'originalBBox': True } }
+                    }
+                }
+            }
+        )
+
+        existing_images = {image.id: {'existing': image} for image in images}
+
         for roboflow_image in snapshot_data.images:
-            existing_image = existing_images.get(roboflow_image_file_name_to_id(roboflow_image.roboflowFileName))
+            existing_image = existing_images.get(
+                roboflow_image_file_name_to_id(roboflow_image.roboflowFileName))
             if existing_image is None:
                 continue
             existing_image['roboflow'] = roboflow_image
 
         image_links_to_create = [
-            {'imageId': image_id, 'split': chunk_id_to_split(old_and_new.get('existing').chunkId) }
+            {
+                'imageId': image_id,
+                'split': chunk_id_to_split( old_and_new.get('existing').chunkId)
+            }
             for image_id, old_and_new in existing_images.items()
         ]
+    
+        corrections_to_create = []
+        verification_sessions_to_update = set()
 
-        bboxes_to_create = []
+        with tqdm.tqdm(total=len(existing_images), desc='Calculating corrections') as pbar:
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                futures = {executor.submit(run_corrections_calculation_on_one_image, arg['existing'], arg['roboflow']): arg for arg in existing_images.values()}
+                for future in as_completed(futures):
+                    image, corrections, verification_session_id = future.result()
+                    corrections_to_create.extend(corrections)
+                    if verification_session_id is not None:
+                        verification_sessions_to_update.add(verification_session_id)
+                    pbar.update(1)
 
-        for image_id, old_and_new in existing_images.items():
-            roboflow_image: ImageSplitInput = old_and_new.get('roboflow')
-            existing_image: Image = old_and_new.get('existing')
-            bboxes_to_create.extend(list(map(lambda e: {
-                'label': e.label,
-                'imageId': existing_image.id,
-                'x1': max(0, round((e.center_x - e.width / 2) * roboflow_image.image_width)),
-                'y1': max(0, round((e.center_y - e.height / 2) * roboflow_image.image_height)),
-                'x2': min(roboflow_image.image_width, round((e.center_x + e.width / 2) * roboflow_image.image_width)),
-                'y2': min(roboflow_image.image_height, round((e.center_y + e.height / 2) * roboflow_image.image_height)),
-            }, roboflow_image.bboxes)))
+        num_corrections_created = await db.correction.create_many(data=corrections_to_create, skip_duplicates=True)
+        print(f'num corrections created: {num_corrections_created}')
 
-        await db.bbox.create_many(data=bboxes_to_create)
+        images_to_verify_ids = list(map(lambda e: e.id, filter(lambda e: e.imageStatus == ImageStatus.VERIFICATION_IN_PROGRESS, images)))
+        images_updated = await db.image.update_many(data={ 'imageStatus': ImageStatus.VERIFIED }, where={ 'id': { 'in': images_to_verify_ids }})
+        print(f'images updated: {images_updated}')
+
+        verification_sessions_updated = await db.verificationsession.update_many(data={ 'timeCompleted': datetime.now() }, where={ 'id': { 'in': list(verification_sessions_to_update) }})
+        print(f'verification sessions updated: {verification_sessions_updated}')
 
         # Create the DatasetSnapshot and its related ImageInDatasetSnapshot entries in one transaction
         new_snapshot = await db.datasetsnapshot.create(
@@ -192,15 +265,16 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
                 }
             },
             # Include the related data in the response from Prisma
-            include={'imageInDatasetSnapshot':  { 'include': { 'image': { 'include': { 'bboxes': True }}}}}
+            include={'imageInDatasetSnapshot':  {
+                'include': {'image': {'include': {'bboxes': True}}}}}
         )
 
         return await DatasetSnapshotResponse.from_dataset_snapshot(new_snapshot)
-    
+
     except Exception as e:
         # Catch potential errors during database operation (e.g., foreign key constraint if imageId doesn't exist)
         # In a production scenario, log the error 'e' and potentially check for specific Prisma/DB errors
-        print(f"Error creating dataset snapshot: {e}") # Basic logging
+        print(f"Error creating dataset snapshot: {e}")  # Basic logging
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -227,7 +301,9 @@ async def get_dataset_snapshot(snapshot_id: str):
     """
     snapshot = await db.datasetsnapshot.find_unique(
         where={'id': snapshot_id},
-        include={'imageInDatasetSnapshot': { 'include': { 'image': { 'include': { 'bboxes': True }} }}}  # Ensure related images are fetched
+        include={'imageInDatasetSnapshot': {'include': {
+            # Ensure related images are fetched
+            'image': {'include': {'bboxes': True}}}}}
     )
 
     if not snapshot:
@@ -235,5 +311,5 @@ async def get_dataset_snapshot(snapshot_id: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset Snapshot with ID '{snapshot_id}' not found."
         )
-    
+
     return await DatasetSnapshotResponse.from_dataset_snapshot(snapshot)

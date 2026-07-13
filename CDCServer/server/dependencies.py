@@ -19,6 +19,14 @@ db = Prisma(
 
 http_client = AsyncClient()
 
-roboflow_project = roboflow.Roboflow(api_key=get_settings().roboflow_api_key).workspace(get_settings().roboflow_workspace).project(get_settings().roboflow_project)
+settings = get_settings()
 
-s3_session = aioboto3.Session(aws_access_key_id=get_settings().aws_access_key_id, aws_secret_access_key=get_settings().aws_secret_access_key)
+roboflow_project: roboflow.Roboflow | None = None
+
+if settings.roboflow_api_key is not None and settings.roboflow_project is not None and settings.roboflow_workspace is not None:
+    roboflow_project = roboflow.Roboflow(api_key=settings.roboflow_api_key).workspace(settings.roboflow_workspace).project(settings.roboflow_project)
+
+s3_session: aioboto3.Session | None = None
+
+if settings.aws_access_key_id is not None and settings.aws_s3_bucket is not None and settings.aws_secret_access_key is not None:
+    s3_session = aioboto3.Session(aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key)

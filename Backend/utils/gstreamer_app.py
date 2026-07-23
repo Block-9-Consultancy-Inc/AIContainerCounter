@@ -53,6 +53,7 @@ def dummy_app_callback(pad, info, user_data):
     num_of_frames += 1
     prev_time = current_time
 
+    print(f'PTS: {buffer.pts}')
     print(f'avg fps: {(1 / avg_frame_time):.2f}')
 
     return Gst.PadProbeReturn.OK
@@ -228,7 +229,7 @@ class GStreamerApp:
                 sys.exit(1)
 
 
-    def bus_call(self, bus, message, loop):
+    def bus_call(self, bus, message, loop=None):
         t = message.type
         if t == Gst.MessageType.EOS:
             print("End-of-stream")
@@ -472,8 +473,12 @@ def disable_qos(pipeline):
 
 
 if __name__ == '__main__':
-    gstreamer_app = GStreamerApp('/dev/video2', AppCallback())
+    def on_stopped():
+        pass
+    gstreamer_app = GStreamerApp(video_source='/dev/video0', user_data=AppCallback(), first_file_name='test.avi', width=1920, height=1080, fps=120, on_state_changed=lambda e: e, on_stopped=on_stopped)
+    gstreamer_app.collect_raw_frames = False
     gstreamer_app.app_callback = dummy_app_callback
     gstreamer_app.data_collection_callback = dummy_data_collection_callback
     gstreamer_app.create_pipeline()
     gstreamer_app.run()
+    GLib.MainLoop().run()

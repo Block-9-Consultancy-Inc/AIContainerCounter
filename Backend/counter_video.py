@@ -121,34 +121,36 @@ class CounterVideo:
         # Open output writer
         out = cv2.VideoWriter(target_path, fourcc, 30, (self.width, self.height))
         frame_idx = 0
-        while True:
-            ret, bgr_frame = cap.read()
-            if not ret:
-                break  # No more frames or error
+        with tqdm(total=100000, desc=f'processing {source_path}') as pbar:
+            while True:
+                ret, bgr_frame = cap.read()
+                if not ret:
+                    break  # No more frames or error
 
-            if self.map1 is not None and self.map2 is not None:
-                bgr_frame = cv2.remap(bgr_frame, self.map1, None, None)
-            rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-            results = self.model.predict(bgr_frame.copy(), imgsz=self.model_imgsz, agnostic_nms=True, verbose=False)[0]
-            detections = sv.Detections.from_ultralytics(results)
-            original_class_ids = detections.class_id
-            detections.class_id = np.full(original_class_ids.shape, 0)
-            detections = self.byte_tracker.update_with_detections(detections)
-            detections.class_id = original_class_ids
-            annotated_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
+                if self.map1 is not None and self.map2 is not None:
+                    bgr_frame = cv2.remap(bgr_frame, self.map1, None, None)
+                rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                results = self.model.predict(bgr_frame.copy(), imgsz=self.model_imgsz, agnostic_nms=True, verbose=False)[0]
+                detections = sv.Detections.from_ultralytics(results)
+                original_class_ids = detections.class_id
+                detections.class_id = np.full(original_class_ids.shape, 0)
+                detections = self.byte_tracker.update_with_detections(detections)
+                detections.class_id = original_class_ids
+                annotated_frame, payload = self.counter.trigger(bgr_frame, rgb_frame, detections)
 
-            if self.show_output:
-                cv2.imshow("Counti", annotated_frame)
-                cv2.waitKey(1)
+                if self.show_output:
+                    cv2.imshow("Counti", annotated_frame)
+                    cv2.waitKey(1)
 
-            out.write(annotated_frame)
+                out.write(annotated_frame)
 
-            frame_idx += 1
+                frame_idx += 1
+                pbar.update()
 
         cap.release()
         out.release()
 
-        output_json_filename = target_path.replace('.mp4', '.json')
+        output_json_filename = target_path.replace('.avi', '.json')
         with open(output_json_filename, 'w') as f:
             json.dump(self.counter.current_count(), f, indent=4)
         self.reset_counter()

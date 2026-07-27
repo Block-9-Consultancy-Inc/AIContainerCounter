@@ -13,14 +13,14 @@ import tqdm
 import os
 from dotenv import dotenv_values
 import signal
+import cv2
+import multiprocessing
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstPbutils', '1.0')
 from gi.repository import Gst, GstPbutils
 
 Gst.init(sys.argv[0:1])
-
-VIRTUAL_CAMERA='/dev/video2'
 
 stop_now = False
 
@@ -39,17 +39,54 @@ def get_file_duration(file: Path) -> float:
     
     return duration_in_seconds
 
-def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str, loop = False):
+def start_video_stream_to_v4l2loopback_dummy_device(test_video_file_path: str, loop = False, camera_id = 0):
     if loop:
-        process = Popen(['ffmpeg', '-stream_loop', '-1', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
+        process = Popen(['ffmpeg', '-stream_loop', '-1', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', f'/dev/video{camera_id}'], stdout=DEVNULL, stderr=DEVNULL)
     else:
-        process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', VIRTUAL_CAMERA], stdout=DEVNULL, stderr=DEVNULL)
+        process = Popen(['ffmpeg', '-re', '-i', test_video_file_path, '-c:v', 'copy', '-f', 'v4l2', f'/dev/video{camera_id}'], stdout=DEVNULL, stderr=DEVNULL)
     return process
 
 
 def start_detection_process(dotenv_path: str):
     process = Popen(['python', 'counter_app.py', dotenv_path, 'test'], stdout=DEVNULL, stderr=DEVNULL)
     return process
+
+def video_writer(event_queue: multiprocessing.Queue):
+    jpeg = TurboJPEG()
+    writers = {}  # Dictionary to hold VideoWriter objects
+
+    while True:
+        event = event_queue.get()
+
+        if event is None:  # Use None to signal shutdown
+            break
+
+        event_type = event["type"]
+        test_case_id = event["test_case_id"]
+
+        if event_type == "test_case_start":
+            # Create output directory if not exists
+            output_path = event.get('dest_file_path')
+
+            # Initialize VideoWriter
+            frame_size = tuple(event["frame_size"])  # (width, height)
+            fps = event.get("fps", 20)
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+            writers[test_case_id] = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+
+        elif event_type == "test_case_frame":
+            encoded_frame = event["encoded_frame"]
+            if test_case_id in writers:
+                base64_decoded = base64.b64decode(encoded_frame)
+                decoded_frame = jpeg.decode(base64_decoded)
+                writers[test_case_id].write(decoded_frame)
+
+        elif event_type == "test_case_end":
+            if test_case_id in writers:
+                writer_to_release = writers[test_case_id]
+                del writers[test_case_id]
+                writer_to_release.release()
 
 def sleep_with_progress(duration: float, description: str):
     remaining_duration = duration
@@ -68,10 +105,14 @@ def calculate_accuracy(expected: int, actual: int) -> float:
         actual += 1
     return max(1 - ((abs(actual - expected)) / expected), 0) * 100
 
-def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
+def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str, camera_id = 0):
     test_starting_time = perf_counter()
-    jpeg = TurboJPEG()
     client = socketio.Client()
+   # Create the event queue
+    frame_writer_queue = multiprocessing.Queue()
+    # Start the video writer process
+    video_writer_process = multiprocessing.Process(target=video_writer, args=[frame_writer_queue])
+    video_writer_process.start()
 
     current_test_iteration_frame_time_metrics = {}
     current_test_iteration_counting_result = {
@@ -82,7 +123,6 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         'gabletop_count': 0,
         'pouch_count': 0
     }
-    current_test_iteration_frames = []
     current_test_case = None
     client_initializing = True
     batch_done = False
@@ -97,7 +137,12 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         current_test_iteration_counting_result['drinkbox_count'] = max(message.get('drinkbox_count'), current_test_iteration_counting_result['drinkbox_count'])
         current_test_iteration_counting_result['gabletop_count'] = max(message.get('gabletop_count'), current_test_iteration_counting_result['gabletop_count'])
         current_test_iteration_counting_result['pouch_count'] = max(message.get('pouch_count'), current_test_iteration_counting_result['pouch_count'])
-        # current_test_iteration_frames.append(message.get('encoded_frame'))
+        frame_writer_queue.put({
+            'type': 'test_case_frame',
+            'test_case_id': current_test_case,
+            'encoded_frame': message.get('encoded_frame')
+        })
+
     @client.on('frame_time')
     def on_frame_time(message):
         if message.get('current_test_case') != current_test_case:
@@ -139,7 +184,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         print('initializing counter app with empty frames')
         intro_file = f'{src_folder}/intro.avi'
         video_duration = get_file_duration(Path(intro_file))
-        video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True)
+        video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True, camera_id=camera_id)
         waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 5, f'Waiting for intro video to finish to initialize counter app'])
         counter_app_process = start_detection_process(current_env_path)
         waiting_thread.start()
@@ -195,8 +240,20 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                 else:
                     print(f'No results json exists for {batch} {test_video_file_name}')
 
+                current_test_case = f'{current_env_name}/{batch}/{test_video_file_name}'
+                client.emit('new-test-case', current_test_case)
+
+                current_test_video_file_name = test_video_file_name.split('.')[0]
+                frame_writer_queue.put({
+                    'type': 'test_case_start',
+                    'test_case_id': current_test_case,
+                    'dest_file_path': f'{current_batch_dest_folder}/{current_test_video_file_name}.mp4',
+                    'fps': float(current_env_fps),
+                    'frame_size': (int(current_env_width), int(current_env_height))
+                })
+
                 video_duration = get_file_duration(Path(file))
-                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file)
+                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(file, camera_id=camera_id)
                 waiting_thread = Thread(target=sleep_with_progress, args=[video_duration + 2, f'Running test {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batches} for env {env} {env_index+1}/{num_of_dotenv_files}'])
                 waiting_thread.start()
                 waiting_thread.join()
@@ -210,9 +267,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     counter_app_process.wait()
                     sys.exit(0)
                 
-                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True)
-                current_test_case = f'{current_env_name}/{batch}/{test_video_file_name}'
-                client.emit('new-test-case', current_test_case)
+                video_playback_process = start_video_stream_to_v4l2loopback_dummy_device(intro_file, loop=True, camera_id=camera_id)
                 client.emit('reset-count', 'reset-count')
                 while not batch_done:
                     print('batch not done yet')
@@ -225,6 +280,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                         counter_app_process.wait()
                         sys.exit(0)
                     sleep(0.25)
+                
                 batch_done = False
                 waiting_thread = Thread(target=sleep_with_progress, args=[3, f'Waiting 3 seconds for all socket io events to be transmitted'])
                 waiting_thread.start()
@@ -246,16 +302,6 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
 
                 current_batch_results.append(current_test_iteration_counting_result)
                 current_env_results.append(current_test_iteration_counting_result)
-                current_test_video_file_name = test_video_file_name.split('.')[0]
-                # with sv.VideoSink(f'{current_batch_dest_folder}/{current_test_video_file_name}.mp4', sv.VideoInfo(height=int(current_env_height), width=int(current_env_width), fps=current_env_fps, total_frames=len(current_test_iteration_frames))) as video_sink:
-                #     with tqdm.tqdm(current_test_iteration_frames, f'saving output frames to file for {test_video_file_name} {test_video_index+1}/{num_of_video_files} for batch {batch} {batch_index + 1}/{num_of_batches} for env {env} {env_index+1}/{num_of_dotenv_files}') as pbar:
-                #         for encoded_frame in current_test_iteration_frames:
-                #             base64_decoded = base64.b64decode(encoded_frame)
-                #             decoded_frame = jpeg.decode(base64_decoded)
-                #             video_sink.write_frame(decoded_frame)
-                #             pbar.update()
-                #             if stop_now:
-                #                 break
 
                 current_iteration_end = perf_counter()
 
@@ -267,7 +313,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     'avg_drinkbox_accuracy': sum(list(map(lambda e: e.get('drinkbox_accuracy'), current_batch_results))) / len(current_batch_results),
                     'avg_gabletop_accuracy': sum(list(map(lambda e: e.get('gabletop_accuracy'), current_batch_results))) / len(current_batch_results),
                     'avg_pouch_accuracy': sum(list(map(lambda e: e.get('pouch_accuracy'), current_batch_results))) / len(current_batch_results),
-                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_batch_results))) / len(current_batch_results),
+                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_frame_latencies').get('fps'), current_batch_results))) / len(current_batch_results),
                     'time_s': current_iteration_end - current_batch_start
                 }
 
@@ -282,7 +328,7 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     'avg_drinkbox_accuracy': sum(list(map(lambda e: e.get('drinkbox_accuracy'), current_env_results))) / len(current_env_results),
                     'avg_gabletop_accuracy': sum(list(map(lambda e: e.get('gabletop_accuracy'), current_env_results))) / len(current_env_results),
                     'avg_pouch_accuracy': sum(list(map(lambda e: e.get('pouch_accuracy'), current_env_results))) / len(current_env_results),
-                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_fps'), current_env_results))) / len(current_env_results),
+                    'avg_fps': sum(list(map(lambda e: e.get('frame_time_metrics').get('avg_frame_latencies').get('fps'), current_env_results))) / len(current_env_results),
                     'time_s': current_iteration_end - current_env_start
                 }
 
@@ -305,7 +351,11 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
                     'gabletop_count': 0,
                     'pouch_count': 0
                 }
-                current_test_iteration_frames = []
+
+                frame_writer_queue.put({
+                    'type': 'test_case_end',
+                    'test_case_id': current_test_case,
+                })
 
                 if stop_now:
                     counter_app_process.terminate()
@@ -318,9 +368,11 @@ def counter_app_tester(src_folder: str, dest_folder: str, env_folder: str):
         counter_app_process.terminate()
         print('waiting for counter app process to terminate')
         counter_app_process.wait()
+        frame_writer_queue.put(None)
 
 if __name__ == '__main__':
     src_folder = sys.argv[1]
     dest_folder = sys.argv[2]
     env_folder = sys.argv[3]
-    counter_app_tester(src_folder, dest_folder, env_folder)
+    camera_id = os.environ.get('CAMERA_ID', 0)
+    counter_app_tester(src_folder, dest_folder, env_folder, camera_id=camera_id)

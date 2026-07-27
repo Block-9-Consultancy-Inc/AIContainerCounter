@@ -83,7 +83,7 @@ def get_caps_from_pad(pad: Gst.Pad):
 # Pipeline helper functions
 #---------------------------------------------------------
 
-def QUEUE(name, max_size_buffers=6, max_size_bytes=0, max_size_time=0, leaky='no'):
+def QUEUE(name, max_size_buffers=12, max_size_bytes=0, max_size_time=0, leaky='downstream'):
     """
     Creates a GStreamer queue element string with the specified parameters.
 
@@ -292,7 +292,7 @@ class GStreamerApp:
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(self.video_source, video_width=self.width, video_height=self.height, fps=self.fps)
         user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        display_pipeline = 'fakesink'
+        display_pipeline = 'fakesink sync=true'
         pipeline_string = (
             f'{source_pipeline} '
             f'{user_callback_pipeline} ! '

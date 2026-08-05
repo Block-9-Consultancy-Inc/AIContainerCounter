@@ -1,7 +1,6 @@
 from prisma import Prisma
 from functools import lru_cache
 from server import config
-import roboflow
 import aioboto3
 from httpx import AsyncClient
 
@@ -20,11 +19,6 @@ db = Prisma(
 http_client = AsyncClient()
 
 settings = get_settings()
-
-roboflow_project: roboflow.Roboflow | None = None
-
-if settings.roboflow_api_key is not None and settings.roboflow_project is not None and settings.roboflow_workspace is not None:
-    roboflow_project = roboflow.Roboflow(api_key=settings.roboflow_api_key).workspace(settings.roboflow_workspace).project(settings.roboflow_project)
 
 s3_session: aioboto3.Session | None = None
 

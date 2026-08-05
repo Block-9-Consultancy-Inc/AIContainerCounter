@@ -44,6 +44,17 @@ class SummaryResponse(BaseModel):
     overall_summary: OverallSummary = Field(..., description="Overall summary for date range given")
     per_user_summary: List[UserSummary] = Field([], description="Summary metrics per user")
     
+class NumImagesReadyResponse(BaseModel):
+    num_of_images_ready_for_verification: int = Field(..., description="Number of images that are ready for verificaton")
+
+
+@router.get("/num-images-ready", response_model=NumImagesReadyResponse, tags=["Metrics"])
+async def get_num_of_images_ready():
+    num_of_images_ready_for_verification: int = (await db.query_first('SELECT COUNT(DISTINCT id) as count FROM "Image" WHERE "imageStatus" = \'ON_QUEUE\';')).get('count', 0)
+    return NumImagesReadyResponse(
+        num_of_images_ready_for_verification=num_of_images_ready_for_verification
+    )
+
 @router.post("/summary", response_model=SummaryResponse, tags=["Metrics"])
 async def get_summary(
     input: SummaryInput

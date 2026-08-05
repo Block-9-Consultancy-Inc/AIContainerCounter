@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import List, Optional
-import PIL.Image
 from fastapi import HTTPException, status, APIRouter
 from pydantic import BaseModel, Field
 from prisma.models import DatasetSnapshot
@@ -14,7 +13,6 @@ import tqdm
 from server.routers.bbox_correction import run_corrections_calculation_on_one_image
 
 router = APIRouter(prefix="/datasetsnapshots")
-
 
 
 # Represents a bounding box from Roboflow
@@ -195,10 +193,10 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
             where={
                 'AND': [
                     {'id': {'in': image_ids}},
-                    { 
+                    {
                         'OR': [
-                            { 'imageStatus': ImageStatus.VERIFICATION_IN_PROGRESS },
-                            { 'imageStatus': ImageStatus.UNKNOWN }
+                            {'imageStatus': ImageStatus.VERIFICATION_IN_PROGRESS},
+                            {'imageStatus': ImageStatus.UNKNOWN}
                         ]
                     }
                 ]
@@ -208,7 +206,7 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
                 'imageInVerificationSession': {
                     'include': {
                         'verificationSession': True,
-                        'corrections': { 'include': { 'originalBBox': True } }
+                        'corrections': {'include': {'originalBBox': True}}
                     }
                 }
             }
@@ -226,33 +224,37 @@ async def create_dataset_snapshot(snapshot_data: DatasetSnapshotCreate):
         image_links_to_create = [
             {
                 'imageId': image_id,
-                'split': chunk_id_to_split( old_and_new.get('existing').chunkId)
+                'split': chunk_id_to_split(old_and_new.get('existing').chunkId)
             }
             for image_id, old_and_new in existing_images.items()
         ]
-    
+
         corrections_to_create = []
         verification_sessions_to_update = set()
 
         with tqdm.tqdm(total=len(existing_images), desc='Calculating corrections') as pbar:
             with ThreadPoolExecutor(max_workers=20) as executor:
-                futures = {executor.submit(run_corrections_calculation_on_one_image, arg['existing'], arg['roboflow']): arg for arg in existing_images.values()}
+                futures = {executor.submit(run_corrections_calculation_on_one_image,
+                                           arg['existing'], arg['roboflow']): arg for arg in existing_images.values()}
                 for future in as_completed(futures):
                     image, corrections, verification_session_id = future.result()
                     corrections_to_create.extend(corrections)
                     if verification_session_id is not None:
-                        verification_sessions_to_update.add(verification_session_id)
+                        verification_sessions_to_update.add(
+                            verification_session_id)
                     pbar.update(1)
 
         num_corrections_created = await db.correction.create_many(data=corrections_to_create, skip_duplicates=True)
         print(f'num corrections created: {num_corrections_created}')
 
-        images_to_verify_ids = list(map(lambda e: e.id, filter(lambda e: e.imageStatus == ImageStatus.VERIFICATION_IN_PROGRESS, images)))
-        images_updated = await db.image.update_many(data={ 'imageStatus': ImageStatus.VERIFIED }, where={ 'id': { 'in': images_to_verify_ids }})
+        images_to_verify_ids = list(map(lambda e: e.id, filter(
+            lambda e: e.imageStatus == ImageStatus.VERIFICATION_IN_PROGRESS, images)))
+        images_updated = await db.image.update_many(data={'imageStatus': ImageStatus.VERIFIED}, where={'id': {'in': images_to_verify_ids}})
         print(f'images updated: {images_updated}')
 
-        verification_sessions_updated = await db.verificationsession.update_many(data={ 'timeCompleted': datetime.now() }, where={ 'id': { 'in': list(verification_sessions_to_update) }})
-        print(f'verification sessions updated: {verification_sessions_updated}')
+        verification_sessions_updated = await db.verificationsession.update_many(data={'timeCompleted': datetime.now()}, where={'id': {'in': list(verification_sessions_to_update)}})
+        print(
+            f'verification sessions updated: {verification_sessions_updated}')
 
         # Create the DatasetSnapshot and its related ImageInDatasetSnapshot entries in one transaction
         new_snapshot = await db.datasetsnapshot.create(

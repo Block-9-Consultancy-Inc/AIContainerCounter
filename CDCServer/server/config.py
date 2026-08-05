@@ -8,12 +8,10 @@ class Settings(BaseSettings):
     db_url: str
     api_key: str
     python_env: str = 'DEVELOPMENT'
-    roboflow_api_key: Optional[str] = None
-    roboflow_workspace: Optional[str] = None
-    roboflow_project: Optional[str] = None
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_s3_bucket: Optional[str] = None
+    aws_s3_prefix: Optional[str] = None
     pulse_access_key: Optional[str] = None
     temp_data_dir: str = './temp_data_dir'
     

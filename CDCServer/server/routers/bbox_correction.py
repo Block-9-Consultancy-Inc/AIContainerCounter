@@ -359,6 +359,8 @@ def resolve_original_uuid(correction: dict, previous_corrections: dict):
             return None
         if correction.get('original_bbox_id') is not None:
             return correction.get('original_bbox_id')
+        if correction.get('original_bbox_uuid') is not None:
+            return correction.get('original_bbox_uuid')
         correction = previous_corrections.get(correction.get('original_correction_id'))
 
 # --- New Function 1: Apply Corrections ---

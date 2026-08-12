@@ -25,7 +25,6 @@ router = APIRouter(prefix="/tasks")
 NUM_OF_IMAGES_PER_TASK = 20
 
 class AssignTaskInput(BaseModel):
-    num_of_tasks: int = Field(5, gt=0, le=10, description="Number of tasks to assign (maximum 10)")
     user_id: str
 
 class CreatedTask(BaseModel):
@@ -33,10 +32,10 @@ class CreatedTask(BaseModel):
     image_count: int
 
 class AssignTaskResponse(BaseModel):
-    created_tasks: List[CreatedTask] = Field([], description="The created tasks that were uploaded to Roboflow.")
+    task: CreatedTask = Field(..., description="The task that was created.")
     images: List[Image] = Field([], description="The images that were assigned to the tasks.")
 class GetActiveTaskResponse(BaseModel):
-    active_task: Optional[CreatedTask] = Field(None, description="The active task that is currently assigned to the user.") # CreatedTask is used here to keep consistency with the AssignTaskResponse
+    task: Optional[CreatedTask] = Field(None, description="The active task that is currently assigned to the user.") # CreatedTask is used here to keep consistency with the AssignTaskResponse
     images: List[Image] = Field([], description="The images that are part of the active task.")
 
 class CompleteTaskInput(BaseModel):
@@ -289,7 +288,7 @@ async def assign_tasks(input: AssignTaskInput):
                 raise HTTPException(status_code=400, detail=f"Need to wait 10 seconds, only {seconds_since_last_assignment} passed")
             
         # --- Execute Query ---
-        num_of_images = input.num_of_tasks * NUM_OF_IMAGES_PER_TASK
+        num_of_images = NUM_OF_IMAGES_PER_TASK
         image_ids, image_info = await fetch_and_mark_images(num_of_images)
         batches = list(set([image['batchId'] for image in image_info]))
 
@@ -351,7 +350,7 @@ async def assign_tasks(input: AssignTaskInput):
             ))
 
         return AssignTaskResponse(
-            created_tasks=list(map(lambda e: CreatedTask(task_name=e.task_name, image_count=e.image_count), pulse_tasks_to_create)),
+            created_tasks=CreatedTask(task_name=pulse_tasks_to_create[0].task_name, image_count=NUM_OF_IMAGES_PER_TASK),
             images = list(images_map.values())
         )
     

@@ -7,7 +7,6 @@ from prisma.enums import DatasetSplit, ImageStatus, DatasetSnapshotType
 import random
 import traceback
 from server.dependencies import db
-import PIL
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import tqdm
 from server.routers.bbox_correction import run_corrections_calculation_on_one_image

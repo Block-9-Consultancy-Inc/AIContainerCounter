@@ -190,6 +190,8 @@ model Batch {
     timeSubmitted               DateTime
     miscellaneousNotes          String?
     areaCollected               String?
+    batchType                   BatchType           @default(AUDIT)
+    batchIDByType               String?             @unique
     countiUnit                  CountiUnit          @relation(fields: [countiUnitId], references: [id])
     countiUnitId                String
     countingStrategy            CountingStrategy
@@ -200,6 +202,13 @@ model Batch {
     images                      Image[]
     video                       Video?
     tags                        BatchWithTag[]
+}
+
+enum BatchType  {
+    EXPRESS
+    EAZYPICKUP
+    DENSIFIER
+    AUDIT
 }
 
 model BatchWithTag {

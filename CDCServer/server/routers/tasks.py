@@ -1,7 +1,7 @@
 from typing import List, Tuple, Dict, Optional
 from fastapi import HTTPException, APIRouter, status
 from pydantic import BaseModel, Field
-from prisma.enums import ImageStatus
+from prisma.enums import ImageStatus, BatchType
 from prisma.models import Image, VerificationSession
 from server.dependencies import db, get_settings, s3_session, http_client
 import uuid
@@ -113,16 +113,16 @@ def cast_uuid_to_text(uuids: list[str]) -> str:
             output += ')'
     return output
 
-async def fetch_and_mark_images(num_of_images: int) -> Tuple[List[str], List[Dict[str, str]]]:
+async def fetch_and_mark_images(num_of_images: int, is_from_densifier: bool = False) -> Tuple[List[str], List[Dict[str, str]]]:
     try:
         async with db.tx() as tx:
             # Step 1: Select and lock the images
             rows = await tx.query_raw(f"""
                 SELECT i.id, i."batchId", i.index FROM "Image" i
                 INNER JOIN "Batch" b ON b.id = i."batchId"
-                WHERE "imageStatus" = '{ImageStatus.ON_QUEUE}'
+                WHERE i."imageStatus" = '{ImageStatus.ON_QUEUE}' AND b."batchType" {'=' if is_from_densifier else '!='} '{BatchType.DENSIFIER}'
                 ORDER BY b."timeSubmitted" DESC, i."batchId", i."index" ASC
-                FOR UPDATE SKIP LOCKED
+                FOR UPDATE OF i SKIP LOCKED
                 LIMIT {num_of_images}
             """)
             image_ids = [row['id'] for row in rows]

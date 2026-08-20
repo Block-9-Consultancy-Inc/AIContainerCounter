@@ -57,6 +57,8 @@ class BatchInput(BaseModel):
     area_collected: Optional[str]
     container_model_id: Optional[str]
     category_model_id: Optional[str]
+    batch_type: str
+    batch_id_by_type: str
     counting_strategy: CountingStrategy
     images: List[ImageInBatchInput]
     tags:   Optional[List[str]]
@@ -137,6 +139,8 @@ async def upload_daily_counti_metadata(input: UploadDailyCountiMetadataInput):
                 timeSubmitted=batch.time_submitted,
                 miscellaneousNotes=batch.misc_notes,
                 areaCollected=batch.area_collected,
+                batchType=batch.batch_type,
+                batchIDByType=batch.batch_id_by_type,
                 countiUnitId=input.counti_unit_id,
                 countingStrategy=batch.counting_strategy,
                 containerModelId=batch.container_model_id,

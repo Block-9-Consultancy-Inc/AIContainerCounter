@@ -55,6 +55,17 @@ async def get_num_of_images_ready():
         num_of_images_ready_for_verification=num_of_images_ready_for_verification
     )
 
+def raw_sql_list(start_index: int, length: int) -> str:
+    if length <= 0:
+        return '()'
+    raw_sql_list = '('
+    i = 0
+    while i < length - 1:
+        raw_sql_list += f'${i + start_index}, '
+        i += 1
+    raw_sql_list +=f'${start_index + length - 1})'
+    return raw_sql_list
+
 @router.post("/summary", response_model=SummaryResponse, tags=["Metrics"])
 async def get_summary(
     input: SummaryInput
@@ -75,20 +86,20 @@ async def get_summary(
 
     per_user_summaries: dict[str, UserSummary] = {}
     
-    correction_type_per_user_result = await db.query_raw('''
+    correction_type_per_user_result = await db.query_raw(f'''
         SELECT COUNT(DISTINCT c.id) as "corr_count", c."correctionType", vs."userId"
         FROM "VerificationSession" vs LEFT JOIN "Correction" c ON c."verificationSessionId" = vs.id
-        WHERE vs."timeCompleted" IS NOT NULL AND vs."timeAssigned" > $1::timestamp without time zone AND vs."timeAssigned" < $2::timestamp without time zone AND c."correctionType" IS NOT NULL
-        GROUP BY vs."userId", c."correctionType";''', input.start_time, input.end_time)
+        WHERE vs."timeCompleted" IS NOT NULL AND vs."timeAssigned" > $1::timestamp without time zone AND vs."timeAssigned" < $2::timestamp without time zone AND c."correctionType" IS NOT NULL {f'AND vs."userId" IN {raw_sql_list(3, len(input.user_ids))}' if input.user_ids else ''}
+        GROUP BY vs."userId", c."correctionType";''', input.start_time, input.end_time, *(input.user_ids if input.user_ids else []))
     
-    tasks_per_user_result = await db.query_raw('''
+    tasks_per_user_result = await db.query_raw(f'''
         SELECT COUNT(DISTINCT bb.id) as "bbox_count", COUNT(DISTINCT i.id) AS "image_count", COUNT(DISTINCT vs.id) AS "task_count", vs."userId", ARRAY_AGG(DISTINCT vs.id) as "task_ids"
         FROM "Image" i 
                 LEFT JOIN "BBox" bb ON bb."imageId" = i.id
                 LEFT JOIN "ImageInVerificationSession" ivs ON i.id = ivs."imageId"
                 LEFT JOIN "VerificationSession" vs ON vs.id = ivs."verificationSessionId"
-        WHERE vs."timeCompleted" IS NOT NULL AND vs."timeAssigned" > $1::timestamp without time zone AND vs."timeAssigned" < $2::timestamp without time zone AND vs."userId" IS NOT NULL
-        GROUP BY vs."userId";''', input.start_time, input.end_time)
+        WHERE vs."timeCompleted" IS NOT NULL AND vs."timeAssigned" > $1::timestamp without time zone AND vs."timeAssigned" < $2::timestamp without time zone AND vs."userId" IS NOT NULL {f'AND vs."userId" IN {raw_sql_list(3, len(input.user_ids))}' if input.user_ids else ''}
+        GROUP BY vs."userId";''', input.start_time, input.end_time, *(input.user_ids if input.user_ids else []))
     
     overall_summary.num_users = len(tasks_per_user_result)
 

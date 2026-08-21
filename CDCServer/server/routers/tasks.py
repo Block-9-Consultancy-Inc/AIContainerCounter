@@ -33,6 +33,7 @@ class GetActiveTaskResponse(BaseModel):
 
 class CompleteTaskInput(BaseModel):
     images_ids: List[str] = Field(..., description="The IDs of the images that were verified in the task.")
+
 class ExistingTasksInput(BaseModel):
     take: int = Field(5, gt=0, le=50, description="Page size")
     cursor: List[str] = Field([], description="The IDs of the verification sessions already seen.")
@@ -263,7 +264,6 @@ async def get_active_task(
         task=active_task,
         images=images
     )
-
 
 @router.post("/existing", response_model=ExistingTasksResponse, tags=["Tasks"])
 async def get_existing_tasks(

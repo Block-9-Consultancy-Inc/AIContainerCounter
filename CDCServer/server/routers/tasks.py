@@ -17,6 +17,7 @@ router = APIRouter(prefix="/tasks")
 NUM_OF_IMAGES_PER_TASK = 20
 class CreatedTask(BaseModel):
     task_name: str
+    task_id: str
     image_count: int
 class AssignTaskInput(BaseModel):
     user_id: str
@@ -75,6 +76,7 @@ class UpdatedImage(BaseModel):
 class CompleteTaskBboxInput(BaseModel):
     user_id: str = Field(...,
                          description="The ID of the user completing the task")
+    task_id: str = Field(..., description="The id of the task completed.")
     images: List[UpdatedImage] = Field(
         ..., description="The updated images with its bounding boxes with their new coordinates and labels")
 
@@ -222,8 +224,11 @@ async def assign_tasks(input: AssignTaskInput):
             ))
 
         return AssignTaskResponse(
-            task=CreatedTask(task_name=pulse_task_to_create.task_name,
-                             image_count=pulse_task_to_create.image_count),
+            task=CreatedTask(
+                task_id=task_id,
+                task_name=pulse_task_to_create.task_name,
+                image_count=pulse_task_to_create.image_count
+            ),
             images=images
         )
     
@@ -256,6 +261,7 @@ async def get_active_task(
     images = list(sorted(map(lambda e: e.image, verification_session.imageInVerificationSession), key=lambda e: (e.batchId, e.index)))
 
     active_task = CreatedTask(
+        task_id=verification_session.id,
         task_name=f'{input.user_id}: {verification_session.id}',
         image_count=len(verification_session.imageInVerificationSession)
     )
@@ -306,8 +312,7 @@ async def complete_task(input_data: CompleteTaskBboxInput):
         # Get active verification session for user
         verification_session = await db.verificationsession.find_first(
             where={
-                'userId': input_data.user_id,
-                'timeCompleted': None
+                'id': input_data.task_id,
             },
             include={
                 'imageInVerificationSession': True

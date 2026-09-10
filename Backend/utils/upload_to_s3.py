@@ -12,14 +12,14 @@ import datetime
 import aioboto3
 import aiofiles
 from botocore.exceptions import ClientError
-from peewee import DoesNotExist
 import sys
 
 # Assuming models.py is in the same directory or accessible via PYTHONPATH
 try:
-    from sqlite_db import Batch, MultiContainerImage, db
+    from sqlmodel_db import Batch, MultiContainerImage, engine
+    from sqlmodel import Session, select
 except ImportError as e:
-    logging.error(f"ERROR: Cannot import 'sqlite_db'. Make sure 'sqlite_db.py' is in the same directory or your PYTHONPATH. Error: {e}")
+    logging.error(f"ERROR: Cannot import 'sqlmodel_db'. Make sure 'sqlmodel_db.py' is in the same directory or your PYTHONPATH. Error: {e}")
     exit(1)
 
 # Third-party library for progress bars
@@ -221,70 +221,71 @@ async def discover_files_from_db(
 
     logging.info("--- Starting Database Discovery Phase ---")
     try:
-        db.connect(reuse_if_open=True)
+        # SQLModel uses sessions, no need to manually connect
 
-        all_batches = list(Batch.select())
-        stats["total_batches_found"] = len(all_batches)
-        logging.info(
-            f"Found {stats['total_batches_found']} Batch records in the database."
-        )
+        with Session(engine) as session:
+            all_batches = list(session.exec(select(Batch).where(Batch.time_submitted > datetime.datetime(2025, 8, 15)).order_by(Batch.time_submitted.desc())).all())
+            stats["total_batches_found"] = len(all_batches)
+            logging.info(
+                f"Found {stats['total_batches_found']} Batch records in the database."
+            )
 
-        if not all_batches:
-            logging.warning("No batches found in the database.")
-            return [], stats  # Return empty list and initial stats
+            if not all_batches:
+                logging.warning("No batches found in the database.")
+                return [], stats  # Return empty list and initial stats
 
-        for batch_record in tqdm(all_batches, desc="Discovering Batches", unit="batch"):
-            batch_uuid_str = str(batch_record.id)
-            # logging.debug(f"Processing Batch ID: {batch_uuid_str}") # Reduce noise
+            for batch_record in tqdm(all_batches, desc="Discovering Batches", unit="batch"):
+                batch_uuid_str = str(batch_record.id)
+                # logging.debug(f"Processing Batch ID: {batch_uuid_str}") # Reduce noise
 
-            local_batch_dir = source_base_path / batch_uuid_str
-            if not local_batch_dir.is_dir():
-                logging.warning(
-                    f"Source directory for batch {batch_uuid_str} not found at {local_batch_dir}. Skipping."
-                )
-                stats["batches_skipped_no_dir"] += 1
-                continue
-
-            images_query = batch_record.multiContainerImages
-            image_records = list(images_query)
-            batch_image_count = len(image_records)
-            stats["total_images_found_in_db"] += batch_image_count
-
-            if not image_records:
-                # logging.info(f"No image records found for Batch ID {batch_uuid_str}.")
-                stats["batches_processed"] += 1  # Count as processed
-                continue
-
-            # logging.debug(f"Found {batch_image_count} image records for batch {batch_uuid_str}.")
-            files_added_for_batch = 0
-            for image in image_records:
-                local_filename = f"{image.id}.{image.index}{EXPECTED_EXTENSION}"
-                local_file_path = local_batch_dir / "multi_container_images" / local_filename
-                s3_object_key = (
-                    f"{s3_prefix}{batch_uuid_str}/{image.id}{EXPECTED_EXTENSION}"
-                )
-
-                # Optional pre-check (upload_file_async will handle it anyway, but can provide early stats)
-                if not local_file_path.is_file():
-                    logging.debug(
-                        f"Local file missing during discovery: {local_file_path}"
+                local_batch_dir = source_base_path / batch_uuid_str
+                if not local_batch_dir.is_dir():
+                    logging.warning(
+                        f"Source directory for batch {batch_uuid_str} not found at {local_batch_dir}. Skipping."
                     )
-                    stats["local_files_missing_precheck"] += 1
-                    # Still add it to the list; upload_file_async will log it to failure file
-                master_files_to_upload.append((local_file_path, s3_object_key))
-                files_added_for_batch += 1
+                    stats["batches_skipped_no_dir"] += 1
+                    continue
 
-            # logging.debug(f"Added {files_added_for_batch} file paths for batch {batch_uuid_str}.")
-            stats["batches_processed"] += 1
+                # Get related MultiContainerImages for this batch
+                images_query = select(MultiContainerImage).where(MultiContainerImage.batch_id == batch_record.id)
+                image_records = list(session.exec(images_query).all())
+                batch_image_count = len(image_records)
+                stats["total_images_found_in_db"] += batch_image_count
+
+                if not image_records:
+                    # logging.info(f"No image records found for Batch ID {batch_uuid_str}.")
+                    stats["batches_processed"] += 1  # Count as processed
+                    continue
+
+                # logging.debug(f"Found {batch_image_count} image records for batch {batch_uuid_str}.")
+                files_added_for_batch = 0
+                for image in image_records:
+                    local_filename = f"{image.id}.{image.index}{EXPECTED_EXTENSION}"
+                    local_file_path = local_batch_dir / "multi_container_images" / local_filename
+                    s3_object_key = (
+                        f"{s3_prefix}{batch_uuid_str}/{image.id}{EXPECTED_EXTENSION}"
+                    )
+
+                    # Optional pre-check (upload_file_async will handle it anyway, but can provide early stats)
+                    if not local_file_path.is_file():
+                        logging.debug(
+                            f"Local file missing during discovery: {local_file_path}"
+                        )
+                        stats["local_files_missing_precheck"] += 1
+                        # Still add it to the list; upload_file_async will log it to failure file
+                    master_files_to_upload.append((local_file_path, s3_object_key))
+                    files_added_for_batch += 1
+
+                # logging.debug(f"Added {files_added_for_batch} file paths for batch {batch_uuid_str}.")
+                stats["batches_processed"] += 1
 
     except Exception as e:
         logging.error(f"Database error during discovery: {e}", exc_info=True)
         # Depending on severity, you might want to re-raise or return partial results
         raise  # Re-raise to stop execution if DB fails critically
     finally:
-        if db and not db.is_closed():
-            db.close()
-            # logging.debug("Database connection closed.")
+        # SQLModel sessions are automatically managed
+        pass
 
     stats["files_queued_for_upload"] = len(master_files_to_upload)
     logging.info("--- Database Discovery Phase Complete ---")
@@ -492,10 +493,10 @@ if __name__ == "__main__":
 
     # Check if models.py is importable before running asyncio
     try:
-        import sqlite_db
+        import sqlmodel_db
     except ImportError:
         print(
-            "ERROR: Cannot import 'sqlite_db'. Make sure 'sqlite_db.py' is in the same directory or your PYTHONPATH.",
+            "ERROR: Cannot import 'sqlmodel_db'. Make sure 'sqlmodel_db.py' is in the same directory or your PYTHONPATH.",
             file=sys.stderr,
         )
         sys.exit(1)  # Use sys.exit here as logging might not be configured yet

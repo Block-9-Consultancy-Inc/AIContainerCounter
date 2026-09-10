@@ -1,5 +1,9 @@
+use crate::api::models::authorized_user::AuthorizedUser;
+use crate::api::models::count::{BatchGlobalState, Count};
 use crate::{
-    frb_generated::StreamSink, api::models::count::{Batch, PipelineState, StateUpdate}, utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba}
+    api::models::count::{Batch, PipelineState, StateUpdate},
+    frb_generated::StreamSink,
+    utils::{flutter_texture::FlutterTexture, jpeg::decode_jpeg_to_rgba},
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use flutter_rust_bridge::frb;
@@ -9,8 +13,6 @@ use parking_lot::RwLock;
 use rust_socketio::{client::Client, ClientBuilder, Event, Payload};
 use serde_json::json;
 use std::collections::HashMap;
-use crate::api::models::count::{Count, BatchGlobalState};
-
 
 #[frb(opaque)]
 pub struct Socket {
@@ -215,49 +217,127 @@ impl Socket {
                 if payload_json.is_none() {
                     return;
                 }
-                
 
                 if let Some(sink) = &*STATE_UPDATE_STREAM_SINK.read() {
                     match event.as_str() {
                         "batches_state" => {
-                            let mut new_batch_global_state: BatchGlobalState = BatchGlobalState::from_json(&payload_json.unwrap());
+                            let mut new_batch_global_state: BatchGlobalState =
+                                BatchGlobalState::from_json(&payload_json.unwrap());
                             let prev_batch_global_state = PREVIOUS_BATCH_GLOBAL_STATE.read();
                             if prev_batch_global_state.is_some() {
-                                new_batch_global_state.merge((*prev_batch_global_state).as_ref().unwrap());
+                                new_batch_global_state
+                                    .merge((*prev_batch_global_state).as_ref().unwrap());
                             }
-                            let _ = sink.add(StateUpdate::BatchGlobalState{
-                                batch_global_state: new_batch_global_state.clone()
+                            let _ = sink.add(StateUpdate::BatchGlobalState {
+                                batch_global_state: new_batch_global_state.clone(),
                             });
                             drop(prev_batch_global_state);
                             set_prev_batch_global_state(new_batch_global_state);
-                        },
+                        }
                         "button_pressed_state" => {
                             let button_id = payload_json.unwrap().as_i64().unwrap();
                             let _ = sink.add(StateUpdate::ButtonPressed { button_id });
-                        },
+                        }
                         "pipeline_state" => {
-                            let new_state_str = payload_json.as_ref().unwrap().get("new_state").unwrap().as_str().unwrap();
-                            let error_str = payload_json.as_ref().unwrap().get("error").unwrap().as_str();
-                            let debug_str = payload_json.as_ref().unwrap().get("debug").unwrap().as_str();
+                            let new_state_str = payload_json
+                                .as_ref()
+                                .unwrap()
+                                .get("new_state")
+                                .unwrap()
+                                .as_str()
+                                .unwrap();
+                            let error_str = payload_json
+                                .as_ref()
+                                .unwrap()
+                                .get("error")
+                                .unwrap()
+                                .as_str();
+                            let debug_str = payload_json
+                                .as_ref()
+                                .unwrap()
+                                .get("debug")
+                                .unwrap()
+                                .as_str();
                             let new_state = match new_state_str {
                                 "playing" => PipelineState::Running,
                                 "paused" => PipelineState::Paused,
-                                _ => PipelineState::Stopped
+                                _ => PipelineState::Stopped,
                             };
-                            let _ = sink.add(StateUpdate::PipelineStateUpdate { new_state, error: error_str.map(|e|  e.to_string()), debug: debug_str.map(|e|  e.to_string()) });
-                        },
+                            let _ = sink.add(StateUpdate::PipelineStateUpdate {
+                                new_state,
+                                error: error_str.map(|e| e.to_string()),
+                                debug: debug_str.map(|e| e.to_string()),
+                            });
+                        }
                         "stop_confirmation_state" => {
-                            let _  = sink.add(StateUpdate::StopConfirmationUpdate);
-                        },
+                            let _ = sink.add(StateUpdate::StopConfirmationUpdate);
+                        }
                         "reset_confirmation_state" => {
-                            let _  = sink.add(StateUpdate::ResetConfirmationUpdate);
-                        },
-                        _ => {
+                            let _ = sink.add(StateUpdate::ResetConfirmationUpdate);
+                        }
+                        "new_eazy_pickup_bag_state" => {
+                            let _ = sink.add(StateUpdate::NewEazyPickupBag {
+                                tag_id: payload_json
+                                    .unwrap()
+                                    .get("tag_id")
+                                    .unwrap()
+                                    .as_i64()
+                                    .unwrap(),
+                            });
+                        }
+                        "eazy_pickup_user_info_state" => {
+                            let _ = sink.add(StateUpdate::EazyPickupUserInfo {
+                                name: payload_json
+                                    .as_ref()
+                                    .unwrap()
+                                    .get("name")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                                eazy_pickup_id: payload_json
+                                    .as_ref()
+                                    .unwrap()
+                                    .get("eazy_pickup_id")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            });
+                        }
+                        "new_express_bag_state" => {
+                            let _ = sink.add(StateUpdate::NewExpressBag {
+                                express_qr_code: payload_json
+                                    .as_ref()
+                                    .unwrap()
+                                    .get("express_qr_code")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string(),
+                            });
+                        }
+                        "bag_id_missing_state" => {
+                            let _ = sink.add(StateUpdate::BagIdMissing);
+                        }
+                        "batch_details_state" => {
                             let batch = Batch::from_json(&payload_json.unwrap());
                             let _ = sink.add(StateUpdate::BatchFetch { batch });
                         }
+                        "user_login_state" => {
+                            let user = AuthorizedUser::from_json(&payload_json.unwrap().as_object().unwrap());
+                            let _ = sink.add(StateUpdate::UserLogin { user });
+                        }
+                        "user_login_loading_state" => {
+                            let _ = sink.add(StateUpdate::UserLoginLoading);
+                        }
+                        "failed_login_state" => {
+                            let _ = sink.add(StateUpdate::FailedLogin);
+                        }
+                        _ => {
+                            eprintln!("Received unhandled event with event type: {:#?}", event);
+                        }
                     }
-                    
                 }
             })
             .on("error", |err, _| eprintln!("Error: {:#?}", err))

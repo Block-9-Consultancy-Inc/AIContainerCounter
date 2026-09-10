@@ -1,11 +1,12 @@
 from supervision import TraceAnnotator, BoxAnnotator, LabelAnnotator, Detections, ByteTrack, LineZoneAnnotator, LineZone, Point, Position
+from utils.overlay_line_zone_annotator import OverlayLineZoneAnnotator
 from category_classifier import CategoryClassifier
 from datetime import datetime
 import numpy as np
 import traceback
 import uuid
 from multiprocessing import Process, Queue, shared_memory
-import utils.sqlite_db as sqlite_db
+import utils.sqlmodel_db as sqlite_db
 import json
 
 category_classes = [
@@ -26,7 +27,7 @@ def save_state_process(data_to_save_queue: Queue, collected_images_dir: str):
             data_to_save = data_to_save_queue.get()
             sqlite_db.save_state(data_to_save, collected_images_dir)
             with open('resources/save_state_success.json', 'w') as f:
-                json.dump({ 'message': f'successfully saved {len(data_to_save.multi_container_images)} multi container images and {len(data_to_save.single_container_images)} single container images' }, f, indent=4)
+                json.dump({ 'message': f'successfully saved {len(data_to_save.multi_container_images_to_save)} multi container images and {len(data_to_save.single_container_images)} single container images' }, f, indent=4)
             print('SUCCESSFULLY SAVED IMAGES')
         except Exception as e:
             print(f'FAILED SAVING IMAGES: {e}')
@@ -135,10 +136,14 @@ class Counter:
         self.names = names
         self.yolo_model = yolo_model_path.split('/')[-1]
         self.category_model = category_model_path.split('/')[-1]
-        self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
-        self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
-        self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
+        # self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
+        # self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        # self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
+        self.first_line_zone = LineZone(start=Point(0, self.height * 3 / 4), end=Point(self.width, self.height * 3 / 4), triggering_anchors=[Position.CENTER])
+        self.center_line_zone = LineZone(start=Point(0, self.height / 2), end=Point(self.width, self.height / 2), triggering_anchors=[Position.CENTER])
+        self.last_line_zone = LineZone(start=Point(0, self.height / 4), end=Point(self.width, self.height / 4), triggering_anchors=[Position.CENTER])
         self.line_zone_annotator = LineZoneAnnotator(text_scale=1, thickness=2, text_thickness=2)
+        self.overlay_line_zone_annotator = OverlayLineZoneAnnotator(self.center_line_zone)
         self.box_annotator = BoxAnnotator(thickness=2)
         self.trace_annotator = TraceAnnotator(thickness=2)
         self.label_annotator = LabelAnnotator(text_thickness=2, text_scale=1)
@@ -168,10 +173,14 @@ class Counter:
         self.last_image_last_line_zone_in_count: int = 0
 
         self.data_to_save_queue = Queue()
-        self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+        self.data_to_save = sqlite_db.DataToSave(multi_container_images_to_save=[], single_container_images=[], batch_submitted=False)
         self.data_to_save_shms: list[shared_memory.SharedMemory] = []
         self.prev_data_to_save: sqlite_db.DataToSave = None
         self.prev_data_to_save_shms: list[shared_memory.SharedMemory] = []
+        self.current_express_qr_code: str = None
+        self.current_eazy_pickup_tag_id: int = None
+        self.current_eazy_pickup_id: str = None
+        self.current_eazy_pickup_user_name: str = None
 
         if not self.is_test:
             self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue, collected_images_dir])
@@ -202,12 +211,12 @@ class Counter:
 
         send_data_to_save = False
 
-        annotated_frame = self.trace_annotator.annotate(
-            scene=decoded_frame.copy(),
-            detections=detections)
-        annotated_frame = self.box_annotator.annotate(
-            scene=annotated_frame,
-            detections=detections)
+        # annotated_frame = self.trace_annotator.annotate(
+        #     scene=decoded_frame.copy(),
+        #     detections=detections)
+        # annotated_frame = self.box_annotator.annotate(
+        #     scene=annotated_frame,
+        #     detections=detections)
         
         self.first_line_zone.trigger(detections)
         center_crossed_in, _ = self.center_line_zone.trigger(detections)
@@ -222,36 +231,39 @@ class Counter:
             shared_arr = np.ndarray(decoded_frame.shape, decoded_frame.dtype, shm.buf)
             np.copyto(shared_arr, decoded_frame)
             self.data_to_save_shms.append(shm)
-            self.data_to_save.multi_container_images.append(
+            self.data_to_save.multi_container_images_to_save.append(
                 sqlite_db.MultiContainerImageToSave(
-                    index=self.current_batch_multi_container_image_index - 1,
-                    time=self.last_time_image_collected,
                     detections=detections,
-                    frame_shape=decoded_frame.shape,
-                    id=id,
-                    batch_id=self.current_batch_uuid,
+                    image=sqlite_db.MultiContainerImage(
+                        id=str(id),
+                        index=self.current_batch_multi_container_image_index - 1,
+                        time_collected=self.last_time_image_collected,
+                        height=decoded_frame.shape[0],
+                        width=decoded_frame.shape[1],
+                        batch_id=str(self.current_batch_uuid),
+                    )
                 )
             )
 
-        send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
+        send_data_to_save = len(self.data_to_save.multi_container_images_to_save) >= IMAGE_BUFFER_SIZE
 
         center_crossed_in_coords = np.argwhere(center_crossed_in == True)
         if center_crossed_in_coords.shape[0] == 0:
             labels = [
-                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
+                f"{self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
                 for confidence, class_id, tracker_id
                 in zip(detections.confidence, detections.class_id, detections.tracker_id)
             ]
 
-            annotated_frame = self.label_annotator.annotate(
-                scene=annotated_frame,
-                detections=detections,
-                labels=labels)
+            # annotated_frame = self.label_annotator.annotate(
+            #     scene=annotated_frame,
+            #     detections=detections,
+            #     labels=labels)
 
-            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
+            # annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
             
             if send_data_to_save and not self.is_test:
-                self.data_to_save.batch = counter_to_batch_to_save(self)
+                self.data_to_save.batch = counter_to_batch(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
                 for shm in self.prev_data_to_save_shms:
@@ -259,7 +271,9 @@ class Counter:
                     shm.unlink()
                 self.prev_data_to_save_shms = self.data_to_save_shms
                 self.data_to_save_shms = []
-                self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+                self.data_to_save = sqlite_db.DataToSave(multi_container_images_to_save=[], single_container_images=[], batch_submitted=False)
+
+            annotated_frame = self.overlay_line_zone_annotator.annotate(decoded_frame.copy(), center_crossed_in, detections, self.center_line_zone.in_count, self.category_counts, labels=labels)
 
             return annotated_frame, self.current_count()
 
@@ -294,13 +308,14 @@ class Counter:
                 shared_arr = np.ndarray(frame.shape, frame.dtype, shm.buf)
                 np.copyto(shared_arr, frame)
                 self.data_to_save_shms.append(shm)
-                return sqlite_db.SingleContainerImageToSave(
-                    id=id,
-                    time=now,
-                    detected_class=category_classes[category_index],
-                    frame_shape=frame.shape,
-                    tracker_id=tracker_id[index],
-                    batch_id=self.current_batch_uuid
+                return sqlite_db.SingleContainerImage(
+                    id=str(id),
+                    time_collected=now,
+                    predicted_category=category_classes[category_index],
+                    height=frame.shape[0],
+                    width=frame.shape[1],
+                    tracker_id=int(tracker_id[index]),
+                    batch_id=str(self.current_batch_uuid)
                 )
 
             now = datetime.now()
@@ -316,22 +331,24 @@ class Counter:
                 self.category_counts[category_classes[class_index]] += int(count)
             
             labels = [
-                f"#{tracker_id} {self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
+                f"{self.names[class_id] if self.tracker_id_to_category.get(tracker_id) is None else category_classes[self.tracker_id_to_category.get(tracker_id)]} {confidence:0.2f}"
                 for confidence, class_id, tracker_id
                 in zip(detections.confidence, detections.class_id, detections.tracker_id)
             ]
 
-            annotated_frame = self.label_annotator.annotate(
-                scene=annotated_frame,
-                detections=detections,
-                labels=labels)
+            # annotated_frame = self.label_annotator.annotate(
+            #     scene=annotated_frame,
+            #     detections=detections,
+            #     labels=labels)
 
-            annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
+            # annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
+
+            annotated_frame = self.overlay_line_zone_annotator.annotate(decoded_frame.copy(), center_crossed_in, detections, self.center_line_zone.in_count, self.category_counts, labels=labels)
             
             send_data_to_save = send_data_to_save or len(self.data_to_save.single_container_images) >= IMAGE_BUFFER_SIZE * 10
 
             if send_data_to_save and not self.is_test:
-                self.data_to_save.batch = counter_to_batch_to_save(self)
+                self.data_to_save.batch = counter_to_batch(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
                 for shm in self.prev_data_to_save_shms:
@@ -339,7 +356,7 @@ class Counter:
                     shm.unlink()
                 self.prev_data_to_save_shms = self.data_to_save_shms
                 self.data_to_save_shms = []
-                self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+                self.data_to_save = sqlite_db.DataToSave(multi_container_images_to_save=[], single_container_images=[], batch_submitted=False)
 
             return annotated_frame, self.current_count()
         except Exception as e:
@@ -376,7 +393,7 @@ class Counter:
                 shared_arr = np.ndarray(decoded_frame.shape, decoded_frame.dtype, shm.buf)
                 np.copyto(shared_arr, decoded_frame)
                 self.data_to_save_shms.append(shm)
-                self.data_to_save.multi_container_images.append(
+                self.data_to_save.multi_container_images_to_save.append(
                     sqlite_db.MultiContainerImageToSave(
                         index=self.current_batch_multi_container_image_index - 1,
                         time=self.last_time_image_collected,
@@ -407,10 +424,10 @@ class Counter:
 
             annotated_frame = self.line_zone_annotator.annotate(annotated_frame, line_counter=self.center_line_zone)
             
-            send_data_to_save = len(self.data_to_save.multi_container_images) >= IMAGE_BUFFER_SIZE
+            send_data_to_save = len(self.data_to_save.multi_container_images_to_save) >= IMAGE_BUFFER_SIZE
 
             if send_data_to_save and not self.is_test:
-                self.data_to_save.batch = counter_to_batch_to_save(self)
+                self.data_to_save.batch = counter_to_batch(self)
                 self.data_to_save_queue.put(self.data_to_save)
                 self.prev_data_to_save = self.data_to_save
                 for shm in self.prev_data_to_save_shms:
@@ -418,7 +435,7 @@ class Counter:
                     shm.unlink()
                 self.prev_data_to_save_shms = self.data_to_save_shms
                 self.data_to_save_shms = []
-                self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+                self.data_to_save = sqlite_db.DataToSave(multi_container_images_to_save=[], single_container_images=[], batch_submitted=False)
 
             return annotated_frame, self.current_count()
         except Exception as e:
@@ -456,12 +473,21 @@ class Counter:
         self.last_image_last_line_zone_in_count = self.last_line_zone_in_count
 
     def reset_counter(self):
-        batch = counter_to_batch(self)
-        self.data_to_save.batch = counter_to_batch_to_save(self, submitted=True)
+        batch = counter_to_batch(self, submitted=True)
+        self.data_to_save.batch = batch
+        self.data_to_save.batch_submitted = True
+        self.current_express_qr_code = None
+        self.current_eazy_pickup_tag_id = None
+        self.current_eazy_pickup_id = None
+        self.current_eazy_pickup_user_name = None
         save_to_db = self.center_line_zone.in_count > 3
-        self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
-        self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
-        self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
+        # self.first_line_zone = LineZone(start=Point(self.width * 3 / 4, 0), end=Point(self.width * 3 / 4, self.height), triggering_anchors=[Position.CENTER])
+        # self.center_line_zone = LineZone(start=Point(self.width / 2, 0), end=Point(self.width / 2, self.height), triggering_anchors=[Position.CENTER])
+        # self.last_line_zone = LineZone(start=Point(self.width / 4, 0), end=Point(self.width / 4, self.height), triggering_anchors=[Position.CENTER])
+        self.first_line_zone = LineZone(start=Point(0, self.height * 3 / 4), end=Point(self.width, self.height * 3 / 4), triggering_anchors=[Position.CENTER])
+        self.center_line_zone = LineZone(start=Point(0, self.height / 2), end=Point(self.width, self.height / 2), triggering_anchors=[Position.CENTER])
+        self.last_line_zone = LineZone(start=Point(0, self.height / 4), end=Point(self.width, self.height / 4), triggering_anchors=[Position.CENTER])
+        self.overlay_line_zone_annotator.reset()
         self.category_counts = {
             'can': 0,
             'plastic': 0,
@@ -494,36 +520,17 @@ class Counter:
                         shm.unlink()
         self.prev_data_to_save_shms = self.data_to_save_shms
         self.data_to_save_shms = []
-        self.data_to_save = sqlite_db.DataToSave(multi_container_images=[], single_container_images=[])
+        self.data_to_save = sqlite_db.DataToSave(multi_container_images_to_save=[], single_container_images=[], batch_submitted=False)
         return batch if save_to_db else None
 
 
-def counter_to_batch_to_save(counter: Counter, submitted = False):
-        return sqlite_db.BatchToSave(
-            id=counter.current_batch_uuid,
+def counter_to_batch(counter: Counter, submitted = False):
+        return sqlite_db.Batch(
+            id=str(counter.current_batch_uuid),
+            express_qr_code=counter.current_express_qr_code,
+            eazy_pickup_id=counter.current_eazy_pickup_id,
             time_started=counter.time_batch_started,
             time_submitted=datetime.now() if submitted else None,
-            count=counter.center_line_zone.in_count,
-            can_count=counter.category_counts.get('can'),
-            plastic_count=counter.category_counts.get('plastic'),
-            drinkbox_count=counter.category_counts.get('drinkbox'),
-            gabletop_count=counter.category_counts.get('gabletop'),
-            pouch_count=counter.category_counts.get('pouch'),
-            expected_count=sum(list(map(lambda e: e[1], counter.expected_category_counts.items()))) if counter.expected_category_counts is not None else None,
-            expected_can_count=counter.expected_category_counts.get('can') if counter.expected_category_counts is not None else None,
-            expected_plastic_count=counter.expected_category_counts.get('plastic') if counter.expected_category_counts is not None else None,
-            expected_drinkbox_count=counter.expected_category_counts.get('drinkbox') if counter.expected_category_counts is not None else None,
-            expected_gabletop_count=counter.expected_category_counts.get('gabletop') if counter.expected_category_counts is not None else None,
-            expected_pouch_count=counter.expected_category_counts.get('pouch') if counter.expected_category_counts is not None else None,
-            yolo_model=counter.yolo_model,
-            category_model=counter.category_model
-        )
-
-def counter_to_batch(counter: Counter):
-        return sqlite_db.Batch(
-            id=counter.current_batch_uuid,
-            time_started=counter.time_batch_started,
-            time_submitted=datetime.now(),
             count=counter.center_line_zone.in_count,
             can_count=counter.category_counts.get('can'),
             plastic_count=counter.category_counts.get('plastic'),

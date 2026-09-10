@@ -3,7 +3,10 @@ use flutter_rust_bridge::frb;
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
 
+use crate::api::models::authorized_user::AuthorizedUser;
+
 use super::multi_container_image::{MultiContainerImage, SingleContainerImage};
+use super::camera_setting::CameraSetting;
 
 #[derive(Clone)]
 pub struct Count {
@@ -132,7 +135,9 @@ impl Count {
             offset += 1
         }
         Some(
-            (1.0 - (((actual + offset).abs_diff(expected.unwrap() + offset) as f64) / ((expected.unwrap() + offset) as f64))).max(0.0)
+            (1.0 - (((actual + offset).abs_diff(expected.unwrap() + offset) as f64)
+                / ((expected.unwrap() + offset) as f64)))
+                .max(0.0)
                 * 100.0,
         )
     }
@@ -250,7 +255,7 @@ pub struct Batch {
     pub category_model: String,
     pub multi_container_images: Vec<MultiContainerImage>,
     pub single_container_images: Vec<SingleContainerImage>,
-    pub predicted_categories: HashMap<i64, String>
+    pub predicted_categories: HashMap<i64, String>,
 }
 
 impl Batch {
@@ -291,7 +296,10 @@ impl Batch {
         let mut predicted_categories = HashMap::new();
 
         for single_container_image in single_container_images.iter() {
-            predicted_categories.insert(single_container_image.tracker_id, single_container_image.predicted_category.clone());
+            predicted_categories.insert(
+                single_container_image.tracker_id,
+                single_container_image.predicted_category.clone(),
+            );
         }
         Self {
             id: value.get("id").unwrap().as_str().unwrap().to_owned(),
@@ -329,7 +337,7 @@ impl Batch {
                 .to_owned(),
             single_container_images,
             multi_container_images,
-            predicted_categories
+            predicted_categories,
         }
     }
 }
@@ -338,34 +346,56 @@ impl Batch {
 pub enum PipelineState {
     Stopped,
     Paused,
-    Running
+    Running,
 }
 
 #[derive(Clone)]
 pub enum StateUpdate {
     BatchFetch {
-        batch: Batch
+        batch: Batch,
     },
-    BatchGlobalState{
-        batch_global_state: BatchGlobalState
+    BatchGlobalState {
+        batch_global_state: BatchGlobalState,
     },
     ButtonPressed {
-        button_id: i64
+        button_id: i64,
     },
     PipelineStateUpdate {
         new_state: PipelineState,
         error: Option<String>,
-        debug: Option<String>
+        debug: Option<String>,
     },
     StopConfirmationUpdate,
-    ResetConfirmationUpdate
+    ResetConfirmationUpdate,
+    NewEazyPickupBag {
+        tag_id: i64,
+    },
+    EazyPickupUserInfo {
+        name: String,
+        eazy_pickup_id: String,
+    },
+    NewExpressBag {
+        express_qr_code: String,
+    },
+    BagIdMissing,
+    UserLogin {
+        user: AuthorizedUser
+    },
+    FailedLogin,
+    UserLoginLoading
 }
 
 #[derive(Clone)]
 pub struct BatchGlobalState {
     pub today_summary: TodaySummary,
     pub batches: Vec<Batch>,
+    pub authorized_user: Option<AuthorizedUser>,
+    pub camera_settings: Vec<CameraSetting>,
     pub update_summary: bool,
+    pub express_qr_code: Option<String>,
+    pub eazy_pickup_id: Option<String>,
+    pub eazy_pickup_tag_id: Option<i64>,
+    pub eazy_pickup_user_name: Option<String>
 }
 
 impl BatchGlobalState {
@@ -389,6 +419,18 @@ impl BatchGlobalState {
             .map(|value| Batch::from_json(value))
             .collect();
         batches.sort_by(|a, b| b.time_submitted.cmp(&a.time_submitted));
+        let camera_settings_json = json_data
+            .as_object()
+            .unwrap()
+            .get("camera_settings")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        let camera_settings: Vec<CameraSetting> = camera_settings_json
+            .iter()
+            .map(|value| CameraSetting::from_json(value))
+            .collect();
+
         Self {
             today_summary: TodaySummary {
                 count: Count::for_today_summary(today_summary_json),
@@ -403,8 +445,16 @@ impl BatchGlobalState {
                     .as_u64()
                     .unwrap(),
             },
+            authorized_user: json_data.get("authorized_user").unwrap().as_object().map(|value| {
+                AuthorizedUser::from_json(value)
+            }) ,
+            camera_settings,
             batches,
             update_summary,
+            express_qr_code: json_data.get("express_qr_code").unwrap().as_str().map(|v| v.to_string()),
+            eazy_pickup_id: json_data.get("eazy_pickup_id").unwrap().as_str().map(|v| v.to_string()),
+            eazy_pickup_tag_id: json_data.get("eazy_pickup_tag_id").unwrap().as_i64(),
+            eazy_pickup_user_name: json_data.get("eazy_pickup_user_name").unwrap().as_str().map(|v| v.to_string()),
         }
     }
 

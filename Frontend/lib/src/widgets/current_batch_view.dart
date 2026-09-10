@@ -1,6 +1,8 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
 import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/widgets/category_count_displayer.dart';
+import 'package:ai_container_counter/src/widgets/nfc_scanner_effect.dart';
+import 'package:ai_container_counter/src/widgets/qr_scanner_effect.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,45 +19,104 @@ class CurrentBatchView extends StatelessWidget {
       mainAxisSize: MainAxisSize.max,
       children: [
         Expanded(
-          flex: 15,
-          child: ElevatedButton(
-            style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size.infinite),
-                shape: WidgetStatePropertyAll(RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)))),
-            onPressed: () async {
-              final close = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Submit Batch Confirmation'),
-                  content:
-                      const Text('Are you sure you want to close this bag?'),
-                  actions: [
-                    ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(true);
-                        },
-                        child: const Text('Close')),
-                    TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(false);
-                        },
-                        child: const Text('Cancel')),
-                  ],
-                ),
-              );
+          flex: 20,
+          child: Selector<
+                  GlobalState,
+                  ({
+                    PipelineState currentPipelineState,
+                    int? currentEazyPickUpTagId,
+                    String? eazyPickupId,
+                    String? eazyPickupUserName,
+                    String? currentExpressBagId
+                  })>(
+              selector: (context, state) => (
+                    currentPipelineState: state.currentPipelineState,
+                    currentEazyPickUpTagId: state.currentEazyPickUpTagId,
+                    eazyPickupId: state.eazyPickupId,
+                    eazyPickupUserName: state.eazyPickupUserName,
+                    currentExpressBagId: state.currentExpressBagId,
+                  ),
+              builder: (context, values, child) {
+                print("WIDGET REBUILT WITH VALUES: $values");
+                if (values.currentEazyPickUpTagId == null &&
+                    values.currentExpressBagId == null &&
+                    values.currentPipelineState != PipelineState.stopped) {
+                  return Container(
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Spacer(flex: 2),
+                        ExpressQRCode(),
+                        Spacer(),
+                        Text(
+                          'OR',
+                          style: TextStyle(fontSize: 40),
+                        ),
+                        Spacer(),
+                        EazyPickupNFCScanner(),
+                        Spacer(flex: 2),
+                      ],
+                    ),
+                  );
+                } else {
+                  String extraBagInfo = '';
+                  if (values.currentExpressBagId != null) {
+                    extraBagInfo =
+                        '\nExpress Bag ID: ${values.currentExpressBagId}';
+                  } else if (values.currentEazyPickUpTagId != null &&
+                      (values.eazyPickupId == null ||
+                          values.eazyPickupUserName == null)) {
+                    extraBagInfo =
+                        '\nEazy Pickup Tag ID: ${values.currentEazyPickUpTagId}\nPickup ID: Loading...\nUser Name: Loading...';
+                  } else if (values.currentEazyPickUpTagId != null &&
+                      values.eazyPickupId != null &&
+                      values.eazyPickupUserName != null) {
+                    extraBagInfo =
+                        '\nEazy Pickup Tag ID: ${values.currentEazyPickUpTagId}\nPickup ID: ${values.eazyPickupId}\nUser Name: ${values.eazyPickupUserName}';
+                  }
+                  return ElevatedButton(
+                    style: ButtonStyle(
+                        minimumSize:
+                            const WidgetStatePropertyAll(Size.infinite),
+                        shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)))),
+                    onPressed: () async {
+                      final close = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Submit Batch Confirmation'),
+                          content: const Text(
+                              'Are you sure you want to close this bag?'),
+                          actions: [
+                            ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop(true);
+                                },
+                                child: const Text('Close')),
+                            TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop(false);
+                                },
+                                child: const Text('Cancel')),
+                          ],
+                        ),
+                      );
 
-              if (close ?? false) {
-                // ignore: use_build_context_synchronously
-                context.read<GlobalState>().submitBatch();
-              }
-            },
-            child: const AutoSizeText(
-              'Submit Batch',
-              maxLines: 2,
-              style: TextStyle(fontSize: 45),
-            ),
-          ),
+                      if (close ?? false) {
+                        // ignore: use_build_context_synchronously
+                        context.read<GlobalState>().submitBatch();
+                      }
+                    },
+                    child: AutoSizeText(
+                      'Submit Batch$extraBagInfo',
+                      maxLines: 5,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 45),
+                    ),
+                  );
+                }
+              }),
         ),
         const Spacer(flex: 5),
         Expanded(
@@ -187,21 +248,21 @@ class CurrentBatchView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (value == PipelineState.paused)
-                            FloatingActionButton(
-                                onPressed: () => context
-                                    .read<GlobalState>()
-                                    .socket
-                                    ?.emitEvent(event: 'play', data: 'play'),
-                                child: const Icon(Icons.play_arrow)),
-                          if (value == PipelineState.running)
-                            FloatingActionButton(
-                                onPressed: () => context
-                                    .read<GlobalState>()
-                                    .socket
-                                    ?.emitEvent(event: 'pause', data: 'pause'),
-                                child: const Icon(Icons.pause)),
-                          const SizedBox(width: 20),
+                          // if (value == PipelineState.paused)
+                          //   FloatingActionButton(
+                          //       onPressed: () => context
+                          //           .read<GlobalState>()
+                          //           .socket
+                          //           ?.emitEvent(event: 'play', data: 'play'),
+                          //       child: const Icon(Icons.play_arrow)),
+                          // if (value == PipelineState.running)
+                          //   FloatingActionButton(
+                          //       onPressed: () => context
+                          //           .read<GlobalState>()
+                          //           .socket
+                          //           ?.emitEvent(event: 'pause', data: 'pause'),
+                          //       child: const Icon(Icons.pause)),
+                          // const SizedBox(width: 20),
                           FloatingActionButton(
                               onPressed: () async {
                                 final stop = await showDialog<bool>(

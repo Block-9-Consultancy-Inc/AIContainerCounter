@@ -1,4 +1,5 @@
 import 'package:ai_container_counter/src/models/last_cached_stream.dart';
+import 'package:ai_container_counter/src/rust/api/models/authorized_user.dart';
 import 'package:ai_container_counter/src/rust/api/simple.dart';
 import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,13 @@ class GlobalState extends ChangeNotifier {
   final LastEventCachedStream<StateUpdate> stateUpdateEventStream;
   Socket? socket;
   int? textureId;
+
+  String? currentExpressBagId;
+  int? currentEazyPickUpTagId;
+  String? eazyPickupUserName;
+  String? eazyPickupId;
+
+  AuthorizedUser? authorizedUser;
 
   final stopWatchTimer = StopWatchTimer()..onStartTimer();
 
@@ -29,23 +37,50 @@ class GlobalState extends ChangeNotifier {
         .where((e) =>
             e is StateUpdate_PipelineStateUpdate ||
             e is StateUpdate_StopConfirmationUpdate ||
-            e is StateUpdate_ResetConfirmationUpdate)
+            e is StateUpdate_ResetConfirmationUpdate ||
+            e is StateUpdate_NewEazyPickupBag ||
+            e is StateUpdate_EazyPickupUserInfo ||
+            e is StateUpdate_NewExpressBag ||
+            e is StateUpdate_BatchGlobalState ||
+            e is StateUpdate_BagIdMissing ||
+            e is StateUpdate_UserLogin)
         .listen((stateUpdate) async {
-      if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
-        print('SHOWED DIALOG');
+      print("STATE UPDATE: $stateUpdate");
+      if (stateUpdate is StateUpdate_BagIdMissing) {
+        // ignore: use_build_context_synchronously
         showDialog(
             // ignore: use_build_context_synchronously
             context: context,
             useRootNavigator: true,
             barrierDismissible: false,
-            builder: (context) => const AlertDialog(
-                  title: Text('Stop Confirmation'),
-                  content: Text('Press the stop button again to confirm.'),
-                ));
-        await Future.delayed(const Duration(milliseconds: 1500));
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pop();
-        print('POPPED DIALOG');
+            builder: (context) {
+              Future.delayed(const Duration(seconds: 5), () {
+                // ignore: use_build_context_synchronously
+                Navigator.of(context).pop(true);
+              });
+              return const AlertDialog(
+                title: Text('Bag ID not scanned!'),
+                content: Text('Scan the bag id and then submit.'),
+                backgroundColor: Colors.redAccent,
+              );
+            });
+      } else if (stateUpdate is StateUpdate_StopConfirmationUpdate) {
+        print('SHOWED DIALOG');
+        showDialog(
+          // ignore: use_build_context_synchronously
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              // ignore: use_build_context_synchronously
+              Navigator.of(context).pop(true);
+            });
+            return const AlertDialog(
+              title: Text('Stop Confirmation'),
+              content: Text('Press the stop button again to confirm.'),
+            );
+          },
+        );
         return;
       } else if (stateUpdate is StateUpdate_ResetConfirmationUpdate) {
         print('SHOWED DIALOG');
@@ -63,22 +98,44 @@ class GlobalState extends ChangeNotifier {
         Navigator.of(context).pop();
         print('POPPED DIALOG');
         return;
-      }
+      } else if (stateUpdate is StateUpdate_PipelineStateUpdate) {
+        if (_currentPipelineState != PipelineState.running &&
+            stateUpdate.newState == PipelineState.running) {
+          stopWatchTimer.onStartTimer();
+        } else if (_currentPipelineState == PipelineState.running &&
+            stateUpdate.newState == PipelineState.paused) {
+          stopWatchTimer.onStopTimer();
+        } else if ((_currentPipelineState == PipelineState.running ||
+                _currentPipelineState == PipelineState.paused) &&
+            stateUpdate.newState == PipelineState.stopped) {
+          stopWatchTimer.onResetTimer();
+        }
 
-      stateUpdate = stateUpdate as StateUpdate_PipelineStateUpdate;
-      if (_currentPipelineState != PipelineState.running &&
-          stateUpdate.newState == PipelineState.running) {
-        stopWatchTimer.onStartTimer();
-      } else if (_currentPipelineState == PipelineState.running &&
-          stateUpdate.newState == PipelineState.paused) {
-        stopWatchTimer.onStopTimer();
-      } else if ((_currentPipelineState == PipelineState.running ||
-              _currentPipelineState == PipelineState.paused) &&
-          stateUpdate.newState == PipelineState.stopped) {
+        _currentPipelineState = stateUpdate.newState;
+      } else if (stateUpdate is StateUpdate_NewEazyPickupBag) {
+        currentEazyPickUpTagId = stateUpdate.tagId;
+        eazyPickupId = null;
+        eazyPickupUserName = null;
+        currentExpressBagId = null;
+      } else if (stateUpdate is StateUpdate_EazyPickupUserInfo) {
+        eazyPickupId = stateUpdate.eazyPickupId;
+        eazyPickupUserName = stateUpdate.name;
+      } else if (stateUpdate is StateUpdate_NewExpressBag) {
+        currentExpressBagId = stateUpdate.expressQrCode;
+        eazyPickupId = null;
+        eazyPickupUserName = null;
+        currentEazyPickUpTagId = null;
+      } else if (stateUpdate is StateUpdate_BatchGlobalState) {
+        currentExpressBagId = stateUpdate.batchGlobalState.expressQrCode;
+        eazyPickupId = stateUpdate.batchGlobalState.eazyPickupId;
+        eazyPickupUserName = stateUpdate.batchGlobalState.eazyPickupUserName;
+        currentEazyPickUpTagId = stateUpdate.batchGlobalState.eazyPickupTagId;
+        authorizedUser = stateUpdate.batchGlobalState.authorizedUser;
         stopWatchTimer.onResetTimer();
+        stopWatchTimer.onStartTimer();
+      } else if (stateUpdate is StateUpdate_UserLogin) {
+        authorizedUser = stateUpdate.user;
       }
-
-      _currentPipelineState = stateUpdate.newState;
       notifyListeners();
     });
   }

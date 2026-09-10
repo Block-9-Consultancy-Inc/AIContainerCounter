@@ -1,9 +1,10 @@
 import 'package:ai_container_counter/src/models/global_state.dart';
+import 'package:ai_container_counter/src/rust/api/models/authorized_user.dart';
 import 'package:ai_container_counter/src/rust/api/models/count.dart';
 import 'package:ai_container_counter/src/screens/real_time_video_stream.dart';
 import 'package:ai_container_counter/src/widgets/current_batch_view.dart';
-import 'package:ai_container_counter/src/widgets/end_of_day_upload_progress.dart';
 import 'package:ai_container_counter/src/widgets/previous_batch_list_view.dart';
+import 'package:ai_container_counter/src/widgets/qr_scanner_effect.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -53,11 +54,9 @@ class _MainScreenState extends State<MainScreen> {
         .listen((stateUpdate) async {
       // ignore: use_build_context_synchronously
       final globalState = context.read<GlobalState>();
+
       final buttonPressedStateUpdate = stateUpdate as StateUpdate_ButtonPressed;
-      if (buttonPressedStateUpdate.buttonId == 1) {
-        globalState.stopWatchTimer.onResetTimer();
-        globalState.stopWatchTimer.onStartTimer();
-      } else if (buttonPressedStateUpdate.buttonId == 2) {
+      if (buttonPressedStateUpdate.buttonId == 2) {
         if (globalState.viewingRealtimeVideoFeed) {
           // ignore: use_build_context_synchronously
           Navigator.of(context).pop();
@@ -321,6 +320,32 @@ class _MainScreenState extends State<MainScreen> {
                   icon: const Icon(Icons.videocam),
                 );
               }),
+              const VerticalDivider(
+                color: Colors.white,
+                indent: 20,
+                endIndent: 20,
+              ),
+              Selector<GlobalState, AuthorizedUser?>(
+                  selector: (context, state) => state.authorizedUser,
+                  builder: (context, value, child) {
+                    if (value == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Text(
+                          value.name,
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(
+                          Icons.verified,
+                          size: 55,
+                        ),
+                      ],
+                    );
+                  }),
             ],
           ),
           body: Builder(builder: (context) {
@@ -398,8 +423,8 @@ class _MainScreenState extends State<MainScreen> {
                         vertical: 50, horizontal: 20),
                     color: Theme.of(context).scaffoldBackgroundColor,
                     alignment: Alignment.center,
-                    height: 600,
-                    width: 600,
+                    height: 700,
+                    width: 700,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -409,9 +434,51 @@ class _MainScreenState extends State<MainScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
-                        const Text('Performing end of day upload tasks...'),
-                        const SizedBox(height: 10),
-                        const EndOfDayUploadProgress(),
+                        SizedBox(
+                          height: 400,
+                          width: 400,
+                          child: StreamBuilder(
+                              stream: context
+                                  .read<GlobalState>()
+                                  .stateUpdateEventStream
+                                  .stream
+                                  .where((event) =>
+                                      event is StateUpdate_FailedLogin ||
+                                      event is StateUpdate_UserLoginLoading),
+                              builder: (context, snapshot) {
+                                print(snapshot.data);
+                                if (!snapshot.hasData || snapshot.hasError) {
+                                  print('showing scan initial');
+                                  return const ScanAuthorizedUserQRCode();
+                                }
+
+                                if (snapshot.data
+                                    is StateUpdate_UserLoginLoading) {
+                                  print('showing loading');
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+
+                                return FutureBuilder(
+                                    key: UniqueKey(),
+                                    future: Future.delayed(
+                                        const Duration(seconds: 2),
+                                        () => 'value'),
+                                    builder: (context, snapshot) {
+                                      if (!snapshot.hasData ||
+                                          snapshot.hasError) {
+                                        print('showing unauthorized');
+                                        return const UnauthorizedUserQRCode();
+                                      } else {
+                                        print('showing scan');
+                                        return const ScanAuthorizedUserQRCode();
+                                      }
+                                    });
+                              }),
+                        ),
+                        // const Text('Performing end of day upload tasks...'),
+                        // const SizedBox(height: 10),
+                        // const EndOfDayUploadProgress(),
                       ],
                     ),
                   ),

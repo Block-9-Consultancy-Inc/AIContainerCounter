@@ -19,14 +19,18 @@ import numpy as np
 import traceback
 from supervision import Detections, ByteTrack
 import counter as ctr
-from utils.sqlite_db import Batch, get_today_summary
-from playhouse.shortcuts import model_to_dict
+from sqlmodel import Session, select
+from utils.sqlmodel_db import Batch, engine, get_today_summary, get_batch_by_id, batch_to_dict, update_camera_setting, get_camera_settings, get_camera_settings_gstreamer
 from datetime import datetime, timedelta
 import json
 import uuid
 from utils.button_listener import ButtonListener
 import os
 from enum import Enum
+from utils.scanner_listener import ScannerListener
+from utils.nfc_listener import NFCListener
+import requests
+from pydantic import BaseModel
 
 class PipelineFrameLatencies:
     '''The latencies for the current frame in the pipeline. Each step is in order of appearance in the class.'''
@@ -99,11 +103,11 @@ class AvgPipelineFrameLatencies(PipelineFrameLatencies):
     avg_jpeg_encode_time: {(self.jpeg_encode if self.jpeg_encode is not None else 0):0.2f} ms, avg_base64_encode_time: {(self.base64_encode if self.base64_encode is not None else 0):0.2f} ms
     avg_socketio_emit_time: {self.socketio_emit:0.2f} ms, num_of_frames: {self.num_of_frames}, num_of_frames_with_video_emitting: {self.num_of_frames_with_video_emitting}
     '''
-        
 
-
-
-
+class AuthorizedUser(BaseModel):
+    user_id: str
+    user_name: str
+    signed_in_time: datetime
 
 class DetectionStatus(Enum):
     RUNNING = 0
@@ -149,6 +153,7 @@ class CounterApp:
             camera_calibration_params_path: str = None,
             counting_algorithm: str = 'yolo_consensus',
             button_listener_serial_port: str = None,
+            qr_code_scanner_device_path: str = None,
             is_test: bool = False,
             raw_video_footage_dir = './data',
             collected_images_dir = './images',
@@ -161,7 +166,8 @@ class CounterApp:
         self.last_time_detection_paused = datetime.now()
         self.last_time_detection_played = datetime.now()
         self.detection_status = DetectionStatus.STOPPED
-
+        
+        self.authorized_user: AuthorizedUser = None
 
         try:
             os.remove('test.socket')
@@ -170,6 +176,7 @@ class CounterApp:
         self.is_test = is_test
 
         self.set_auto_start_pause_handling = self.dummy_auto_start_pause_handling if self.is_test else self.auto_start_pause_handling
+        # self.set_auto_start_pause_handling = self.dummy_auto_start_pause_handling
 
         if not load_params_from_dotenv:
             self.height = height
@@ -184,6 +191,7 @@ class CounterApp:
             self.camera_calibration_params_path = camera_calibration_params_path
             self.counting_algorithm = counting_algorithm
             self.button_listener_serial_port = button_listener_serial_port
+            self.qr_code_scanner_device_path = qr_code_scanner_device_path
             self.is_test = is_test
             self.raw_video_footage_dir = raw_video_footage_dir
             self.collected_images_dir = collected_images_dir
@@ -192,7 +200,8 @@ class CounterApp:
         else:
             self.__load_params_from_dotenv(dotenv_path)
             
-        os.makedirs(self.raw_video_footage_dir, exist_ok=True)
+        os.makedirs(f'{self.raw_video_footage_dir}/annotated', exist_ok=True)
+        os.makedirs(f'{self.raw_video_footage_dir}/raw', exist_ok=True)
         os.makedirs(self.collected_images_dir, exist_ok=True)
         self.jpeg = TurboJPEG(self.turbo_jpeg_library_path)
 
@@ -245,12 +254,21 @@ class CounterApp:
         def on_stopped():
             today_summary = get_today_summary()
             batch = self.counter.reset_counter()
-            self.gstreamer_app.first_file_path = f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi'
-            if batch is not None:
-                self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+            self.gstreamer_app.first_raw_file_path = f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi'
+            self.sio.emit('batches_state', {
+                'summary': today_summary.__dict__,
+                'batches': [batch_to_dict(batch)] if batch is not None else [],
+                'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                'update_summary': batch is not None,
+                'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
+                'express_qr_code': self.counter.current_express_qr_code,
+                'eazy_pickup_id': self.counter.current_eazy_pickup_id,
+                'eazy_pickup_user_name': self.counter.current_eazy_pickup_user_name,
+                'eazy_pickup_tag_id': self.counter.current_eazy_pickup_tag_id,
+            })
             self.avg_frame_latencies = AvgPipelineFrameLatencies()
 
-        self.gstreamer_app = CounterGstreamerApp(on_state_changed, on_stopped, f'{self.raw_video_footage_dir}/{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self)
+        self.gstreamer_app = CounterGstreamerApp(on_state_changed, on_stopped, f'{self.raw_video_footage_dir}/raw/{str(self.counter.current_batch_uuid)}.avi', f'{self.raw_video_footage_dir}/annotated/{str(self.counter.current_batch_uuid)}.avi', f'/dev/video{self.camera_id}', self.width, self.height, self.camera_fps, self, initial_camera_settings=get_camera_settings_gstreamer())
 
         @sio.on('connect')
         def on_connect(sid, msg):
@@ -263,11 +281,25 @@ class CounterApp:
             print('Client disconnected')
 
         @sio.on('init-prev-batches')
-        def on_test(sid, msg):
+        def on_init_prev_batches(sid, msg):
             now = datetime.now()
-            batches = list(Batch.select().where((Batch.time_submitted != None) & (Batch.time_started.year == now.year) & (Batch.time_started.month == now.month) & (Batch.time_started.day == now.day)).order_by(Batch.time_started).dicts())
+            start_of_day = datetime(now.year, now.month, now.day)
+            end_of_day = start_of_day + timedelta(days=1)
+            with Session(engine) as session:
+                statement = select(Batch).where((Batch.time_submitted != None) & (Batch.time_started >= start_of_day) & (Batch.time_started < end_of_day)).order_by(Batch.time_started)
+                batches = list(map(lambda e: e.model_dump(), session.exec(statement).all()))
             today_summary = get_today_summary().__dict__
-            self.sio.emit('batches_state', {'summary': today_summary, 'batches': batches, 'update_summary': False})
+            self.sio.emit('batches_state', {
+                'summary': today_summary,
+                'batches': batches,
+                'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                'update_summary': False,
+                'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
+                'express_qr_code': self.counter.current_express_qr_code,
+                'eazy_pickup_id': self.counter.current_eazy_pickup_id,
+                'eazy_pickup_user_name': self.counter.current_eazy_pickup_user_name,
+                'eazy_pickup_tag_id': self.counter.current_eazy_pickup_tag_id,
+            })
 
         @sio.on('new-test-case')
         def new_test_case(sid, msg):
@@ -299,7 +331,10 @@ class CounterApp:
 
         @sio.on('get-batch-details')
         def get_batch_details(sid, msg):
-            sio.emit('batch_details_state', model_to_dict(Batch.get_by_id(msg), backrefs=True))
+            batch = get_batch_by_id(msg)
+            batch_dict = batch_to_dict(batch, include_relations=True)
+            sio.emit('batch_details_state', batch_dict)
+   
 
         @sio.on('pause')
         def pause_pipeline(sid, msg):
@@ -311,14 +346,22 @@ class CounterApp:
         def stop_pipeline(sid, msg):
             print(f'stopping')
             self.detection_status = DetectionStatus.STOPPED
+            self.authorized_user = None
             self.gstreamer_app.stop()
 
-        @sio.on('play')
-        def play_pipeline(sid, msg):
-            print(f'playing')
-            self.detection_status = DetectionStatus.RUNNING
-            self.gstreamer_app.play()
-            self.end_of_prev_frame = perf_counter_ns()
+        @sio.on('camera-setting-update')
+        def on_camera_setting_update(sid, msg):
+            print(f'camera-setting-update: {msg}')
+            new_camera_settings = update_camera_setting(msg.get('setting_id'), msg.get('new_value'))
+            self.gstreamer_app.update_camera_settings(new_camera_settings)
+
+
+        # @sio.on('play')
+        # def play_pipeline(sid, msg):
+        #     print(f'playing')
+        #     self.detection_status = DetectionStatus.RUNNING
+        #     self.gstreamer_app.play()
+        #     self.end_of_prev_frame = perf_counter_ns()
 
         self.last_time_stop_button_pressed: datetime = None
         self.last_time_reset_button_pressed: datetime = None
@@ -335,6 +378,7 @@ class CounterApp:
                             self.sio.emit('reset_confirmation_state', 'need_reset_confirmation')
                             emit_button_pressed_event = False
                         else:
+                            print('SUBMITING BATCH FROM BUTTON')
                             self.reset_counter = True
                     else:
                         emit_button_pressed_event = False
@@ -353,12 +397,61 @@ class CounterApp:
                             self.sio.emit('stop_confirmation_state', 'need_stop_confirmation')
                             emit_button_pressed_event = False
                         else:
+                            self.detection_status = DetectionStatus.STOPPED
+                            self.authorized_user = None
                             self.gstreamer_app.stop()
                     else:
                         emit_button_pressed_event = False
                 if emit_button_pressed_event:
                     self.sio.emit('button_pressed_state', button_id)
             self.button_listener = ButtonListener(on_button_pressed, self.button_listener_serial_port)
+
+        def handle_valid_tag_id(tag_id: int, card_info):
+            print(f'SCANNED TAG ID: {tag_id}')
+            self.counter.current_eazy_pickup_tag_id = tag_id
+            self.counter.current_express_qr_code = None
+            self.counter.current_eazy_pickup_id = None
+            self.counter.current_eazy_pickup_user_name = None
+            COUNTI_TOKEN = "X7HKYL6s58V0mq79ag9QD69BgCi7tqgQo4AWULYVI2rpwNI817paBJOz4dFnvwBd"
+            API_URL      = "https://app.eazyreturn.ca/api/get-customer-information"
+            sio.emit('new_eazy_pickup_bag_state', { 'tag_id': tag_id })
+            r = requests.post(
+                API_URL,
+                headers={ "X-Counti-Token": COUNTI_TOKEN },
+                json={"tag_id": tag_id},
+                timeout=5
+            )
+            eazy_pickup_user_info = r.json().get('data')
+            self.counter.current_eazy_pickup_id = eazy_pickup_user_info.get('eazy_pickup_id')
+            self.counter.current_eazy_pickup_user_name = eazy_pickup_user_info.get('name')
+            print(f'EAZY PICKUP USER INFO: {eazy_pickup_user_info}')
+            sio.emit('eazy_pickup_user_info_state', eazy_pickup_user_info)
+
+
+        def handle_invalid_tag_id(card_info):
+            print('INVALID TAG ID')
+
+        # Create listener with callback
+        self.nfc_listener = NFCListener(handle_valid_tag_id=handle_valid_tag_id, handle_invalid_tag_id=handle_invalid_tag_id, poll_interval=0.5)
+
+        if self.qr_code_scanner_device_path is not None:
+            def on_scan(data: str):
+                print(f'SCANNED QR CODE: {data}')
+                
+                if self.authorized_user is None:
+                    self.sign_in_authorized_user(data)
+                else:
+                    self.counter.current_express_qr_code = data
+                    self.counter.current_eazy_pickup_tag_id = None
+                    self.counter.current_eazy_pickup_id = None
+                    self.counter.current_eazy_pickup_user_name = None
+                    sio.emit('new_express_bag_state', { 'express_qr_code': data })
+
+            self.scanner_listener = ScannerListener(on_scan, timeout=5, device_path=self.qr_code_scanner_device_path)
+            self.scanner_listener.start()
+        
+        if not self.nfc_listener.start():
+            print("Failed to start listener")
 
         self.start_of_current_frame = perf_counter_ns()
         self.end_of_prev_frame = perf_counter_ns()
@@ -412,12 +505,78 @@ class CounterApp:
         self.counting_algorithm = environ.get('COUNTING_ALGORITHM', 'YOLO_CONSENSUS').lower()
 
         self.button_listener_serial_port = environ.get('BUTTON_LISTENER_SERIAL_PORT')
+        self.qr_code_scanner_device_path = environ.get('QR_CODE_SCANNER_DEVICE_PATH')
 
         self.raw_video_footage_dir = environ.get('RAW_VIDEO_FOOTAGE_DIR', './data')
         self.collected_images_dir = environ.get('COLLECTED_IMAGES_DIR', './images')
 
         self.host = environ.get('HOST', '0.0.0.0')
         self.port = int(environ.get('PORT', '5000'))
+
+    def is_valid_uuid_v4(self, uuid_string):
+        """
+        Checks if a string is a valid UUID version 4.
+
+        Args:
+            uuid_string (str): The string to check.
+
+        Returns:
+            bool: True if the string is a valid UUID v4, False otherwise.
+        """
+        try:
+            # Attempt to create a UUID object from the string
+            potential_uuid = uuid.UUID(uuid_string)
+            # Check if the version is 4 and if the string representation matches
+            # the canonical form (important for validating against malformed inputs)
+            return potential_uuid.version == 4 and str(potential_uuid) == uuid_string
+        except ValueError:
+            # If the string is not a valid UUID format, a ValueError is raised
+            return False
+
+    def sign_in_authorized_user(self, user_id: str):
+        if not self.is_valid_uuid_v4(user_id):
+            self.sio.emit('failed_login_state', 'failed_login')
+            return
+        self.sio.emit('user_login_loading_state', 'loading')
+        COUNTI_TOKEN = "eft373HZsZ2XAVfsFdnGhYSy9q4LiFwYCy2EVobOdkksKDUUeQ8kmzBimOjtR5mj"
+        API_URL = 'https://counti.recyclorobo.ai/api/user/authenticate'
+        response = requests.post(
+            API_URL,
+            headers={"X-Counti-Token": COUNTI_TOKEN, "Content-Type": "application/json"},
+            json={
+                'user_uuid': user_id,
+            },
+            timeout=15
+        )
+        if response.status_code >= 300 and response.status_code < 200:
+            self.sio.emit('failed_login_state', 'failed_login')
+            return
+        response_data: dict = None
+        try:
+            response_data = response.json()
+            if not response_data.get('success', False) or response_data.get('data') is None or response_data.get('data').get('name') is None:
+                print(f'unable to login user with id: {user_id}: {response_data.get('message')}')
+                self.sio.emit('failed_login_state', 'failed_login')
+                return
+            self.authorized_user = AuthorizedUser(
+                user_id=user_id,
+                user_name=response_data.get('data').get('name'),
+                signed_in_time=datetime.now()
+            )
+            print(f'Authorized User: {self.authorized_user}')
+            self.sio.emit('user_login_state', self.authorized_user.model_dump())
+        except Exception as e:
+            self.authorized_user = None
+            print(f'unable to login user with id: {user_id} due to: {e}')
+            self.sio.emit('failed_login_state', 'failed_login')
+            return
+        
+
+
+        if self.detection_status == DetectionStatus.STOPPED:
+            self.detection_status = DetectionStatus.RUNNING
+            self.gstreamer_app.play()
+            self.end_of_prev_frame = perf_counter_ns()
 
     def dummy_auto_start_pause_handling(self, num_of_detections: int):
         return
@@ -470,13 +629,13 @@ class CounterApp:
             after_counting = perf_counter_ns()
             frame_latencies.counting = (after_counting - after_tracking) / 1_000_000
 
+            jpeg_bytes = self.jpeg.encode(bgr_frame, quality=self.frame_encode_quality)
+            after_jpeg_encode = perf_counter_ns()
+
+            frame_latencies.jpeg_encode = (after_jpeg_encode - after_counting) / 1_000_000
+
             if self.showing_video:
-                buffer = self.jpeg.encode(bgr_frame, quality=self.frame_encode_quality)
-                after_jpeg_encode = perf_counter_ns()
-
-                frame_latencies.jpeg_encode = (after_jpeg_encode - after_counting) / 1_000_000
-
-                encoded_frame = base64.b64encode(buffer).decode('utf-8')
+                encoded_frame = base64.b64encode(jpeg_bytes).decode('utf-8')
                 after_base64_encode = perf_counter_ns()
                 frame_latencies.base64_encode = (after_base64_encode - after_jpeg_encode) / 1_000_000
                 payload['encoded_frame'] = encoded_frame
@@ -484,7 +643,7 @@ class CounterApp:
             self.sio.emit('detection_event', payload, namespace='/')
 
             after_socketio_emit = perf_counter_ns()
-            frame_latencies.socketio_emit = (after_socketio_emit - (after_base64_encode if self.showing_video else after_counting)) / 1_000_000
+            frame_latencies.socketio_emit = (after_socketio_emit - (after_base64_encode if self.showing_video else after_jpeg_encode)) / 1_000_000
             
             frame_latencies.frame_time = (after_socketio_emit - self.start_of_current_frame) / 1_000_000
             frame_latencies.overall_frame_time = (after_socketio_emit - self.end_of_prev_frame) / 1_000_000
@@ -492,16 +651,28 @@ class CounterApp:
                 self.counter.set_expected_count(self.new_expected_count)
                 self.new_expected_count = None
                 self.set_expected_count = False
-            if self.reset_counter:
+            if self.reset_counter and (self.counter.current_express_qr_code is not None or self.counter.current_eazy_pickup_id is not None):
                 today_summary = get_today_summary()
                 batch = self.counter.reset_counter()
                 self.byte_tracker.reset()
                 self.reset_counter = False
-                if batch is not None:
-                    self.sio.emit('batches_state', { 'summary': today_summary.__dict__, 'batches': [model_to_dict(batch)], 'update_summary': True})
+                self.sio.emit('batches_state', {
+                    'summary': today_summary.__dict__,
+                    'batches': [batch_to_dict(batch)] if batch is not None else [],
+                    'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                    'update_summary': batch is not None,
+                    'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
+                    'express_qr_code': self.counter.current_express_qr_code,
+                    'eazy_pickup_id': self.counter.current_eazy_pickup_id,
+                    'eazy_pickup_user_name': self.counter.current_eazy_pickup_user_name,
+                    'eazy_pickup_tag_id': self.counter.current_eazy_pickup_tag_id,
+                })
                 self.gstreamer_app.signal_new_file()
                 if self.is_test:
                     self.avg_frame_latencies = AvgPipelineFrameLatencies()
+            elif self.reset_counter and self.counter.current_express_qr_code is None and self.counter.current_eazy_pickup_id is None:
+                self.sio.emit('bag_id_missing_state', '')
+                self.reset_counter = False
             self.end_of_prev_frame = perf_counter_ns()
             self.avg_frame_latencies.add_frame(frame_latencies)
             if self.avg_frame_latencies.num_of_frames % 300 == 0 and not self.is_test:
@@ -512,10 +683,13 @@ class CounterApp:
                 'avg_frame_latencies': self.avg_frame_latencies.dump(),
                 'current_test_case': self.current_test_case
             }, namespace='/')
+
+            return jpeg_bytes
         except Exception as e:
             print(f'got error {e}')
             error_traceback = traceback.format_exc()
             print(error_traceback)
+            return None
 
     def run(self):
         if self.is_test:
@@ -539,7 +713,7 @@ def detection_frame_callback(pad, info, counter_app: CounterApp):
     frame = get_numpy_from_buffer(buffer, 'RGB', counter_app.width, counter_app.height)
     after_get_frame_from_buffer = perf_counter_ns()
     frame_latencies.get_frame_from_buffer = (after_get_frame_from_buffer - start_of_current_frame) / 1_000_000
-
+    
     # TODO yolo possibly requires BGR while category models require RGB, look into and find solution
     
     if counter_app.map1 is not None and counter_app.map2 is not None:
@@ -548,6 +722,8 @@ def detection_frame_callback(pad, info, counter_app: CounterApp):
         frame_latencies.undistortion = (after_undistortion - after_get_frame_from_buffer) / 1_000_000
     else:
         after_undistortion = None
+        rgb_frame = frame
+
     bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
     results = counter_app.model.predict(bgr_frame, imgsz=counter_app.model_imgsz, verbose=False)[0]
     detections = Detections.from_ultralytics(results)
@@ -561,19 +737,31 @@ def detection_frame_callback(pad, info, counter_app: CounterApp):
     frame_latencies.inference = ((after_inference - after_undistortion) if after_undistortion is not None else (after_inference - after_get_frame_from_buffer)) / 1_000_000
     frame_latencies.tracking = (after_tracking - after_inference) / 1_000_000
 
-    counter_app.detection_frame_process(frame, bgr_frame, detections, frame_latencies, after_tracking)
+    jpeg_bytes = counter_app.detection_frame_process(frame, bgr_frame, detections, frame_latencies, after_tracking)
+    if counter_app.gstreamer_app.collect_raw_frames and counter_app.gstreamer_app.status != 'paused' and jpeg_bytes is not None:
+        annotated_buffer = Gst.Buffer.new_wrapped(jpeg_bytes)
+        annotated_buffer.pts = buffer.pts
+        annotated_buffer.dts = buffer.dts
+        annotated_buffer.duration = buffer.duration
+        annotated_buffer.offset = buffer.offset
+        annotated_buffer.offset_end = buffer.offset_end
+        counter_app.gstreamer_app.annotated_feed_collection_source.emit('push-buffer', annotated_buffer)
 
     return Gst.PadProbeReturn.OK
 
-def new_location_callback(splitmux, fragment_id, counter_app: CounterApp):
-    return f'{counter_app.raw_video_footage_dir}/{str(counter_app.counter.current_batch_uuid)}.avi'
+def annotated_collection_callback(splitmux, fragment_id, counter_app: CounterApp):
+    return f'{counter_app.raw_video_footage_dir}/annotated/{str(counter_app.counter.current_batch_uuid)}.avi'
+
+def raw_collection_callback(splitmux, fragment_id, counter_app: CounterApp):
+    return f'{counter_app.raw_video_footage_dir}/raw/{str(counter_app.counter.current_batch_uuid)}.avi'
     
 class CounterGstreamerApp(GStreamerApp):
-    def __init__(self, on_state_changed, on_stopped, first_file_name: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp):
-        super().__init__(on_state_changed, on_stopped, first_file_name, video_source, width, height, fps, user_data)
+    def __init__(self, on_state_changed, on_stopped, first_raw_file_path: str, first_annotated_file_path: str, video_source: str, width: int, height: int, fps: int, user_data: CounterApp, initial_camera_settings: str = None):
+        super().__init__(on_state_changed, on_stopped, first_raw_file_path, first_annotated_file_path, video_source, width, height, fps, user_data, initial_camera_settings=initial_camera_settings)
         self.collect_raw_frames = not user_data.is_test
         self.app_callback = detection_frame_callback
-        self.new_location_callback = new_location_callback
+        self.annotated_collection_callback = annotated_collection_callback
+        self.raw_collection_callback = raw_collection_callback
         self.create_pipeline()
 
 

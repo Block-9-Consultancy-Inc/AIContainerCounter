@@ -350,4 +350,334 @@ class StateUpdate_ResetConfirmationUpdate extends StateUpdate {
   }
 }
 
+/// @nodoc
+
+class StateUpdate_NewEazyPickupBag extends StateUpdate {
+  const StateUpdate_NewEazyPickupBag({required this.tagId}) : super._();
+
+  final int tagId;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_NewEazyPickupBagCopyWith<StateUpdate_NewEazyPickupBag>
+      get copyWith => _$StateUpdate_NewEazyPickupBagCopyWithImpl<
+          StateUpdate_NewEazyPickupBag>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_NewEazyPickupBag &&
+            (identical(other.tagId, tagId) || other.tagId == tagId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, tagId);
+
+  @override
+  String toString() {
+    return 'StateUpdate.newEazyPickupBag(tagId: $tagId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_NewEazyPickupBagCopyWith<$Res> {
+  factory $StateUpdate_NewEazyPickupBagCopyWith(
+          StateUpdate_NewEazyPickupBag value,
+          $Res Function(StateUpdate_NewEazyPickupBag) _then) =
+      _$StateUpdate_NewEazyPickupBagCopyWithImpl;
+  @useResult
+  $Res call({int tagId});
+}
+
+/// @nodoc
+class _$StateUpdate_NewEazyPickupBagCopyWithImpl<$Res>
+    implements $StateUpdate_NewEazyPickupBagCopyWith<$Res> {
+  _$StateUpdate_NewEazyPickupBagCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_NewEazyPickupBag _self;
+  final $Res Function(StateUpdate_NewEazyPickupBag) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? tagId = null,
+  }) {
+    return _then(StateUpdate_NewEazyPickupBag(
+      tagId: null == tagId
+          ? _self.tagId
+          : tagId // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_EazyPickupUserInfo extends StateUpdate {
+  const StateUpdate_EazyPickupUserInfo(
+      {required this.name, required this.eazyPickupId})
+      : super._();
+
+  final String name;
+  final String eazyPickupId;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_EazyPickupUserInfoCopyWith<StateUpdate_EazyPickupUserInfo>
+      get copyWith => _$StateUpdate_EazyPickupUserInfoCopyWithImpl<
+          StateUpdate_EazyPickupUserInfo>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_EazyPickupUserInfo &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.eazyPickupId, eazyPickupId) ||
+                other.eazyPickupId == eazyPickupId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, name, eazyPickupId);
+
+  @override
+  String toString() {
+    return 'StateUpdate.eazyPickupUserInfo(name: $name, eazyPickupId: $eazyPickupId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_EazyPickupUserInfoCopyWith<$Res> {
+  factory $StateUpdate_EazyPickupUserInfoCopyWith(
+          StateUpdate_EazyPickupUserInfo value,
+          $Res Function(StateUpdate_EazyPickupUserInfo) _then) =
+      _$StateUpdate_EazyPickupUserInfoCopyWithImpl;
+  @useResult
+  $Res call({String name, String eazyPickupId});
+}
+
+/// @nodoc
+class _$StateUpdate_EazyPickupUserInfoCopyWithImpl<$Res>
+    implements $StateUpdate_EazyPickupUserInfoCopyWith<$Res> {
+  _$StateUpdate_EazyPickupUserInfoCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_EazyPickupUserInfo _self;
+  final $Res Function(StateUpdate_EazyPickupUserInfo) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? name = null,
+    Object? eazyPickupId = null,
+  }) {
+    return _then(StateUpdate_EazyPickupUserInfo(
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      eazyPickupId: null == eazyPickupId
+          ? _self.eazyPickupId
+          : eazyPickupId // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_NewExpressBag extends StateUpdate {
+  const StateUpdate_NewExpressBag({required this.expressQrCode}) : super._();
+
+  final String expressQrCode;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_NewExpressBagCopyWith<StateUpdate_NewExpressBag> get copyWith =>
+      _$StateUpdate_NewExpressBagCopyWithImpl<StateUpdate_NewExpressBag>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_NewExpressBag &&
+            (identical(other.expressQrCode, expressQrCode) ||
+                other.expressQrCode == expressQrCode));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, expressQrCode);
+
+  @override
+  String toString() {
+    return 'StateUpdate.newExpressBag(expressQrCode: $expressQrCode)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_NewExpressBagCopyWith<$Res> {
+  factory $StateUpdate_NewExpressBagCopyWith(StateUpdate_NewExpressBag value,
+          $Res Function(StateUpdate_NewExpressBag) _then) =
+      _$StateUpdate_NewExpressBagCopyWithImpl;
+  @useResult
+  $Res call({String expressQrCode});
+}
+
+/// @nodoc
+class _$StateUpdate_NewExpressBagCopyWithImpl<$Res>
+    implements $StateUpdate_NewExpressBagCopyWith<$Res> {
+  _$StateUpdate_NewExpressBagCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_NewExpressBag _self;
+  final $Res Function(StateUpdate_NewExpressBag) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? expressQrCode = null,
+  }) {
+    return _then(StateUpdate_NewExpressBag(
+      expressQrCode: null == expressQrCode
+          ? _self.expressQrCode
+          : expressQrCode // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_BagIdMissing extends StateUpdate {
+  const StateUpdate_BagIdMissing() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is StateUpdate_BagIdMissing);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate.bagIdMissing()';
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_UserLogin extends StateUpdate {
+  const StateUpdate_UserLogin({required this.user}) : super._();
+
+  final AuthorizedUser user;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateUpdate_UserLoginCopyWith<StateUpdate_UserLogin> get copyWith =>
+      _$StateUpdate_UserLoginCopyWithImpl<StateUpdate_UserLogin>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_UserLogin &&
+            (identical(other.user, user) || other.user == user));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, user);
+
+  @override
+  String toString() {
+    return 'StateUpdate.userLogin(user: $user)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $StateUpdate_UserLoginCopyWith<$Res> {
+  factory $StateUpdate_UserLoginCopyWith(StateUpdate_UserLogin value,
+          $Res Function(StateUpdate_UserLogin) _then) =
+      _$StateUpdate_UserLoginCopyWithImpl;
+  @useResult
+  $Res call({AuthorizedUser user});
+}
+
+/// @nodoc
+class _$StateUpdate_UserLoginCopyWithImpl<$Res>
+    implements $StateUpdate_UserLoginCopyWith<$Res> {
+  _$StateUpdate_UserLoginCopyWithImpl(this._self, this._then);
+
+  final StateUpdate_UserLogin _self;
+  final $Res Function(StateUpdate_UserLogin) _then;
+
+  /// Create a copy of StateUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? user = null,
+  }) {
+    return _then(StateUpdate_UserLogin(
+      user: null == user
+          ? _self.user
+          : user // ignore: cast_nullable_to_non_nullable
+              as AuthorizedUser,
+    ));
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_FailedLogin extends StateUpdate {
+  const StateUpdate_FailedLogin() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is StateUpdate_FailedLogin);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate.failedLogin()';
+  }
+}
+
+/// @nodoc
+
+class StateUpdate_UserLoginLoading extends StateUpdate {
+  const StateUpdate_UserLoginLoading() : super._();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateUpdate_UserLoginLoading);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'StateUpdate.userLoginLoading()';
+  }
+}
+
 // dart format on

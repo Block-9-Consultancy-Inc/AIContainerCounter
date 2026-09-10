@@ -1,11 +1,8 @@
-const express = require('express');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const unixPrint = require('unix-print');
 
-const app = express();
-app.use(express.json());
 
 const PORT = 3000;
 const REFUND_RATE = 0.10; // 10 cents per container
@@ -13,17 +10,16 @@ const REFUND_RATE = 0.10; // 10 cents per container
 const COLUMN_WIDTH_12_FONT = 36
 const COLUMN_WIDTH_14_FONT = 31
 
-// unixPrint.getPrinters().then((printers) => {
-//     console.log(printers);
-// });
+unixPrint.getPrinters().then((printers) => {
+    console.log(printers);
+});
 
 const divider = (length) => {
     return '-'.repeat(length);
 };
 
-app.post('/print-receipt', async (req, res) => {
+const print_receipt = async (transactionNumber, totalCount, categories) => {
     try {
-        const { transactionNumber, totalCount, categories } = req.body;
         const refundTotal = (totalCount * REFUND_RATE).toFixed(2);
         
         // Create a new PDF document
@@ -40,20 +36,19 @@ app.post('/print-receipt', async (req, res) => {
         // Add company logo (using a placeholder rectangle for this example)
         doc.image('recyclorobo-logo.png', (doc.page.width - 200) / 2, 20, { width: 200 })
         doc.moveDown()
-        
 
-        const idDividerWidth = COLUMN_WIDTH_14_FONT - 'Transaction ID'.length - transactionNumber.toLocaleString().length - 2
+        const idDividerWidth = COLUMN_WIDTH_14_FONT - 'Transaction ID'.length - transactionNumber.toString().length - 2
 
         // Add container categories
         doc.font('Roboto_Mono/static/RobotoMono-Bold.ttf').fontSize(14);
         doc.text(`Transaction ID ${divider(idDividerWidth)} ${transactionNumber}`).moveDown();
         doc.font('Roboto_Mono/RobotoMono-VariableFont_wght.ttf').fontSize(12);
-        // for (const [category, count] of Object.entries(categories)) {
-        //     const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toLocaleString().length - 2
-        //     doc.text(`${category} ${divider(dividerWidth)} ${count}`);
-        // }
+        for (const [category, count] of Object.entries(categories)) {
+            const dividerWidth = COLUMN_WIDTH_12_FONT - category.length - count.toString().length - 2
+            doc.text(`${category} ${divider(dividerWidth)} ${count}`);
+        }
 
-        const totalDividerWidth = COLUMN_WIDTH_14_FONT - 'Total'.length - totalCount.toLocaleString().length - 2
+        const totalDividerWidth = COLUMN_WIDTH_14_FONT - 'Total'.length - totalCount.toString().length - 2
         const totalRefundDividerWidth = COLUMN_WIDTH_14_FONT - 'Total Refund'.length - refundTotal.length - 3
 
         const time = new Date()
@@ -87,30 +82,17 @@ app.post('/print-receipt', async (req, res) => {
                 // Clean up temporary file
                 fs.unlinkSync(filePath);
                 
-                res.json({
-                    success: true,
-                    message: 'Receipt printed successfully',
-                    refundTotal
-                });
             } catch (printError) {
-                res.status(500).json({
-                    success: false,
-                    message: 'Error printing receipt',
-                    error: printError.message
-                });
+                console.log(printError)
             }
         });
         
     } catch (error) {
         console.log(error);
-        res.status(500).json({
-            success: false,
-            message: 'Error generating receipt',
-            error: error.message
-        });
     }
-});
+};
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+print_receipt(123456, 120, {
+    'can': 120,
+    'plastic': 0
+})

@@ -115,7 +115,7 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=1920, video_he
         str: A string representing the GStreamer pipeline for the video source.
     """
     source_element = (
-        f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate={fps}/1 ! '
+        f'v4l2src device={video_source} name={name} ! image/jpeg, width={video_width}, height={video_height}, framerate=120/1 ! '
         f'{QUEUE(name=f"video_rate_q")} ! videorate max-rate={fps} ! '
         f'{QUEUE(name=f"tee_q")} ! '
         'tee name=t '
@@ -156,17 +156,20 @@ class GStreamerApp:
             self,
             on_state_changed: Callable,
             on_stopped: Callable,
-            first_file_name: str,
+            first_raw_file_path: str,
+            first_annotated_file_path: str,
             video_source: str,
             width: int,
             height: int,
             fps: int,
             user_data,
+            initial_camera_settings: str = None,
             socket_path = 'test.socket'
         ):
         # Set up signal handler for SIGINT (Ctrl-C)
         signal.signal(signal.SIGINT, self.shutdown)
-        self.first_file_path = first_file_name
+        self.first_raw_file_path = first_raw_file_path
+        self.first_annotated_file_path = first_annotated_file_path
         self.width = width
         self.height = height
         self.fps = fps
@@ -175,20 +178,33 @@ class GStreamerApp:
         self.user_data = user_data
         self.pipeline = None
         self.data_collection_pipeline = None
+        self.data_collection_splitmuxsink = None
+        self.annotated_feed_pipeline = None
+        self.annotated_feed_collection_source = None
+        self.annotated_feed_collection_splitmuxsink = None
         self.app_callback = None
-        self.data_collection_callback = None
-        self.new_location_callback = None
+        self.raw_collection_callback = None
+        self.annotated_collection_callback = None
         self.collect_raw_frames = True
         self.socket_path = socket_path
         self.status = 'stopped'
         self.on_state_changed = on_state_changed
         self.on_state_changed(self.status)
         self.on_stopped = on_stopped
+        self.camera_settings = initial_camera_settings
+        self.main_loop = None
 
 
     def on_fps_measurement(self, sink, fps, droprate, avgfps):
         print(f"FPS: {fps:.2f}, Droprate: {droprate:.2f}, Avg FPS: {avgfps:.2f}")
         return True
+    
+    def update_camera_settings(self, camera_settings: str):
+        self.camera_settings = camera_settings
+        v4l2src = self.pipeline.get_by_name('source')
+        if v4l2src is not None:
+            camera_settings_structure, _ = Gst.Structure.from_string(self.camera_settings)
+            v4l2src.set_property('extra-controls', camera_settings_structure)
 
     def create_pipeline(self):
         # Initialize GStreamer
@@ -196,7 +212,16 @@ class GStreamerApp:
 
         pipeline_string = self.get_pipeline_string()
         try:
-            self.pipeline = Gst.parse_launch(pipeline_string)
+            self.pipeline: Gst.Pipeline = Gst.parse_launch(pipeline_string)
+
+            print(self.camera_settings)
+
+            if self.camera_settings is not None:
+                v4l2src = self.pipeline.get_by_name('source')
+                if v4l2src is not None:
+                    camera_settings_structure, _ = Gst.Structure.from_string(self.camera_settings)
+                    v4l2src.set_property('extra-controls', camera_settings_structure)
+                    camera_settings_structure.free()
 
             bus = self.pipeline.get_bus()
             bus.add_signal_watch()
@@ -217,16 +242,33 @@ class GStreamerApp:
             sys.exit(1)
 
         if self.collect_raw_frames:
-            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_file_path)
+            data_collection_pipeline_string = self.get_raw_feed_collection_pipeline_string(self.first_raw_file_path)
             try:
                 self.data_collection_pipeline = Gst.parse_launch(data_collection_pipeline_string)
-                splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
-                splitmuxsink.connect('format-location', self.new_location_callback, self.user_data)
+                self.data_collection_splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
+                self.data_collection_splitmuxsink.connect('format-location', self.raw_collection_callback, self.user_data)
                 disable_qos(self.data_collection_pipeline)
             except Exception as e:
                 print(f'error with data collection pipeline: {e}')
                 print(data_collection_pipeline_string)
                 sys.exit(1)
+
+            annotated_feed_pipeline_string = self.get_annotated_feed_collection_pipeline_string(self.first_annotated_file_path)
+            try:
+                self.annotated_feed_pipeline = Gst.parse_launch(annotated_feed_pipeline_string)
+                self.annotated_feed_collection_source = self.annotated_feed_pipeline.get_by_name('annotated_feed_collection_source')
+                caps = Gst.Caps.from_string(f"image/jpeg,width={self.width},height={self.height},framerate={self.fps}/1")
+                self.annotated_feed_collection_source.set_property("caps", caps)
+                self.annotated_feed_collection_splitmuxsink = self.annotated_feed_pipeline.get_by_name('splitmuxsink')
+                self.annotated_feed_collection_splitmuxsink.connect('format-location', self.annotated_collection_callback, self.user_data)
+                disable_qos(self.annotated_feed_pipeline)
+            except Exception as e:
+                print(f'error with annotated feed collection pipeline: {e}')
+                print(annotated_feed_pipeline_string)
+                sys.exit(1)
+
+
+                
 
 
     def bus_call(self, bus, message, loop=None):
@@ -237,7 +279,7 @@ class GStreamerApp:
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print(f"Error: {err}, {debug}")
-            self.shutdown()
+            # self.shutdown()
         # QOS
         elif t == Gst.MessageType.QOS:
             # Handle QoS message here
@@ -270,16 +312,19 @@ class GStreamerApp:
         self.pipeline.set_state(Gst.State.PAUSED)
         if self.collect_raw_frames:
             self.data_collection_pipeline.set_state(Gst.State.PAUSED)
+            self.annotated_feed_pipeline.set_state(Gst.State.PAUSED)
         GLib.usleep(100000)  # 0.1 second delay
 
         self.pipeline.set_state(Gst.State.READY)
         if self.collect_raw_frames:
             self.data_collection_pipeline.set_state(Gst.State.READY)
+            self.annotated_feed_pipeline.set_state(Gst.State.READY)
         GLib.usleep(100000)  # 0.1 second delay
 
         self.pipeline.set_state(Gst.State.NULL)
         if self.collect_raw_frames:
             self.data_collection_pipeline.set_state(Gst.State.NULL)
+            self.annotated_feed_pipeline.set_state(Gst.State.NULL)
         self.status = 'stopped'
         self.on_state_changed(self.status, error=error, debug=debug)
         print('Pipeline now stopped fully')
@@ -287,12 +332,15 @@ class GStreamerApp:
         if self.collect_raw_frames and on_request:
             print(f'ON REQUEST: {on_request}')
             self.create_pipeline()
+        if self.main_loop is not None:
+            self.main_loop.quit()
+            self.main_loop = None
 
 
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(self.video_source, video_width=self.width, video_height=self.height, fps=self.fps)
         user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        display_pipeline = 'fakesink sync=true'
+        display_pipeline = f'{QUEUE(name='display_q')} ! fakesink sync=true'
         pipeline_string = (
             f'{source_pipeline} '
             f'{user_callback_pipeline} ! '
@@ -302,6 +350,11 @@ class GStreamerApp:
             pipeline_string += f' t. ! {QUEUE(name=f"valve_q")} ! valve name=valve drop=false ! {QUEUE(name=f"shmsink_q")} ! shmsink socket-path={self.socket_path} wait-for-connection=false'
 
         print(f'main pipeline: {pipeline_string}')
+        return pipeline_string
+    
+    def get_annotated_feed_collection_pipeline_string(self, first_file_path):
+        pipeline_string = f'appsrc is-live=true do-timestamp=true format=3 name=annotated_feed_collection_source ! {QUEUE(name='splitmuxsink_q')} ! splitmuxsink name=splitmuxsink async-finalize=true muxer-factory=avimux location={first_file_path}'
+        print(f'annotated feed collection pipeline: {pipeline_string}')
         return pipeline_string
     
     def get_raw_feed_collection_pipeline_string(self, first_file_path):
@@ -323,19 +376,22 @@ class GStreamerApp:
     def signal_new_file(self):
         if not self.collect_raw_frames:
             return
-        splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
-        splitmuxsink.emit('split-now')
+        self.data_collection_splitmuxsink.emit('split-now')
+        self.annotated_feed_collection_splitmuxsink.emit('split-now')
 
     def update_file_location_directly(self):
         if not self.collect_raw_frames:
             return
         splitmuxsink = self.data_collection_pipeline.get_by_name('splitmuxsink')
-        splitmuxsink.set_property('location', self.first_file_path)
+        splitmuxsink.set_property('location', self.first_raw_file_path)
 
     def run(self):
         if self.status != 'stopped':
             print(f'Current pipeline status is {self.status}, cannot run from scratch')
             return
+        
+        if self.collect_raw_frames:
+            self.annotated_feed_pipeline.set_state(Gst.State.PLAYING)
 
         # Set pipeline to PLAYING state
         self.pipeline.set_state(Gst.State.PLAYING)
@@ -349,7 +405,9 @@ class GStreamerApp:
             GLib.usleep(2000000)  # 2 second delay
             self.data_collection_pipeline.set_state(Gst.State.PLAYING)
 
-
+        self.main_loop = GLib.MainLoop()
+        self.main_loop.run()
+        print('PIPELINE HAS NOW STOPPED AFTER MAIN LOOP')
 
 
     def stop(self):
@@ -441,6 +499,7 @@ def get_numpy_from_buffer(buffer, format, width, height):
     finally:
         buffer.unmap(map_info)
 
+
 # ---------------------------------------------------------
 # Useful functions for working with GStreamer
 # ---------------------------------------------------------
@@ -475,10 +534,10 @@ def disable_qos(pipeline):
 if __name__ == '__main__':
     def on_stopped():
         pass
-    gstreamer_app = GStreamerApp(video_source='/dev/video0', user_data=AppCallback(), first_file_name='test.avi', width=1920, height=1080, fps=120, on_state_changed=lambda e: e, on_stopped=on_stopped)
+    gstreamer_app = GStreamerApp(video_source='/dev/video0', user_data=AppCallback(), first_raw_file_path='test.avi', width=1920, height=1080, fps=120, on_state_changed=lambda e: e, on_stopped=on_stopped)
     gstreamer_app.collect_raw_frames = False
     gstreamer_app.app_callback = dummy_app_callback
-    gstreamer_app.data_collection_callback = dummy_data_collection_callback
+    gstreamer_app.raw_collection_callback = dummy_data_collection_callback
     gstreamer_app.create_pipeline()
     gstreamer_app.run()
     GLib.MainLoop().run()

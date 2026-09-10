@@ -3,7 +3,7 @@ import supervision as sv
 import json
 import numpy as np
 import roboflow
-from sqlite_db import get_all_batches_from_day, MultiContainerImage, SingleContainerImage, BBox, Batch
+from sqlmodel_db import get_all_batches_from_day, MultiContainerImage, SingleContainerImage, BBox, Batch
 from datetime import datetime, timedelta
 from random import randint
 from concurrent.futures import ThreadPoolExecutor, as_completed

@@ -1,5 +1,5 @@
 import os
-from sqlite_db import init_db, Batch
+from sqlmodel_db import init_db, Batch
 from random import randint
 import shutil
 

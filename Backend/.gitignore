@@ -1,7 +1,7 @@
 test_video_input
 test_video_output
 images
-data
+data*
 mocked_counts.json
 processed-counting-machine-test-videos
 test-predictions

@@ -116,7 +116,7 @@ def cast_uuid_to_text(uuids: list[str]) -> str:
             output += ')'
     return output
 
-async def fetch_and_mark_images(num_of_images: int, is_from_densifier: bool = False) -> Tuple[List[str], List[Dict[str, str]]]:
+async def fetch_and_mark_images(num_of_images: int, is_from_densifier: bool = True) -> Tuple[List[str], List[Dict[str, str]]]:
     try:
         async with db.tx() as tx:
             # Step 1: Select and lock the images
@@ -215,13 +215,6 @@ async def assign_tasks(input: AssignTaskInput):
         await db.verificationsession.create(verification_session_to_create)
         await db.imageinverificationsession.create_many(image_in_sessions_to_create, skip_duplicates=True)
 
-        if get_settings().python_env == 'PRODUCTION':
-            now = datetime.now()
-            await create_pulse_tasks(PulseCreateTaskInput(
-                roboflow_id=input.user_id,
-                due_date=f'{now.year}-{now.month:02d}-{(now.day + 1):02d}',
-                tasks=[pulse_task_to_create]
-            ))
 
         return AssignTaskResponse(
             task=CreatedTask(
@@ -249,7 +242,8 @@ async def get_active_task(
         },
         include={
             'imageInVerificationSession': { 'include': { 'image': { 'include': { 'bboxes': True }}}}
-        }
+        },
+        order={ 'timeAssigned': 'desc' }
     )
 
     if verification_session is None:
@@ -325,7 +319,7 @@ async def complete_task(input_data: CompleteTaskBboxInput):
                 detail=f"No active verification session found for user {input_data.user_id}"
             )
         
-        image_ids = list(map(lambda e: e.image_id, input_data.images))
+        image_ids = list(map(lambda e: e.imageId, verification_session.imageInVerificationSession))
         
         original_images = await db.image.find_many(
             where={ 'id': { 'in': image_ids }},

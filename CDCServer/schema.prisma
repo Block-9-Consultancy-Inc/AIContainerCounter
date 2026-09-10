@@ -191,7 +191,7 @@ model Batch {
     miscellaneousNotes          String?
     areaCollected               String?
     batchType                   BatchType           @default(AUDIT)
-    batchIDByType               String?             @unique
+    batchIDByType               String?
     countiUnit                  CountiUnit          @relation(fields: [countiUnitId], references: [id])
     countiUnitId                String
     countingStrategy            CountingStrategy

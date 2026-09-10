@@ -1,12 +1,13 @@
 from datetime import datetime
-from prisma.models import Image, DatasetSnapshot, Correction, BBox, ImageInVerificationSession, VerificationSession
-from prisma.enums import DatasetSplit, ImageStatus, DatasetSnapshotType, CorrectionType
+from prisma.models import Image, Correction, BBox, ImageInVerificationSession, VerificationSession
+from prisma.enums import ImageStatus, CorrectionType
 import copy
 import uuid
-from PIL import ImageDraw, ImageFont
-import PIL
 from pydantic import BaseModel, Field
 from typing import List, Optional
+import cv2
+import supervision as sv
+import numpy as np
 
 # --- Configuration ---
 IOU_THRESHOLD = 0.9
@@ -511,7 +512,35 @@ def run_corrections_calculation_on_one_image(image: Image, roboflow_image: Image
     verification_session_id = image.imageInVerificationSession[-1].verificationSessionId if use_existing_verification_session else None
     return image, list(map(lambda e: correction_to_model(image.id, e, verification_session_id=verification_session_id), corrections)), verification_session_id
 
-def generate_image_with_bounding_boxes(boxes, image_path, output_path, image_size=(1920, 1080), background_color=(0, 0, 0), box_color=(255, 0, 0), box_thickness=2):
+color_pallete = sv.ColorPalette(
+    colors = [
+        sv.Color(r=230, g=25,  b=75),   # Strong Red
+        sv.Color(r=60,  g=180, b=75),   # Dark Green
+        sv.Color(r=0,   g=130, b=200),  # Medium Blue
+        sv.Color(r=245, g=130, b=48),   # Orange
+        sv.Color(r=145, g=30,  b=180),  # Purple
+        sv.Color(r=70,  g=240, b=240),  # Cyan
+        sv.Color(r=240, g=50,  b=230),  # Magenta
+        sv.Color(r=210, g=245, b=60),   # Lime Green
+        sv.Color(r=128, g=0,   b=0),    # Maroon
+        sv.Color(r=0,   g=128, b=128),  # Teal
+        sv.Color(r=0,   g=0,   b=128),  # Navy Blue
+        sv.Color(r=128, g=128, b=0),    # Olive
+        sv.Color(r=220, g=20,  b=60),   # Crimson
+        sv.Color(r=255, g=69,  b=0),    # Red-Orange
+        sv.Color(r=46,  g=139, b=87),   # Sea Green
+        sv.Color(r=72,  g=61,  b=139),  # Dark Slate Blue
+        sv.Color(r=139, g=0,   b=139),  # Dark Magenta
+        sv.Color(r=0,   g=100, b=0),    # Dark Green
+        sv.Color(r=85,  g=107, b=47),   # Dark Olive Green
+        sv.Color(r=47,  g=79,  b=79)    # Dark Slate Gray
+    ]
+)
+
+bbox_annotator = sv.BoxAnnotator(color_lookup=sv.ColorLookup.INDEX, color=color_pallete, thickness=3    )
+label_annotator = sv.LabelAnnotator(color_lookup=sv.ColorLookup.INDEX, color=color_pallete, text_position=sv.Position.CENTER, text_scale=1, text_thickness=2)
+
+def generate_image_with_bounding_boxes(boxes, image_path, output_path):
     """
     Generates an image with bounding boxes drawn on it.
 
@@ -527,29 +556,30 @@ def generate_image_with_bounding_boxes(boxes, image_path, output_path, image_siz
         A PIL Image object with the bounding boxes drawn on it.
     """
     # Create a new image with the specified size and background color
-    img = PIL.Image.open(image_path)
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default(40)
+    img = cv2.imread(image_path)
 
+    xyxy = []
+    labels = []
     # Draw each bounding box on the image
-    for box in boxes:
+    for index, box in enumerate(boxes):
         x1 = box['x']
         y1 = box['y']
         x2 = x1 + box['w']
         y2 = y1 + box['h']
+        xyxy.append([x1, y1, x2, y2])
         label = box['label']
+        labels.append(f'{index}: {label}')
 
-        # Draw the rectangle
-        draw.rectangle([(x1, y1), (x2, y2)], outline=box_color, width=box_thickness)
+    xyxy = np.array(xyxy)
+    xyxy.shape = (len(boxes), 4)
+    detections = sv.Detections(xyxy=xyxy)
 
-        # Draw the label.  Try to place it above the box, but if there isn't room,
-        # place it below.
-        label_y = y1 - 10
-        if label_y < 0:
-            label_y = y2 + 2
-        draw.text((x1 + 10, label_y + 10), label, fill=box_color, font=font)
+    annotated_img = bbox_annotator.annotate(img, detections)
+    annotated_img = label_annotator.annotate(annotated_img, detections, labels)
 
-    img.save(output_path)
+    cv2.imwrite(output_path, annotated_img)
+
+
 
 
 if __name__ == '__main__':

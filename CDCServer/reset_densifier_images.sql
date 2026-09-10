@@ -1,0 +1,5 @@
+ALTER TABLE "Correction" DROP CONSTRAINT "Correction_originalCorrectionId_fkey";
+delete from "Correction" where "imageId" in (select distinct i.id from "Image" i left join "Batch" b on b.id = i."batchId" where i."imageStatus" = 'VERIFIED' and b."batchType" = 'DENSIFIER');
+WITH affected_sessions AS (delete from "ImageInVerificationSession" where "imageId" in (select distinct i.id from "Image" i left join "Batch" b on b.id = i."batchId" where i."imageStatus" = 'VERIFIED' and b."batchType" = 'DENSIFIER') returning "verificationSessionId")
+DELETE FROM "VerificationSession" USING affected_sessions a WHERE id = a."verificationSessionId";
+UPDATE "Image" SET "imageStatus" = 'ON_QUEUE' WHERE id in (select distinct i.id from "Image" i left join "Batch" b on b.id = i."batchId" where i."imageStatus" = 'VERIFIED' and b."batchType" = 'DENSIFIER');

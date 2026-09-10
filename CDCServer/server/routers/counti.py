@@ -58,7 +58,7 @@ class BatchInput(BaseModel):
     container_model_id: Optional[str]
     category_model_id: Optional[str]
     batch_type: str
-    batch_id_by_type: str
+    batch_id_by_type: Optional[str]
     counting_strategy: CountingStrategy
     images: List[ImageInBatchInput]
     tags:   Optional[List[str]]

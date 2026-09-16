@@ -8,6 +8,7 @@ import uuid
 from multiprocessing import Process, Queue, shared_memory
 import utils.sqlmodel_db as sqlite_db
 import json
+from pydantic import BaseModel
 
 category_classes = [
     'can',
@@ -111,6 +112,10 @@ class TrackerIdPredictionHistogram:
         self.histogram = {}
 
 
+class AuthorizedUser(BaseModel):
+    user_id: str
+    user_name: str
+    signed_in_time: datetime
 
 
 class Counter:
@@ -181,6 +186,7 @@ class Counter:
         self.current_eazy_pickup_tag_id: int = None
         self.current_eazy_pickup_id: str = None
         self.current_eazy_pickup_user_name: str = None
+        self.authorized_user: AuthorizedUser = None
 
         if not self.is_test:
             self.save_state_process = Process(target=save_state_process, args=[self.data_to_save_queue, collected_images_dir])
@@ -544,5 +550,6 @@ def counter_to_batch(counter: Counter, submitted = False):
             expected_gabletop_count=counter.expected_category_counts.get('gabletop') if counter.expected_category_counts is not None else None,
             expected_pouch_count=counter.expected_category_counts.get('pouch') if counter.expected_category_counts is not None else None,
             yolo_model=counter.yolo_model,
-            category_model=counter.category_model
+            category_model=counter.category_model,
+            authorized_user_id=counter.authorized_user.user_id if counter.authorized_user is not None else None
         )

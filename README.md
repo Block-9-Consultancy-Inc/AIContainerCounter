@@ -26,3 +26,11 @@ gst-launch-1.0 filesrc location=processed-counting-machine-test-videos/speed-5-1
 ### Convert H.264 mp4 to MJPEG avi
 
 gst-launch-1.0 filesrc location=test.mp4 ! decodebin ! jpegenc ! avimux ! filesink location=test.avi
+
+### License
+
+This project is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
+
+Copyright (C) 2025-2026 Block-9 Consultancy Inc.
+
+This software uses [Ultralytics YOLO](https://github.com/ultralytics/ultralytics), licensed under AGPL-3.0. Trained/fine-tuned YOLO model weights and derivative works are likewise AGPL-3.0.

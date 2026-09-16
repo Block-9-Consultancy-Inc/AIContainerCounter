@@ -10,6 +10,7 @@ import numpy as np
 from multiprocessing import shared_memory
 import requests
 from utils.receipt_printer import print_receipt
+import json
 
 
 DATABASE_PATH = 'resources/state.db'
@@ -49,6 +50,7 @@ class Batch(SQLModel, table=True):
     deleted_images_locally: bool = Field(default=False)
     multi_container_images: list["MultiContainerImage"] = Relationship(back_populates="batch")
     single_container_images: list["SingleContainerImage"] = Relationship(back_populates="batch")
+    authorized_user_id: str = Field()
 
 
 class MultiContainerImage(SQLModel, table=True):
@@ -380,16 +382,15 @@ def save_state(data_to_save: DataToSave, collected_images_dir: str):
             session.add_all(data_to_save.single_container_images)
 
             if data_to_save.batch_submitted:
-                batch = data_to_save.batch
-                COUNTI_TOKEN = "eft373HZsZ2XAVfsFdnGhYSy9q4LiFwYCy2EVobOdkksKDUUeQ8kmzBimOjtR5mj"
-                API_URL = 'https://counti.recyclorobo.ai/api/store-batch'
-                start_time = data_to_save.batch.time_started.astimezone(datetime.timezone.utc)
-                end_time = data_to_save.batch.time_submitted.astimezone(datetime.timezone.utc)
-                
-                response = requests.post(
-                    API_URL,
-                    headers={"X-Counti-Token": COUNTI_TOKEN},
-                    json={
+                try:
+                    batch = data_to_save.batch
+                    COUNTI_TOKEN = "eft373HZsZ2XAVfsFdnGhYSy9q4LiFwYCy2EVobOdkksKDUUeQ8kmzBimOjtR5mj"
+                    API_URL = 'https://counti.recyclorobo.ai/api/store-batch'
+                    start_time = data_to_save.batch.time_started.astimezone(datetime.timezone.utc)
+                    end_time = data_to_save.batch.time_submitted.astimezone(datetime.timezone.utc)
+                    headers = {"X-Counti-Token": COUNTI_TOKEN}
+                    print(json.dumps(headers, indent=4))
+                    body = {
                         'uuid': str(batch.id),
                         'identifier': batch.eazy_pickup_id if batch.eazy_pickup_id is not None else batch.express_qr_code,
                         'type': 'Eazy Pickup' if batch.eazy_pickup_id is not None else 'Express' if batch.express_qr_code is not None else 'Audit',
@@ -404,14 +405,27 @@ def save_state(data_to_save: DataToSave, collected_images_dir: str):
                         'start_time': start_time.strftime("%Y-%m-%d %H:%M:%S"),
                         'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
                         'video_s3_object_key': f'counti-videos/{batch.id}/annotated.mp4',
-                        'authorized_user_id': 1,
-                    },
-                    timeout=15
-                )
-                response_data = response.json()
-                print(f'COUNTI DASHBOARD RESPONSE: {response_data}')
-                batch.uploaded_to_counti_dashboard = True
-                session.merge(batch)
+                        'authorized_user_id': batch.authorized_user_id,
+                    }
+                    print(json.dumps(body, indent=4))
+                    response = requests.post(
+                        API_URL,
+                        headers=headers,
+                        json=body,
+                        timeout=15
+                    )
+                    print(response.status_code)
+                    response_data = response.json()
+                    print(f'COUNTI DASHBOARD RESPONSE: {response_data}')
+                    if isinstance(response_data, dict) and response_data.get('success', False):
+                        batch.uploaded_to_counti_dashboard = True
+                    else:
+                        batch.uploaded_to_counti_dashboard = False
+                    session.merge(batch)
+                except Exception as e:
+                    print(f'Failed to save to COUNTI DASHBOARD: {e}')
+                    batch.uploaded_to_counti_dashboard = False
+                    session.merge(batch)
 
             session.commit()
 
@@ -475,6 +489,7 @@ def batch_to_dict(batch: Batch, include_relations: bool = False) -> dict:
         'uploaded_to_counti_dashboard': batch.uploaded_to_counti_dashboard,
         'deleted_videos_locally': batch.deleted_videos_locally,
         'deleted_images_locally': batch.deleted_images_locally,
+        'authorized_user_id': batch.authorized_user_id,
     }
     
     if include_relations:

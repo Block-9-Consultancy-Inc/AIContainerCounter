@@ -30,7 +30,7 @@ from enum import Enum
 from utils.scanner_listener import ScannerListener
 from utils.nfc_listener import NFCListener
 import requests
-from pydantic import BaseModel
+from counter import AuthorizedUser
 
 class PipelineFrameLatencies:
     '''The latencies for the current frame in the pipeline. Each step is in order of appearance in the class.'''
@@ -104,11 +104,6 @@ class AvgPipelineFrameLatencies(PipelineFrameLatencies):
     avg_socketio_emit_time: {self.socketio_emit:0.2f} ms, num_of_frames: {self.num_of_frames}, num_of_frames_with_video_emitting: {self.num_of_frames_with_video_emitting}
     '''
 
-class AuthorizedUser(BaseModel):
-    user_id: str
-    user_name: str
-    signed_in_time: datetime
-
 class DetectionStatus(Enum):
     RUNNING = 0
     STOPPED = 1
@@ -166,9 +161,6 @@ class CounterApp:
         self.last_time_detection_paused = datetime.now()
         self.last_time_detection_played = datetime.now()
         self.detection_status = DetectionStatus.STOPPED
-        
-        self.authorized_user: AuthorizedUser = None
-
         try:
             os.remove('test.socket')
         except:
@@ -258,7 +250,7 @@ class CounterApp:
             self.sio.emit('batches_state', {
                 'summary': today_summary.__dict__,
                 'batches': [batch_to_dict(batch)] if batch is not None else [],
-                'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                'authorized_user': self.counter.authorized_user.model_dump() if self.counter.authorized_user is not None else None,
                 'update_summary': batch is not None,
                 'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
                 'express_qr_code': self.counter.current_express_qr_code,
@@ -292,7 +284,7 @@ class CounterApp:
             self.sio.emit('batches_state', {
                 'summary': today_summary,
                 'batches': batches,
-                'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                'authorized_user': self.counter.authorized_user.model_dump() if self.counter.authorized_user is not None else None,
                 'update_summary': False,
                 'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
                 'express_qr_code': self.counter.current_express_qr_code,
@@ -346,7 +338,7 @@ class CounterApp:
         def stop_pipeline(sid, msg):
             print(f'stopping')
             self.detection_status = DetectionStatus.STOPPED
-            self.authorized_user = None
+            self.counter.authorized_user = None
             self.gstreamer_app.stop()
 
         @sio.on('camera-setting-update')
@@ -398,7 +390,7 @@ class CounterApp:
                             emit_button_pressed_event = False
                         else:
                             self.detection_status = DetectionStatus.STOPPED
-                            self.authorized_user = None
+                            self.counter.authorized_user = None
                             self.gstreamer_app.stop()
                     else:
                         emit_button_pressed_event = False
@@ -438,7 +430,7 @@ class CounterApp:
             def on_scan(data: str):
                 print(f'SCANNED QR CODE: {data}')
                 
-                if self.authorized_user is None:
+                if self.counter.authorized_user is None:
                     self.sign_in_authorized_user(data)
                 else:
                     self.counter.current_express_qr_code = data
@@ -558,15 +550,15 @@ class CounterApp:
                 print(f'unable to login user with id: {user_id}: {response_data.get('message')}')
                 self.sio.emit('failed_login_state', 'failed_login')
                 return
-            self.authorized_user = AuthorizedUser(
+            self.counter.authorized_user = AuthorizedUser(
                 user_id=user_id,
                 user_name=response_data.get('data').get('name'),
                 signed_in_time=datetime.now()
             )
-            print(f'Authorized User: {self.authorized_user}')
-            self.sio.emit('user_login_state', self.authorized_user.model_dump())
+            print(f'Authorized User: {self.counter.authorized_user}')
+            self.sio.emit('user_login_state', self.counter.authorized_user.model_dump())
         except Exception as e:
-            self.authorized_user = None
+            self.counter.authorized_user = None
             print(f'unable to login user with id: {user_id} due to: {e}')
             self.sio.emit('failed_login_state', 'failed_login')
             return
@@ -659,7 +651,7 @@ class CounterApp:
                 self.sio.emit('batches_state', {
                     'summary': today_summary.__dict__,
                     'batches': [batch_to_dict(batch)] if batch is not None else [],
-                    'authorized_user': self.authorized_user.model_dump() if self.authorized_user is not None else None,
+                    'authorized_user': self.counter.authorized_user.model_dump() if self.counter.authorized_user is not None else None,
                     'update_summary': batch is not None,
                     'camera_settings': list(map(lambda e: e.model_dump(), get_camera_settings())),
                     'express_qr_code': self.counter.current_express_qr_code,
